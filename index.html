@@ -245,6 +245,7 @@
             
             const [isMottoLocked, setIsMottoLocked] = useState(true);
             const [isPlanLocked, setIsPlanLocked] = useState(true);
+            const [isSatDetailsOpen, setIsSatDetailsOpen] = useState(false);
             const [sections, setSections] = useState(getStoredSections);
             const toggleSection = (key) => setSections(p => { const n = {...p, [key]: !p[key]}; localStorage.setItem('ah_std_sections_latest', JSON.stringify(n)); return n; });
 
@@ -774,9 +775,15 @@
                                                 </div>
 
                                                 {/* 2. 衛星部位分類 */}
-                                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
-                                                    <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-200/50">
-                                                        <span className="text-xs font-black text-slate-800">2. 機動衛星部位 (1x / 2x)</span>
+                                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm transition-all duration-200">
+                                                    <div 
+                                                        className="flex justify-between items-center mb-3 pb-2 border-b border-slate-200/50 cursor-pointer select-none group"
+                                                        onClick={() => setIsSatDetailsOpen(!isSatDetailsOpen)}
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-black text-slate-800 group-hover:text-brand-600 transition-colors">2. 機動衛星部位 (1x / 2x)</span>
+                                                            <Icon name={isSatDetailsOpen ? "ChevronUp" : "ChevronDown"} size={14} className="text-slate-400 group-hover:text-brand-500 transition-colors" />
+                                                        </div>
                                                         <span className="text-xs font-mono font-black text-brand-600 bg-brand-50 px-2 py-0.5 rounded">佔比 {metrics.classification.sat.totalPct.toFixed(1)}%</span>
                                                     </div>
                                                     <div className="grid grid-cols-2 gap-4">
@@ -789,6 +796,32 @@
                                                             <span className="text-sm font-mono font-black text-brand-500">{metrics.classification.sat.lPct.toFixed(1)}% <span className="text-[10px] text-slate-400 font-normal">(${(metrics.classification.sat.l/1000).toFixed(1)}k)</span></span>
                                                         </div>
                                                     </div>
+
+                                                    {/* 展開後的衛星明細 */}
+                                                    {isSatDetailsOpen && (
+                                                        <div className="mt-4 pt-3 border-t border-slate-200/50 space-y-2.5 animate-in fade-in slide-in-from-top-1">
+                                                            {metrics.satStats.map(s => {
+                                                                const safeTotal = metrics.totalCapital > 0 ? metrics.totalCapital : 1;
+                                                                const uPct = (s.valU / safeTotal) * 100;
+                                                                const lPct = (s.valL / safeTotal) * 100;
+                                                                return (
+                                                                    <div key={s.id} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm">
+                                                                        <div className="flex flex-col gap-0.5">
+                                                                            <span className="text-[10px] text-slate-500 font-bold">{s.underlying || '未定'} (1x)</span>
+                                                                            <span className="text-xs font-mono font-black text-slate-700">{uPct.toFixed(1)}% <span className="font-normal text-[9px] text-slate-400">(${(s.valU/1000).toFixed(1)}k)</span></span>
+                                                                        </div>
+                                                                        <div className="flex flex-col gap-0.5 text-right">
+                                                                            <span className="text-[10px] text-brand-500 font-bold">{s.leveraged || '未定'} (2x)</span>
+                                                                            <span className="text-xs font-mono font-black text-brand-600">{lPct.toFixed(1)}% <span className="font-normal text-[9px] text-brand-300">(${(s.valL/1000).toFixed(1)}k)</span></span>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                            {metrics.satStats.every(s => s.valU === 0 && s.valL === 0) && (
+                                                                <div className="text-center text-[10px] text-slate-400 py-2">目前無衛星部位資產</div>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 {/* 3. 戰備儲備分類 (BOXX+Cash) */}

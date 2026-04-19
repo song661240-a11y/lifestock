@@ -55,7 +55,8 @@
         const { ComposedChart, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } = Recharts;
 
         const FINNHUB_KEY = "d4q36b9r01qha6q0jclgd4q36b9r01qha6q0jcm0";
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'alpha-horizon-std-app-v9'; 
+        // 統一採用 latest 作為 App ID，解決版本升級資料流失問題
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'alpha-horizon-std-app-latest'; 
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { 
             apiKey: "AIzaSyDMR8Q20z9vnWtQlafDowRujzBexV0h_lI",
             authDomain: "lifestock-83480.firebaseapp.com",
@@ -70,6 +71,37 @@
 
         const sanitizeForFirestore = (data) => JSON.parse(JSON.stringify(data, (k, v) => v === undefined ? null : v));
         const getNum = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+
+        // 🏆 資料永續：自動從歷史版本找回使用者的通關密語與備份
+        const getStoredSyncId = () => {
+            let id = localStorage.getItem('ah_std_sync_latest');
+            if (id) return id;
+            for (let i = 15; i >= 4; i--) {
+                id = localStorage.getItem(`ah_std_sync_v${i}`);
+                if (id) return id;
+            }
+            return '';
+        };
+
+        const getStoredBackup = () => {
+            let backup = localStorage.getItem('ah_local_backup_latest');
+            if (backup) { try { return JSON.parse(backup); } catch(e) {} }
+            for (let i = 15; i >= 4; i--) {
+                backup = localStorage.getItem(`ah_local_backup_v${i}`);
+                if (backup) { try { return JSON.parse(backup); } catch(e) {} }
+            }
+            return null;
+        };
+
+        const getStoredSections = () => {
+            let sections = localStorage.getItem('ah_std_sections_latest');
+            if (sections) { try { return JSON.parse(sections); } catch(e) {} }
+            for (let i = 15; i >= 4; i--) {
+                sections = localStorage.getItem(`ah_std_sections_v${i}`);
+                if (sections) { try { return JSON.parse(sections); } catch(e) {} }
+            }
+            return { plan: false, core: true, satellite: true, holdings: true, allocation: true };
+        };
         
         const defaultPlan = `一、 資產配置與比例限制
 • 核心母艦部位 (60% - 100%)：QQQ (大盤 ETF)。
@@ -98,6 +130,7 @@
         const Icon = memo(({ name, size = 20, className = "" }) => {
             const icons = { 
                 TrendingUp: <path d="m22 7-8.5 8.5-5-5L2 17M22 7h-6M22 7v6"/>, 
+                TrendingDown: <path d="m22 17-8.5-8.5-5 5L2 5M22 17h-6M22 17v-6"/>,
                 Settings: <path d="M12.22 2h-.44a2 2 0 0 0-2 2a2 2 0 0 1-2 2a2 2 0 0 1 2-2a2 2 0 0 1 2-2a2 2 0 0 0-2-2zM9 12a3 3 0 1 1 6 0a3 3 0 0 1-6 0z"/>, 
                 RefreshCcw: <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8m0 4a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16m-18-8h5V3m13 18h-5v5"/>, 
                 LayoutDashboard: <g><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></g>, 
@@ -154,30 +187,6 @@
             );
         };
 
-        const MAGauge = ({ distancePct }) => {
-            const clampedPct = Math.max(-15, Math.min(15, distancePct));
-            const leftPos = 50 + (clampedPct / 15) * 50; 
-            
-            let color = 'bg-slate-400';
-            if (distancePct <= 5 && distancePct >= -5) color = 'bg-fin-up';
-            else if (distancePct < -5) color = 'bg-fin-down';
-            else color = 'bg-fin-info';
-
-            return (
-                <div className="mt-4">
-                    <div className="flex justify-between text-xs font-mono text-slate-500 mb-2 px-1">
-                        <span>低於均線</span>
-                        <span className="font-bold">200MA (±5% 觸發區)</span>
-                        <span>高於均線</span>
-                    </div>
-                    <div className="relative h-3 bg-slate-100 rounded-full overflow-hidden flex border border-slate-200">
-                        <div className="absolute left-[33.3%] right-[33.3%] h-full bg-fin-up/20 border-x border-fin-up/30"></div>
-                        <div className={`absolute top-0 bottom-0 w-2 rounded-full ${color} transition-all duration-500 shadow-sm`} style={{ left: `calc(${leftPos}% - 4px)` }}></div>
-                    </div>
-                </div>
-            );
-        };
-
         const CustomGraphTooltip = ({ active, payload, label }) => {
             if (active && payload && payload.length) {
                 return (
@@ -221,16 +230,13 @@
             const [message, setMessage] = useState(null);
             const [authError, setAuthError] = useState(null);
             
-            const [customSyncId, setCustomSyncId] = useState(() => localStorage.getItem('ah_std_sync_v8') || '');
+            const [customSyncId, setCustomSyncId] = useState(getStoredSyncId);
             const [tempSyncId, setTempSyncId] = useState(customSyncId);
             
             const [isMottoLocked, setIsMottoLocked] = useState(true);
             const [isPlanLocked, setIsPlanLocked] = useState(true);
-            const [sections, setSections] = useState(() => {
-                const defaults = { plan: false, core: true, satellite: true, holdings: true, allocation: true };
-                try { return { ...defaults, ...JSON.parse(localStorage.getItem('ah_std_sections_v8')) }; } catch(e) { return defaults; }
-            });
-            const toggleSection = (key) => setSections(p => { const n = {...p, [key]: !p[key]}; localStorage.setItem('ah_std_sections_v8', JSON.stringify(n)); return n; });
+            const [sections, setSections] = useState(getStoredSections);
+            const toggleSection = (key) => setSections(p => { const n = {...p, [key]: !p[key]}; localStorage.setItem('ah_std_sections_latest', JSON.stringify(n)); return n; });
 
             const [records, setRecords] = useState([]);
             const [modal, setModal] = useState({ type: null, data: null, temp: {} });
@@ -246,29 +252,31 @@
                 { id: '4', underlying: 'NET', leveraged: 'NETG', qty_u: 0, qty_l: 0, ma200: 80, ma10: 75, target_pct: 5, profit_pct: 25, loss_pct: 20, rescues: 0 }
             ];
 
+            const defaultInputs = {
+                motto: '動態佔比再平衡，嚴守紀律不凹單',
+                planText: defaultPlan, 
+                qqq_ath: 0,
+                qty_core_1: 0, 
+                qty_core_2: 0, 
+                tqqq_avg_cost: 0, 
+                core_profit_pct: 25, 
+                core_loss_pct: 20,   
+                cash_balance: 0, 
+                satellites: defaultSatellites
+            };
+
             const [inputs, setInputs] = useState(() => {
-                const localBackup = localStorage.getItem('ah_local_backup_v9');
-                if (localBackup) {
-                    try { return JSON.parse(localBackup); } catch(e) {}
+                const backup = getStoredBackup();
+                if (backup) {
+                    return { ...defaultInputs, ...backup };
                 }
-                return {
-                    motto: '動態佔比再平衡，嚴守紀律不凹單',
-                    planText: defaultPlan, 
-                    qqq_ath: 0,
-                    qty_core_1: 0, 
-                    qty_core_2: 0, 
-                    tqqq_avg_cost: 0, 
-                    core_profit_pct: 25, 
-                    core_loss_pct: 20,   
-                    cash_balance: 0, 
-                    satellites: defaultSatellites
-                };
+                return defaultInputs;
             });
 
             const inputsRef = useRef(inputs);
             useEffect(() => { 
                 inputsRef.current = inputs;
-                localStorage.setItem('ah_local_backup_v9', JSON.stringify(inputs));
+                localStorage.setItem('ah_local_backup_latest', JSON.stringify(inputs));
             }, [inputs]);
 
             // 認證與 Google 登入邏輯
@@ -392,13 +400,15 @@
                 if (loadingPrices && !force) return; 
                 let syms = ['QQQ', 'TQQQ'];
                 (inputs.satellites || []).forEach(s => { if(s.underlying) syms.push(s.underlying); if(s.leveraged) syms.push(s.leveraged); });
-                syms = [...new Set(syms.filter(Boolean).map(s=>s.trim().toUpperCase()))];
+                // 確保清單中的股票代號乾淨且無空白
+                syms = [...new Set(syms.filter(Boolean).map(s=>String(s).trim().toUpperCase()))];
                 
                 if (syms.length === 0) return;
 
                 setLoadingPrices(true); 
                 try { 
                     const res = await Promise.allSettled(syms.map(s => fetch(`https://finnhub.io/api/v1/quote?symbol=${s}&token=${FINNHUB_KEY}`).then(r => r.json()).then(d => ({s, p: d.c})))); 
+                    // 優化：若抓取失敗或為 0，則保留舊有價格，避免當機或歸零
                     setPrices(p => ({...p, ...res.reduce((acc, curr) => (curr.status === 'fulfilled' && curr.value.p > 0 ? {...acc, [curr.value.s]: curr.value.p} : acc), {})})); 
                 } catch(e) { console.error(e); } finally { setLoadingPrices(false); } 
             }, [inputs.satellites, loadingPrices]);
@@ -496,8 +506,8 @@
             };
             
             const metrics = useMemo(() => {
-                // 優化：處理使用者可能輸入空白的問題
-                const getP = (t) => prices[(t || "").trim().toUpperCase()] || 0;
+                // 安全讀取價格，避免 undefined 造成死機
+                const getP = (t) => prices[String(t || "").trim().toUpperCase()] || 0;
                 const getV = (k) => getNum(inputs[k]);
                 
                 const qqqPrice = getP('QQQ');
@@ -734,7 +744,12 @@
 
                     <header className="fixed top-0 inset-x-0 bg-white z-50 px-5 py-4 flex justify-between items-center shadow-sm border-b border-slate-200">
                         <div className="flex items-center gap-2 font-black text-slate-800"><Icon name="PieChart" className="text-brand-600" size={24} /><h1 className="text-xl">Alpha Horizon</h1></div>
-                        <div className="flex gap-3"><button onClick={() => setView('settings')} className="p-2.5 rounded-xl bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200"><Icon name="Settings" size={20} /></button><button onClick={() => fetchPrices(true)} className="p-2.5 rounded-xl bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200"><Icon name="RefreshCcw" size={20} className={loadingPrices?"animate-spin":""} /></button></div>
+                        <div className="flex gap-3">
+                            <button onClick={() => fetchPrices(true)} className="p-2.5 rounded-xl bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200 relative">
+                                <Icon name="RefreshCcw" size={20} className={loadingPrices?"animate-spin":""} />
+                                {!loadingPrices && <div className="absolute top-1 right-1 w-2 h-2 bg-fin-up rounded-full border border-white"></div>}
+                            </button>
+                        </div>
                     </header>
 
                     <main className="max-w-md mx-auto p-4 pt-24 space-y-6">
@@ -1071,11 +1086,11 @@
                                                 <div className="flex flex-col gap-3 mb-4 pr-10">
                                                     <div className="flex gap-3">
                                                         <div className="flex-1">
-                                                            <label className="text-[10px] text-slate-500 font-bold block mb-1">現貨代號</label>
+                                                            <label className="text-[10px] text-slate-500 font-bold block mb-1">現貨代號 (均線基準)</label>
                                                             <input value={s.underlying} onChange={e=>updateSatellite(s.id, 'underlying', e.target.value.toUpperCase().trim())} onBlur={saveSatellites} className="w-full bg-white font-black text-sm p-3 rounded-xl border border-slate-200 uppercase" placeholder="如 TSLA" />
                                                         </div>
                                                         <div className="flex-1">
-                                                            <label className="text-[10px] text-brand-600 font-bold block mb-1">槓桿代號</label>
+                                                            <label className="text-[10px] text-brand-600 font-bold block mb-1">槓桿代號 (實際買入)</label>
                                                             <input value={s.leveraged} onChange={e=>updateSatellite(s.id, 'leveraged', e.target.value.toUpperCase().trim())} onBlur={saveSatellites} className="w-full bg-brand-50 font-black text-brand-700 text-sm p-3 rounded-xl border border-brand-200 uppercase" placeholder="如 TSLL" />
                                                         </div>
                                                     </div>

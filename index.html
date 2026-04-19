@@ -303,7 +303,7 @@
                 core_profit_pct: 25, 
                 core_loss_pct: 20,   
                 cash_balance: 0, 
-                reserve_pct: 20, // 新增：可變動的戰備儲備佔比
+                reserve_pct: 20,
                 satellites: defaultSatellites
             };
 
@@ -407,22 +407,30 @@
                 return () => { unsubscribeRecs(); unsubscribeConf(); };
             }, [user]);
 
-            useEffect(() => { fetchPrices(); }, [inputs.satellites]);
+            // 🚀 API 優化：只在「代號」改變時才觸發 Fetch，避免輸入股數時瘋狂 Call API
+            const symbolsString = useMemo(() => {
+                let syms = ['QQQ', 'TQQQ', 'BOXX'];
+                (inputs.satellites || []).forEach(s => { 
+                    if(s.underlying) syms.push(s.underlying.trim().toUpperCase()); 
+                    if(s.leveraged) syms.push(s.leveraged.trim().toUpperCase()); 
+                });
+                return [...new Set(syms.filter(Boolean))].sort().join(',');
+            }, [inputs.satellites]);
+
+            useEffect(() => { fetchPrices(); }, [symbolsString]);
 
             const fetchPrices = useCallback(async (force = false) => { 
                 if (loadingPrices && !force) return; 
-                let syms = ['QQQ', 'TQQQ', 'BOXX'];
-                (inputs.satellites || []).forEach(s => { if(s.underlying) syms.push(s.underlying); if(s.leveraged) syms.push(s.leveraged); });
-                syms = [...new Set(syms.filter(Boolean).map(s=>String(s).trim().toUpperCase()))];
                 
-                if (syms.length === 0) return;
+                const symsArray = symbolsString.split(',');
+                if (symsArray.length === 0 || !symsArray[0]) return;
 
                 setLoadingPrices(true); 
                 try { 
-                    const res = await Promise.allSettled(syms.map(s => fetch(`https://finnhub.io/api/v1/quote?symbol=${s}&token=${FINNHUB_KEY}`).then(r => r.json()).then(d => ({s, p: d.c})))); 
+                    const res = await Promise.allSettled(symsArray.map(s => fetch(`https://finnhub.io/api/v1/quote?symbol=${s}&token=${FINNHUB_KEY}`).then(r => r.json()).then(d => ({s, p: d.c})))); 
                     setPrices(p => ({...p, ...res.reduce((acc, curr) => (curr.status === 'fulfilled' && curr.value.p > 0 ? {...acc, [curr.value.s]: curr.value.p} : acc), {})})); 
                 } catch(e) { console.error(e); } finally { setLoadingPrices(false); } 
-            }, [inputs.satellites, loadingPrices]);
+            }, [symbolsString, loadingPrices]);
 
             const showToast = (txt) => { setMessage(txt); setTimeout(() => setMessage(null), 3000); };
             const handleInputChange = (f, v) => setInputs(p => ({ ...p, [f]: v }));
@@ -676,6 +684,7 @@
 
                 const ladderPreview = [10, 20, 30, 40].map(pct => {
                     const triggerPrice = qqqAth * (1 - pct / 100);
+                    // 根據策略，每階段轉入的目標額度大約為整體資金的 15% (即對應 目標佔比: 15/30/45/60)
                     const valueToMove = totalCapital * 0.15;
                     const estQqqSharesToSell = triggerPrice > 0 ? valueToMove / triggerPrice : 0;
                     return { pct, triggerPrice, valueToMove, estQqqSharesToSell, isTriggered: currentDD >= pct };
@@ -793,7 +802,7 @@
                                                 <div className="text-[9px] text-slate-400 mt-0.5">目標 {metrics.dashboardTargets.core.pct}%</div>
                                             </div>
                                             <div className={`text-[9px] font-bold mt-2 px-1.5 py-1 rounded w-full ${metrics.dashboardTargets.core.diffShares > 0 ? 'bg-fin-up/10 text-fin-up' : metrics.dashboardTargets.core.diffShares < 0 ? 'bg-fin-down/10 text-fin-down' : 'bg-slate-50 text-slate-500 border border-slate-100'}`}>
-                                                {metrics.dashboardTargets.core.diffShares > 0 ? `需買 ${metrics.dashboardTargets.core.diffShares} 股 QQQ` : metrics.dashboardTargets.core.diffShares < 0 ? `需賣 ${Math.abs(metrics.dashboardTargets.core.diffShares)} 股 QQQ` : '完美達標'}
+                                                {metrics.dashboardTargets.core.diffShares > 0 ? `需買 ${metrics.dashboardTargets.core.diffShares.toLocaleString()} 股 QQQ` : metrics.dashboardTargets.core.diffShares < 0 ? `需賣 ${Math.abs(metrics.dashboardTargets.core.diffShares).toLocaleString()} 股 QQQ` : '完美達標'}
                                             </div>
                                         </div>
                                         <div className="flex flex-col items-center justify-between px-1">
@@ -803,7 +812,7 @@
                                                 <div className="text-[9px] text-slate-400 mt-0.5">目標 {metrics.dashboardTargets.sat.pct}%</div>
                                             </div>
                                             <div className={`text-[9px] font-bold mt-2 px-1.5 py-1 rounded w-full ${metrics.dashboardTargets.sat.diffVal > 50 ? 'bg-fin-up/10 text-fin-up' : metrics.dashboardTargets.sat.diffVal < -50 ? 'bg-fin-down/10 text-fin-down' : 'bg-slate-50 text-slate-500 border border-slate-100'}`}>
-                                                {metrics.dashboardTargets.sat.diffVal > 50 ? `需買約 $${Math.round(metrics.dashboardTargets.sat.diffVal).toLocaleString()}` : metrics.dashboardTargets.sat.diffVal < -50 ? `需賣約 $${Math.abs(Math.round(metrics.dashboardTargets.sat.diffVal)).toLocaleString()}` : '完美達標'}
+                                                {metrics.dashboardTargets.sat.diffVal > 50 ? `總補約 $${Math.round(metrics.dashboardTargets.sat.diffVal).toLocaleString()}` : metrics.dashboardTargets.sat.diffVal < -50 ? `總賣約 $${Math.abs(Math.round(metrics.dashboardTargets.sat.diffVal)).toLocaleString()}` : '完美達標'}
                                             </div>
                                         </div>
                                         <div className="flex flex-col items-center justify-between px-1">
@@ -813,7 +822,7 @@
                                                 <div className="text-[9px] text-slate-400 mt-0.5">目標 {metrics.dashboardTargets.reserve.pct}%</div>
                                             </div>
                                             <div className={`text-[9px] font-bold mt-2 px-1.5 py-1 rounded w-full ${metrics.dashboardTargets.reserve.diffShares > 0 ? 'bg-fin-warn/10 text-fin-warn' : metrics.dashboardTargets.reserve.diffShares < 0 ? 'bg-fin-down/10 text-fin-down' : 'bg-slate-50 text-slate-500 border border-slate-100'}`}>
-                                                {metrics.dashboardTargets.reserve.diffShares > 0 ? `需買 ${metrics.dashboardTargets.reserve.diffShares} 股 BOXX` : metrics.dashboardTargets.reserve.diffShares < 0 ? `溢出 ${Math.abs(metrics.dashboardTargets.reserve.diffShares)} 股` : '完美達標'}
+                                                {metrics.dashboardTargets.reserve.diffShares > 0 ? `需買 ${metrics.dashboardTargets.reserve.diffShares.toLocaleString()} 股 BOXX` : metrics.dashboardTargets.reserve.diffShares < 0 ? `溢出 ${Math.abs(metrics.dashboardTargets.reserve.diffShares).toLocaleString()} 股` : '完美達標'}
                                             </div>
                                         </div>
                                     </div>
@@ -902,7 +911,7 @@
                                                                 const lPct = (s.valL / safeTotal) * 100;
                                                                 const totalPct = uPct + lPct;
                                                                 return (
-                                                                    <div key={s.id} className="grid grid-cols-3 items-center bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm">
+                                                                    <div key={s.id} className="grid grid-cols-3 items-center bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm hover:border-brand-200 transition-colors">
                                                                         <div className="flex flex-col gap-0.5 text-left">
                                                                             <span className="text-[10px] text-slate-500 font-bold">{s.underlying || '未定'} (1x)</span>
                                                                             <span className="text-xs font-mono font-black text-slate-700">{uPct.toFixed(1)}% <span className="font-normal text-[9px] text-slate-400">(${(s.valU/1000).toFixed(1)}k)</span></span>
@@ -957,8 +966,8 @@
                                     
                                     <div className="bg-slate-50 rounded-2xl p-4 mb-5 border border-slate-100">
                                         <div className="flex justify-between text-xs font-bold mb-3 text-slate-600">
-                                            <span>目標佔比: {metrics.coreStats.targetTqqqPct}%</span>
-                                            <span className="text-brand-600">實際佔比: {metrics.coreStats.currentTqqqPctTotal.toFixed(1)}%</span>
+                                            <span>TQQQ 目標佔比: {metrics.coreStats.targetTqqqPct}%</span>
+                                            <span className="text-brand-600">TQQQ 實際: {metrics.coreStats.currentTqqqPctTotal.toFixed(1)}%</span>
                                         </div>
                                         <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden relative">
                                             <div className="absolute top-0 bottom-0 w-1 bg-slate-400 z-10" style={{left: `${metrics.coreStats.targetTqqqPct}%`}}></div>

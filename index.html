@@ -194,11 +194,14 @@
                 return (
                     <div className="bg-slate-800 border border-slate-700 p-4 rounded-2xl shadow-xl text-sm font-black z-50 text-white">
                         <p className="mb-2 text-slate-400">{new Date(label).toLocaleDateString()}</p>
-                        {payload.map((p, i) => (
-                            <p key={i} style={{ color: p.color || p.fill }} className="mb-1">
-                                {p.name}: {p.name.includes('%') ? '' : '$'}{p.value.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}{p.name.includes('%') || p.name.includes('dd') ? '%' : ''}
-                            </p>
-                        ))}
+                        {payload.map((p, i) => {
+                            const isDrawdown = p.name.includes('跌幅');
+                            return (
+                                <p key={i} style={{ color: p.color || p.fill }} className="mb-1">
+                                    {p.name}: {isDrawdown ? '' : '$'}{isDrawdown ? p.value.toFixed(1) : p.value.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}{isDrawdown ? '%' : ''}
+                                </p>
+                            );
+                        })}
                     </div>
                 );
             }
@@ -323,8 +326,7 @@
                 } catch (error) {
                     console.error("Google 登入錯誤:", error);
                     if (error.code === 'auth/unauthorized-domain') {
-                        const domain = window.location.hostname;
-                        setAuthError(`網域未授權：請至 Firebase 控制台 ➔ Authentication ➔ 設定 ➔ 已授權網域，將「${domain}」加入名單中。`);
+                        setAuthError(`網域未授權：\n您的 Firebase 專案尚未允許從此網域進行 Google 登入。請至 Firebase 控制台 ➔ Authentication ➔ 設定 ➔ 已授權網域，新增此網域。`);
                     } else {
                         setAuthError("Google 登入失敗: " + error.message + " (請確認 Firebase 後台已啟用 Google 登入)");
                     }
@@ -375,7 +377,6 @@
                         if(!d.qqq_ath) d.qqq_ath = 0;
                         if(!d.tqqq_avg_cost) d.tqqq_avg_cost = 0;
                         setInputs(p => ({...p, ...d})); 
-                        setAuthError(null);
                     }
                     setIsSwitching(false); 
                 }, e => {
@@ -639,10 +640,19 @@
                         <div className="fixed top-4 left-4 right-4 z-[70] animate-in slide-in-from-top-4">
                             <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow-lg flex gap-3">
                                 <Icon name="AlertCircle" size={24} className="text-red-500 shrink-0" />
-                                <div>
-                                    <h4 className="text-red-800 font-black text-sm">連線提示</h4>
-                                    <p className="text-red-600 text-xs mt-1 leading-relaxed">{authError}</p>
+                                <div className="flex-1 overflow-hidden">
+                                    <h4 className="text-red-800 font-black text-sm">系統提示</h4>
+                                    <p className="text-red-600 text-xs mt-1 leading-relaxed whitespace-pre-wrap">{authError}</p>
+                                    {authError.includes('網域未授權') && (
+                                        <div className="mt-2 bg-red-100/50 border border-red-200 p-2 rounded-lg flex flex-col gap-1">
+                                            <span className="text-[10px] font-bold text-red-700">請複製以下網域並加入 Firebase 授權名單：</span>
+                                            <code className="text-xs font-mono font-black text-slate-800 bg-white px-2 py-1 rounded select-all text-center block">
+                                                {window.location.hostname || "localhost"}
+                                            </code>
+                                        </div>
+                                    )}
                                 </div>
+                                <button onClick={() => setAuthError(null)} className="text-red-400 hover:text-red-600 self-start"><Icon name="X" size={16}/></button>
                             </div>
                         </div>
                     )}
@@ -997,14 +1007,14 @@
                                 <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200 h-[350px]">
                                     <div className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2"><Icon name="TrendingUp" size={18} className="text-brand-600"/> 資產歷史走勢</div>
                                     <ResponsiveContainer width="100%" height="85%">
-                                        <ComposedChart data={metrics.graphData} margin={{top:10,right:0,left:0,bottom:20}}>
+                                        <ComposedChart data={metrics.graphData} margin={{top:10,right:10,left:0,bottom:20}}>
                                             <defs>
                                                 <linearGradient id="colorEq" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/><stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/></linearGradient>
                                                 <linearGradient id="colorDD" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ef4444" stopOpacity={0.15}/><stop offset="95%" stopColor="#ef4444" stopOpacity={0}/></linearGradient>
                                             </defs>
                                             <XAxis dataKey="date" tickFormatter={v=>new Date(v).toLocaleDateString(undefined,{month:'numeric',day:'numeric'})} tick={{fontSize:12, fill:'#64748b'}}/>
                                             <YAxis yAxisId="left" tickFormatter={v=>`${(v/1000).toFixed(0)}k`} tick={{fontSize:12, fill:'#64748b'}}/>
-                                            <YAxis yAxisId="right" orientation="right" hide/>
+                                            <YAxis yAxisId="right" orientation="right" tickFormatter={v=>`${v.toFixed(0)}%`} tick={{fontSize:12, fill:'#ef4444'}} domain={['auto', 0]} />
                                             <Tooltip content={<CustomGraphTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '3 3' }} />
                                             <Area yAxisId="left" type="stepAfter" dataKey="equity" stroke="#3b82f6" strokeWidth={3} fill="url(#colorEq)" name="總資產"/>
                                             <Area yAxisId="right" type="monotone" dataKey="dd" stroke="none" fill="url(#colorDD)" name="大盤跌幅"/>

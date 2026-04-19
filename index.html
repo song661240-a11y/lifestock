@@ -55,7 +55,7 @@
         const { ComposedChart, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } = Recharts;
 
         const FINNHUB_KEY = "d4q36b9r01qha6q0jclgd4q36b9r01qha6q0jcm0";
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'alpha-horizon-std-app-v7';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'alpha-horizon-std-app-v9'; 
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { 
             apiKey: "AIzaSyDMR8Q20z9vnWtQlafDowRujzBexV0h_lI",
             authDomain: "lifestock-83480.firebaseapp.com",
@@ -72,39 +72,28 @@
         const getNum = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
         
         const defaultPlan = `一、 資產配置與比例限制
-• 核心母艦部位 (60% - 100%)：QQQ (納斯達克 100 ETF)。
-• 機動衛星部位 (0% - 40%)：TSLA、IBIT、NET、AAPL 等個股。
-• 持倉底線：QQQ 部位最低不得低於總資產的 50%。
-• 單一上限：任何一檔個股部位不得超過總資產的 20%。
-• 自動汰換：若個股連續兩年報酬率低於 QQQ，則結清部位將資金併入 QQQ。
+• 核心母艦部位 (60% - 100%)：QQQ (大盤 ETF)。
+• 機動衛星部位 (0% - 40%)：自定目標佔比 (例如 TSLA 15%, IBIT 10%)。
+• 自動汰換：若個股長期報酬率低於 QQQ，則結清部位將資金併入 QQQ。
 
-二、 QQQ 與 TQQQ 轉換規則 (大盤修正時)
-[1. 下跌時：賣出 QQQ 買入 TQQQ (加碼)]
-• QQQ 跌 10%：將總資產 15% 資金換成 TQQQ。
-• QQQ 跌 20%：再將總資產 15% 資金換成 TQQQ。
-• QQQ 跌 30%：再將總資產 15% 資金換成 TQQQ。
-• QQQ 跌 40%：最後 15% 資金全數換成 TQQQ。
-[2. 上漲時：賣出 TQQQ 換回 QQQ (獲利撤退)]
-※ 執行前提：賣出價格必須「高於買入平均成本」，確保不虧損換回。
-• 當 QQQ 反彈 10%：若 TQQQ 已獲利，賣出 1/3 的 TQQQ 換回 QQQ。
-• 當 QQQ 再漲 10%：若 TQQQ 已獲利，再賣出 1/3 的 TQQQ 換回 QQQ。
-• 當 QQQ 突破歷史新高：將剩餘 TQQQ 全數換回 QQQ。
+二、 QQQ 與 TQQQ 動態轉換 (大盤修正時)
+[1. 下跌進攻：賣出 QQQ 買入 TQQQ (加碼)]
+• QQQ 回撤 10% / 20% / 30% / 40% 時，目標 TQQQ 佔比對應提升為 15% / 30% / 45% / 60%。
+• 當 TQQQ 實際佔比低於目標達設定標準(預設 20%)，執行買入再平衡。
+[2. 獲利收割：賣出 TQQQ 換回 QQQ]
+• 當 TQQQ 實際佔比超過目標達設定標準(預設 25%)，且高於買入成本，執行賣出再平衡。
 
 三、 個股與 2 倍槓桿轉換規則 (衛星操作)
-[1. 跌破 200MA 時：分批轉換槓桿]
-• 第一次 (1/3資金)：股價觸碰 200MA 時，將 1/3 現貨換成 2 倍槓桿。
-• 第二次 (1/3資金)：股價跌破 200MA 達 10% 時，再換 1/3。
-• 第三次 (1/3資金)：股價跌破後止跌回升(站上 10 日線)時，全數換成 2 倍槓桿。
-• 額外補倉：若帳面再下跌 20%，由 QQQ 撥款補足基準額 (單一標的限 2 次)。
-[2. 上漲時：獲利結清回歸]
-※ 執行前提：賣出價格必須「高於 2 倍槓桿買入成本」。
-• 收割點：當帳面獲利達 25% 且股價站回 200MA。
-• 動作：賣出槓桿，本金換回現貨(或回歸 QQQ)，獲利全數買入 QQQ。
+[1. 進場與防禦：]
+• 當股價觸碰/跌破 200MA 時，轉換為 2 倍槓桿。
+• 補倉條件：當該部位「實際佔比」低於「目標佔比」達設定標準(虧損)，由 QQQ 撥款補足目標佔比金額 (限 2 次)。
+[2. 上漲收割：]
+• 當該部位「實際佔比」超過「目標佔比」達設定標準(獲利) 且站上 200MA，執行獲利了結。
+• 本金留存目標佔比，獲利全數回流 QQQ。
 
 四、 核心執行紀律
 • 封閉系統：不增加額外資金，不使用銀行融資。
-• 操作間距：漲超 25% 才賣個股，跌超 20% 才救衛星。
-• 極端防禦：換滿 TQQQ 若續跌，嚴禁割肉不動直到反彈。`;
+• 操作間距：嚴格遵守設定的停利與補倉標準，進行動態再平衡。`;
 
         const Icon = memo(({ name, size = 20, className = "" }) => {
             const icons = { 
@@ -215,7 +204,7 @@
                     <div className="bg-slate-800 border border-slate-700 p-4 rounded-2xl shadow-xl text-sm font-black z-50 text-white">
                         <p className="mb-1 text-slate-400">{data.name}</p>
                         <p className="text-lg">${data.value.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
-                        <p className="text-brand-400 text-xs mt-1">佔比: {(data.percent * 100).toFixed(1)}%</p>
+                        <p className="text-brand-400 text-xs mt-1">實際佔比: {(data.percent * 100).toFixed(1)}%</p>
                     </div>
                 );
             }
@@ -232,16 +221,16 @@
             const [message, setMessage] = useState(null);
             const [authError, setAuthError] = useState(null);
             
-            const [customSyncId, setCustomSyncId] = useState(() => localStorage.getItem('ah_std_sync_v6') || '');
+            const [customSyncId, setCustomSyncId] = useState(() => localStorage.getItem('ah_std_sync_v8') || '');
             const [tempSyncId, setTempSyncId] = useState(customSyncId);
             
             const [isMottoLocked, setIsMottoLocked] = useState(true);
             const [isPlanLocked, setIsPlanLocked] = useState(true);
             const [sections, setSections] = useState(() => {
                 const defaults = { plan: false, core: true, satellite: true, holdings: true, allocation: true };
-                try { return { ...defaults, ...JSON.parse(localStorage.getItem('ah_std_sections_v6')) }; } catch(e) { return defaults; }
+                try { return { ...defaults, ...JSON.parse(localStorage.getItem('ah_std_sections_v8')) }; } catch(e) { return defaults; }
             });
-            const toggleSection = (key) => setSections(p => { const n = {...p, [key]: !p[key]}; localStorage.setItem('ah_std_sections_v6', JSON.stringify(n)); return n; });
+            const toggleSection = (key) => setSections(p => { const n = {...p, [key]: !p[key]}; localStorage.setItem('ah_std_sections_v8', JSON.stringify(n)); return n; });
 
             const [records, setRecords] = useState([]);
             const [modal, setModal] = useState({ type: null, data: null, temp: {} });
@@ -251,23 +240,26 @@
             });
 
             const defaultSatellites = [
-                { id: '1', underlying: 'TSLA', leveraged: 'TSLL', qty_u: 0, qty_l: 0, ma200: 200, ma10: 190, baseline: 0, rescues: 0 },
-                { id: '2', underlying: 'IBIT', leveraged: 'BITU', qty_u: 0, qty_l: 0, ma200: 35, ma10: 36, baseline: 0, rescues: 0 },
-                { id: '3', underlying: 'AAPL', leveraged: 'AAPU', qty_u: 0, qty_l: 0, ma200: 175, ma10: 170, baseline: 0, rescues: 0 }
+                { id: '1', underlying: 'TSLA', leveraged: 'TSLL', qty_u: 0, qty_l: 0, ma200: 200, ma10: 190, target_pct: 15, profit_pct: 25, loss_pct: 20, rescues: 0 },
+                { id: '2', underlying: 'IBIT', leveraged: 'BITU', qty_u: 0, qty_l: 0, ma200: 35, ma10: 36, target_pct: 10, profit_pct: 25, loss_pct: 20, rescues: 0 },
+                { id: '3', underlying: 'AAPL', leveraged: 'AAPU', qty_u: 0, qty_l: 0, ma200: 175, ma10: 170, target_pct: 10, profit_pct: 25, loss_pct: 20, rescues: 0 },
+                { id: '4', underlying: 'NET', leveraged: 'NETG', qty_u: 0, qty_l: 0, ma200: 80, ma10: 75, target_pct: 5, profit_pct: 25, loss_pct: 20, rescues: 0 }
             ];
 
             const [inputs, setInputs] = useState(() => {
-                const localBackup = localStorage.getItem('ah_local_backup_v6');
+                const localBackup = localStorage.getItem('ah_local_backup_v9');
                 if (localBackup) {
                     try { return JSON.parse(localBackup); } catch(e) {}
                 }
                 return {
-                    motto: '保持紀律，嚴禁割肉',
+                    motto: '動態佔比再平衡，嚴守紀律不凹單',
                     planText: defaultPlan, 
                     qqq_ath: 0,
                     qty_core_1: 0, 
                     qty_core_2: 0, 
                     tqqq_avg_cost: 0, 
+                    core_profit_pct: 25, 
+                    core_loss_pct: 20,   
                     cash_balance: 0, 
                     satellites: defaultSatellites
                 };
@@ -276,7 +268,7 @@
             const inputsRef = useRef(inputs);
             useEffect(() => { 
                 inputsRef.current = inputs;
-                localStorage.setItem('ah_local_backup_v6', JSON.stringify(inputs));
+                localStorage.setItem('ah_local_backup_v9', JSON.stringify(inputs));
             }, [inputs]);
 
             // 認證與 Google 登入邏輯
@@ -338,7 +330,6 @@
                 showToast("已登出 Google 帳號，切換為訪客模式。");
             };
 
-            // 取得對應的 Firebase 參照 (統一綁定 Google UID 或匿名 UID)
             const getFirebaseRefs = () => {
                 if (!user) return null;
                 return {
@@ -347,7 +338,6 @@
                 };
             };
             
-            // 監聽資料庫更新
             useEffect(() => { 
                 const refs = getFirebaseRefs();
                 if (!refs) return;
@@ -371,11 +361,16 @@
                         else {
                             d.satellites = d.satellites.map(sat => ({
                                 ...sat,
+                                target_pct: sat.target_pct || 10,
+                                profit_pct: sat.profit_pct || 25,
+                                loss_pct: sat.loss_pct || 20,
                                 ma10: sat.ma10 || 0
                             }));
                         }
                         if(!d.qqq_ath) d.qqq_ath = 0;
                         if(!d.tqqq_avg_cost) d.tqqq_avg_cost = 0;
+                        if(!d.core_profit_pct) d.core_profit_pct = 25;
+                        if(!d.core_loss_pct) d.core_loss_pct = 20;
                         setInputs(p => ({...p, ...d})); 
                     }
                     setIsSwitching(false); 
@@ -432,7 +427,7 @@
             const saveSatellites = () => syncToCloud('satellites', inputsRef.current.satellites);
             
             const addSatellite = () => {
-                const newSat = { id: Date.now().toString(), underlying: '', leveraged: '', qty_u: 0, qty_l: 0, ma200: 0, ma10: 0, baseline: 0, rescues: 0 };
+                const newSat = { id: Date.now().toString(), underlying: '', leveraged: '', qty_u: 0, qty_l: 0, ma200: 0, ma10: 0, target_pct: 10, profit_pct: 25, loss_pct: 20, rescues: 0 };
                 const newSats = [...(inputs.satellites || []), newSat];
                 setInputs(p => ({ ...p, satellites: newSats }));
                 syncToCloud('satellites', newSats);
@@ -501,7 +496,8 @@
             };
             
             const metrics = useMemo(() => {
-                const getP = (t) => prices[(t || "").toUpperCase()] || 0;
+                // 優化：處理使用者可能輸入空白的問題
+                const getP = (t) => prices[(t || "").trim().toUpperCase()] || 0;
                 const getV = (k) => getNum(inputs[k]);
                 
                 const qqqPrice = getP('QQQ');
@@ -521,7 +517,12 @@
                 ];
 
                 const pieData = [];
-                let totalCapital = cash + valCore1 + valCore2;
+                let totalCapitalForCalc = cash + valCore1 + valCore2;
+                (inputs.satellites || []).forEach(s => {
+                    totalCapitalForCalc += (getP(s.underlying) * getNum(s.qty_u)) + (getP(s.leveraged) * getNum(s.qty_l));
+                });
+                
+                const safeTotal = totalCapitalForCalc > 0 ? totalCapitalForCalc : 1;
 
                 if (valCore1 > 0) pieData.push({ name: 'QQQ', value: valCore1, fill: '#1e293b' });
                 if (valCore2 > 0) pieData.push({ name: 'TQQQ', value: valCore2, fill: '#64748b' });
@@ -536,84 +537,133 @@
                     const valL = lPrice * qtyL;
                     const currentVal = valU + valL; 
                     satValue += currentVal;
-                    totalCapital += currentVal;
 
                     const colors = satColors[idx % satColors.length];
                     if (valU > 0) pieData.push({ name: s.underlying || '正股', value: valU, fill: colors.u });
                     if (valL > 0) pieData.push({ name: s.leveraged || '槓桿', value: valL, fill: colors.l });
                     
-                    const baseline = getNum(s.baseline);
+                    const targetPct = getNum(s.target_pct);
+                    const profitPctLimit = getNum(s.profit_pct) / 100;
+                    const lossPctLimit = getNum(s.loss_pct) / 100;
+
+                    const targetVal = totalCapitalForCalc * (targetPct / 100);
+                    const currentPct = (currentVal / safeTotal) * 100;
+                    
                     const ma200 = getNum(s.ma200);
                     const ma10 = getNum(s.ma10);
                     const rescues = getNum(s.rescues);
                     const distancePct = ma200 > 0 ? ((uPrice - ma200) / ma200) * 100 : 0;
                     
-                    let status = "狀態未定"; let color = "text-slate-500"; let action = "觀察中"; 
+                    let status = "狀態未定"; let color = "text-slate-500"; let action = "觀察中"; let mode = "none";
                     
-                    const lossPct = baseline > 0 ? (baseline - currentVal) / baseline : 0;
-                    const gainPct = baseline > 0 ? (currentVal - baseline) / baseline : 0;
+                    const excessPct = targetVal > 0 ? (currentVal - targetVal) / targetVal : 0;
+                    const shortfallPct = targetVal > 0 ? (targetVal - currentVal) / targetVal : 0;
 
-                    if (qtyL > 0 && gainPct >= 0.25 && uPrice > ma200 && currentVal > baseline) {
-                        status = "達標：獲利 25%"; color = "text-fin-up"; action = `建議賣出 ${s.leveraged || '槓桿'}。本金換回現貨/QQQ，獲利買 QQQ`;
-                    } else if (qtyL > 0 && lossPct >= 0.20) {
-                        if (rescues < 2) {
-                            status = "觸發 20% 補倉"; color = "text-fin-down"; action = `建議由 QQQ 撥足原金額，需約 $${Math.round(baseline - currentVal)}`;
-                        } else {
-                            status = "補倉達上限"; color = "text-slate-600"; action = "已達 2 次補倉上限，持股等待回升";
+                    if (qtyL > 0 || qtyU > 0) {
+                        mode = qtyL > 0 ? "leveraged" : "underlying";
+                        
+                        if (excessPct >= profitPctLimit && uPrice > ma200) {
+                            status = `達標收割 (+${(excessPct*100).toFixed(1)}%)`; color = "text-fin-up"; 
+                            action = `部位佔比溢出 +${(excessPct*100).toFixed(1)}% (設定標準 ${s.profit_pct}%)，建議賣出 ${s.leveraged || s.underlying} 再平衡，獲利回流 QQQ。`;
+                        } 
+                        else if (shortfallPct >= lossPctLimit) {
+                            if (rescues < 2) {
+                                status = `觸發補倉 (-${(shortfallPct*100).toFixed(1)}%)`; color = "text-fin-down"; 
+                                action = `部位佔比衰退 -${(shortfallPct*100).toFixed(1)}% (設定標準 -${s.loss_pct}%)，建議由 QQQ 撥入約 $${Math.round(targetVal - currentVal).toLocaleString()} 補足。`;
+                            } else {
+                                status = "補倉達上限"; color = "text-slate-600"; action = "已達 2 次補倉上限，嚴格防禦等待回升。";
+                            }
                         }
-                    } else if (qtyU > 0) {
-                        if (ma200 === 0) {
-                            status = "參數未定"; color = "text-slate-400"; action = "請設定 200MA 與 10MA";
-                        } else if (uPrice > ma10 && uPrice < ma200 && ma10 > 0) {
-                            status = "第三階轉換 (站上 10MA)"; color = "text-fin-info"; action = `止跌回升站上 10MA，建議將剩餘 ${s.underlying || '正股'} 全數換成槓桿`;
-                        } else if (distancePct <= -10) {
-                            status = "第二階轉換 (跌 10%)"; color = "text-fin-warn"; action = `跌破 200MA 達 10%，建議將 1/3 資金換成槓桿`;
-                        } else if (distancePct <= 0 && distancePct > -10) {
-                            status = "第一階轉換 (碰 200MA)"; color = "text-fin-info"; action = `觸碰 200MA，建議將 1/3 資金換成槓桿`;
-                        } else {
-                            status = "正常持有正股"; color = "text-slate-500"; action = `現價高於 200MA，未達轉換標準`;
+                        else if (qtyL === 0 && qtyU > 0) {
+                            if (ma200 === 0) {
+                                status = "參數未定"; color = "text-slate-400"; action = "請設定 200MA 與 10MA";
+                            } else if (uPrice > ma10 && uPrice < ma200 && ma10 > 0) {
+                                status = "站上 10MA：第三階轉換"; color = "text-fin-info"; action = `止跌回升，建議將剩餘 ${s.underlying || '正股'} 全數換成槓桿。`;
+                            } else if (distancePct <= -10) {
+                                status = "跌破 10%：第二階轉換"; color = "text-fin-warn"; action = `跌破 200MA 達 10%，建議將 1/3 資金換成槓桿。`;
+                            } else if (distancePct <= 0 && distancePct > -10) {
+                                status = "觸碰 200MA：第一階轉換"; color = "text-fin-info"; action = `進入 200MA 防禦區，建議將 1/3 資金換成槓桿。`;
+                            } else {
+                                status = "正常持有正股"; color = "text-slate-500"; action = `現價高於 200MA，未達轉換標準。`;
+                            }
+                        } 
+                        else {
+                            status = "持有槓桿防禦中"; color = "text-brand-600"; action = `目前佔比未達收割 (+${s.profit_pct}%) 或補倉 (-${s.loss_pct}%) 條件，維持原部位。`;
                         }
-                    } else if (qtyL > 0) {
-                        status = "持有槓桿防禦中"; color = "text-brand-600"; action = `未達獲利(+25%)或補倉(-20%)條件，維持原部位`;
                     } else {
-                        status = "未持有部位"; color = "text-slate-400"; action = "等待進場機會";
+                        mode = "none";
+                        if (!s.underlying) {
+                            status = "未設定代號"; color = "text-slate-300"; action = "請於參數設定中輸入代號。";
+                        } else if (ma200 === 0) {
+                            status = "參數未定"; color = "text-slate-400"; action = "請於參數設定頁面輸入 200MA。";
+                        } else if (distancePct <= 5 && distancePct >= -5) {
+                            status = "均線觸發範圍內"; color = "text-fin-up"; action = `建議依目標佔比 (${targetPct}%) 投入資金買入槓桿 ${s.leveraged || '標的'}。`;
+                        } else if (distancePct < -5) {
+                            status = "低於均線"; color = "text-fin-down"; action = "價格偏弱，持續觀察。";
+                        } else {
+                            status = "高於均線"; color = "text-fin-info"; action = "乖離偏大，暫不買入。";
+                        }
                     }
 
-                    return { ...s, currentVal, uPrice, lPrice, qtyU, qtyL, status, color, action, distancePct, pieColors: colors };
+                    return { ...s, currentVal, uPrice, lPrice, qtyU, qtyL, targetVal, currentPct, status, color, action, distancePct, pieColors: colors, mode };
                 });
 
                 if (cash > 0) pieData.push({ name: '現金', value: cash, fill: '#cbd5e1' });
 
-                pieData.forEach(d => d.percent = d.value / (totalCapital || 1));
+                pieData.forEach(d => d.percent = d.value / safeTotal);
 
                 const qqqAth = getV('qqq_ath');
                 const currentDD = qqqAth > 0 ? ((qqqAth - qqqPrice) / qqqAth) * 100 : 0;
                 
-                let targetTqqqPct = 0; let phase = "正常巡航 (持股 100% QQQ)";
+                let targetTqqqPct = 0; let phase = "正常巡航 (目標 100% QQQ)";
                 if (currentDD >= 40) { targetTqqqPct = 60; phase = "第四階轉換區間 (目標 60% TQQQ)"; }
                 else if (currentDD >= 30) { targetTqqqPct = 45; phase = "第三階轉換區間 (目標 45% TQQQ)"; }
                 else if (currentDD >= 20) { targetTqqqPct = 30; phase = "第二階轉換區間 (目標 30% TQQQ)"; }
                 else if (currentDD >= 10) { targetTqqqPct = 15; phase = "第一階轉換區間 (目標 15% TQQQ)"; }
 
-                const targetTqqqVal = totalCapital * (targetTqqqPct / 100);
-                const currentTqqqPctTotal = (valCore2 / (totalCapital || 1)) * 100;
+                const targetTqqqVal = totalCapitalForCalc * (targetTqqqPct / 100);
+                const currentTqqqPctTotal = (valCore2 / safeTotal) * 100;
                 
+                const coreProfitLimit = getV('core_profit_pct') / 100;
+                const coreLossLimit = getV('core_loss_pct') / 100;
+
+                const coreExcessPct = targetTqqqVal > 0 ? (valCore2 - targetTqqqVal) / targetTqqqVal : 0;
+                const coreShortfallPct = targetTqqqVal > 0 ? (targetTqqqVal - valCore2) / targetTqqqVal : 0;
+
                 let coreAction = "維持現有配置比例"; let coreColor = "text-slate-600"; let coreDiff = 0;
                 
-                if (currentTqqqPctTotal < targetTqqqPct - 2) {
-                    coreAction = `加碼槓桿：建議賣出 QQQ 買入 TQQQ`; coreColor = "text-fin-down"; coreDiff = targetTqqqVal - valCore2;
-                } else if (currentTqqqPctTotal > targetTqqqPct + 2) {
+                if (coreShortfallPct >= coreLossLimit && targetTqqqPct > 0) {
+                    coreAction = `佔比衰退 -${(coreShortfallPct*100).toFixed(1)}%：建議賣出 QQQ 加碼 TQQQ 進行再平衡`; 
+                    coreColor = "text-fin-down"; 
+                    coreDiff = targetTqqqVal - valCore2;
+                } 
+                else if (coreExcessPct >= coreProfitLimit || (targetTqqqPct === 0 && valCore2 > 0)) {
                     const tAvg = getV('tqqq_avg_cost');
-                    if (tAvg > 0 && tqqqPrice <= tAvg) {
-                        coreAction = `成本保護中：TQQQ 現價($${tqqqPrice.toFixed(2)}) 低於成本($${tAvg})，暫停換回`;
+                    if (tAvg > 0 && tqqqPrice <= tAvg && targetTqqqPct > 0) {
+                        coreAction = `成本保護中：TQQQ 現價($${tqqqPrice.toFixed(2)}) 低於成本($${tAvg})，暫緩收割`;
                         coreColor = "text-fin-warn";
                         coreDiff = 0;
                     } else {
-                        coreAction = `獲利減碼：建議賣出 TQQQ 換回 QQQ`; coreColor = "text-fin-up"; coreDiff = valCore2 - targetTqqqVal;
+                        coreAction = `佔比溢出 +${(coreExcessPct*100).toFixed(1)}%：建議賣出 TQQQ 換回 QQQ`; 
+                        coreColor = "text-fin-up"; 
+                        coreDiff = valCore2 - targetTqqqVal;
                     }
                 } else if (currentDD >= 40) {
                     coreAction = "極端應對：持滿 TQQQ，嚴禁割肉不動等待回升"; coreColor = "text-slate-700";
                 }
+
+                const ladderPreview = [10, 20, 30, 40].map(pct => {
+                    const triggerPrice = qqqAth * (1 - pct / 100);
+                    const valueToMove = totalCapitalForCalc * 0.15;
+                    const estQqqSharesToSell = triggerPrice > 0 ? valueToMove / triggerPrice : 0;
+                    return {
+                        pct,
+                        triggerPrice,
+                        valueToMove,
+                        estQqqSharesToSell,
+                        isTriggered: currentDD >= pct
+                    };
+                });
 
                 let gData = [];
                 if (records.length) {
@@ -627,8 +677,8 @@
                 }
 
                 return { 
-                    totalCapital, satStats, graphData: gData, pieData,
-                    coreStats: { qqqPrice, qqqAth, currentDD, targetTqqqPct, currentTqqqPctTotal, phase, coreAction, coreColor, coreDiff }
+                    totalCapital: totalCapitalForCalc, satStats, graphData: gData, pieData,
+                    coreStats: { qqqPrice, qqqAth, currentDD, targetTqqqPct, currentTqqqPctTotal, phase, coreAction, coreColor, coreDiff, ladderPreview }
                 };
             }, [prices, inputs, records]);
 
@@ -708,19 +758,19 @@
                                         onChange={e => handleInputChange('motto', e.target.value)}
                                         onBlur={e => syncToCloud('motto', e.target.value)}
                                         className={`w-full bg-transparent text-base font-black text-slate-700 outline-none resize-none text-center leading-relaxed ${isMottoLocked ? '' : 'bg-slate-50 border border-dashed border-slate-300 rounded-xl p-3'}`}
-                                        rows="4"
+                                        rows="2"
                                         placeholder="輸入您的投資座右銘..."
                                     />
                                 </div>
 
                                 {/* Total Assets Dashboard */}
                                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
-                                    <div className="text-xs text-slate-500 font-black mb-2">總資產價值 (USD)</div>
+                                    <div className="text-xs text-slate-500 font-black mb-2">動態總資產價值 (USD)</div>
                                     <div className="text-5xl font-black font-mono tracking-tight text-slate-800">${metrics.totalCapital.toLocaleString(undefined,{maximumFractionDigits:0})}</div>
                                     
                                     <div className="mt-6 pt-5 border-t border-slate-100 grid grid-cols-2 gap-4">
                                         <div>
-                                            <div className="text-xs text-slate-400 font-bold mb-1">核心部位 (QQQ/TQQQ)</div>
+                                            <div className="text-xs text-slate-400 font-bold mb-1">核心部位現值</div>
                                             <div className="text-lg font-mono font-black">${((metrics.coreStats.qqqPrice*getNum(inputs.qty_core_1))+(prices['TQQQ']*getNum(inputs.qty_core_2))).toLocaleString(undefined,{maximumFractionDigits:0})}</div>
                                         </div>
                                         <div>
@@ -763,37 +813,64 @@
                                 </CollapsibleCard>
 
                                 {/* Core Strategy Status */}
-                                <CollapsibleCard title="核心部位轉換 (大盤監控)" icon="BarChart2" isOpen={sections.core} onToggle={()=>toggleSection('core')}>
+                                <CollapsibleCard title="核心動態轉換 (QQQ/TQQQ)" icon="BarChart2" isOpen={sections.core} onToggle={()=>toggleSection('core')}>
                                     <div className="flex justify-between items-end mb-5">
                                         <div>
-                                            <div className="text-xs text-slate-500 font-bold mb-1">歷史高點 (基準)</div>
+                                            <div className="text-[10px] text-slate-500 font-bold">歷史高點 (基準)</div>
                                             <div className="font-mono font-black text-slate-700 text-lg">${metrics.coreStats.qqqAth}</div>
                                         </div>
                                         <div className="text-right">
-                                            <div className="text-xs text-slate-500 font-bold mb-1">目前回撤幅度</div>
+                                            <div className="text-[10px] text-slate-500 font-bold">大盤回撤幅度</div>
                                             <div className="font-mono font-black text-2xl text-fin-down">-{metrics.coreStats.currentDD.toFixed(1)}%</div>
                                         </div>
                                     </div>
                                     
                                     <div className="bg-slate-50 rounded-2xl p-4 mb-5 border border-slate-100">
-                                        <div className="flex justify-between text-sm font-black mb-3 text-slate-700">
-                                            <span>{metrics.coreStats.phase}</span>
-                                            <span className="font-mono text-brand-600">{metrics.coreStats.targetTqqqPct}%</span>
+                                        <div className="flex justify-between text-xs font-bold mb-3 text-slate-600">
+                                            <span>目標佔比: {metrics.coreStats.targetTqqqPct}%</span>
+                                            <span className="text-brand-600">實際佔比: {metrics.coreStats.currentTqqqPctTotal.toFixed(1)}%</span>
                                         </div>
-                                        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                                            <div className="h-full bg-brand-500 transition-all" style={{width: `${metrics.coreStats.targetTqqqPct}%`}}></div>
+                                        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden relative">
+                                            <div className="absolute top-0 bottom-0 w-1 bg-slate-400 z-10" style={{left: `${metrics.coreStats.targetTqqqPct}%`}}></div>
+                                            <div className="h-full bg-brand-500 transition-all" style={{width: `${metrics.coreStats.currentTqqqPctTotal}%`}}></div>
+                                        </div>
+                                        <div className="text-center text-xs font-black text-slate-700 mt-3 pt-3 border-t border-slate-200">
+                                            {metrics.coreStats.phase}
                                         </div>
                                     </div>
 
-                                    <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm">
-                                        <div className="text-xs text-slate-400 font-bold mb-2">系統操作建議</div>
-                                        <div className={`text-base font-black leading-snug ${metrics.coreStats.coreColor}`}>{metrics.coreStats.coreAction}</div>
-                                        {metrics.coreStats.coreDiff > 0 && <div className="text-sm font-mono font-black mt-2 text-slate-500 border-t border-slate-100 pt-2">建議金額差異: ${metrics.coreStats.coreDiff.toLocaleString(undefined,{maximumFractionDigits:0})}</div>}
+                                    <div className={`p-4 rounded-2xl border shadow-sm ${metrics.coreStats.coreDiff !== 0 ? 'bg-white border-brand-200' : 'bg-slate-50 border-slate-100'}`}>
+                                        <div className="text-xs text-slate-500 font-bold mb-2">再平衡指示</div>
+                                        <div className={`text-sm font-black leading-relaxed ${metrics.coreStats.coreColor}`}>{metrics.coreStats.coreAction}</div>
+                                        {metrics.coreStats.coreDiff !== 0 && <div className="text-xs font-mono font-black mt-2 text-slate-600 border-t border-slate-100 pt-2 flex justify-between"><span>建議調整額度:</span> <span>${Math.abs(metrics.coreStats.coreDiff).toLocaleString(undefined,{maximumFractionDigits:0})}</span></div>}
+                                    </div>
+
+                                    <div className="mt-5 pt-5 border-t border-slate-100">
+                                        <div className="text-xs text-slate-500 font-bold mb-3 flex items-center gap-1.5"><Icon name="TrendingDown" size={16}/> 下跌階梯轉換預覽 (每階 15% 資金)</div>
+                                        <div className="grid grid-cols-1 gap-2.5">
+                                            {metrics.coreStats.ladderPreview.map((tier, idx) => (
+                                                <div key={idx} className={`flex justify-between items-center p-3.5 rounded-xl border ${tier.isTriggered ? 'bg-slate-50 border-slate-100 opacity-50' : 'bg-white border-slate-200 shadow-sm'}`}>
+                                                    <div className="flex items-center gap-3">
+                                                        <span className={`text-xs font-black px-2 py-1 rounded-md ${tier.isTriggered ? 'bg-slate-200 text-slate-500' : 'bg-red-50 text-red-600'}`}>-{tier.pct}%</span>
+                                                        <div>
+                                                            <div className="text-[10px] text-slate-400 font-bold mb-0.5">觸發價格</div>
+                                                            <div className={`text-sm font-mono font-black ${tier.isTriggered ? 'text-slate-500' : 'text-slate-800'}`}>${tier.triggerPrice.toFixed(2)}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="text-[10px] text-slate-400 font-bold mb-0.5">預估轉換額度 (QQQ ➔ TQQQ)</div>
+                                                        <div className={`text-xs font-black font-mono ${tier.isTriggered ? 'text-slate-500' : 'text-brand-600'}`}>
+                                                            ${Math.round(tier.valueToMove).toLocaleString()} <span className="text-[10px] text-slate-400 font-sans ml-1">(賣約 {Math.round(tier.estQqqSharesToSell)} 股)</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 </CollapsibleCard>
 
                                 {/* Satellite Strategy Status */}
-                                <CollapsibleCard title="個股分批轉換雷達 (200MA)" icon="Activity" isOpen={sections.satellite} onToggle={()=>toggleSection('satellite')}>
+                                <CollapsibleCard title="衛星動態雷達 (佔比再平衡)" icon="Activity" isOpen={sections.satellite} onToggle={()=>toggleSection('satellite')}>
                                     <div className="space-y-4">
                                         {metrics.satStats.length === 0 && (
                                             <div className="text-center text-sm text-slate-400 py-8 border-2 border-dashed border-slate-200 rounded-2xl">
@@ -801,33 +878,38 @@
                                             </div>
                                         )}
                                         {metrics.satStats.map(s => (
-                                            <div key={s.id} className={`bg-white border-2 rounded-2xl p-5 transition-all ${s.mode === 'leveraged' ? 'border-brand-200 bg-brand-50/20' : (s.mode === 'underlying' ? 'border-slate-300 bg-slate-50/50' : 'border-slate-100')}`}>
+                                            <div key={s.id} className={`bg-white border-2 rounded-2xl p-5 transition-all ${s.action.includes('建議') ? 'border-brand-300 shadow-md bg-brand-50/10' : 'border-slate-100 shadow-sm'}`}>
                                                 <div className="flex justify-between items-start mb-4">
                                                     <div>
                                                         <div className="flex items-center gap-3">
                                                             <span className="text-xl font-black">{s.underlying || '未定'} / {s.leveraged || '未定'}</span>
                                                         </div>
-                                                        <div className="text-xs text-slate-500 font-mono font-bold mt-2">
-                                                            200MA: ${s.ma200} | 10MA: ${s.ma10}
-                                                        </div>
                                                     </div>
-                                                    <div className={`text-xs font-black px-3 py-1.5 rounded-lg bg-white border shadow-sm ${s.color.replace('text-', 'border-')} ${s.color}`}>
+                                                    <div className={`text-[10px] font-black px-3 py-1.5 rounded-lg bg-white border shadow-sm ${s.color.replace('text-', 'border-')} ${s.color}`}>
                                                         {s.status}
                                                     </div>
                                                 </div>
 
-                                                <div className="mt-4 bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-inner">
-                                                    <div className="flex justify-between text-xs font-bold text-slate-600 mb-2 border-b border-slate-100 pb-2">
-                                                        <span>正股現價: ${s.uPrice.toFixed(2)}</span>
-                                                        <span className={s.distancePct > 0 ? 'text-fin-info' : 'text-fin-down'}>距離 200MA: {s.distancePct > 0 ? '+' : ''}{s.distancePct.toFixed(2)}%</span>
+                                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
+                                                    <div className="flex justify-between text-xs font-bold text-slate-600 mb-2">
+                                                        <span>目標: {s.target_pct}% <span className="text-[10px] text-slate-400">(${s.targetVal.toLocaleString(undefined,{maximumFractionDigits:0})})</span></span>
+                                                        <span className="text-brand-600">現況: {s.currentPct.toFixed(1)}% <span className="text-[10px] text-slate-400">(${s.currentVal.toLocaleString(undefined,{maximumFractionDigits:0})})</span></span>
                                                     </div>
-                                                    <div className="flex justify-between text-xs font-bold text-slate-600">
-                                                        <span>槓桿現價: ${s.lPrice.toFixed(2)}</span>
-                                                        <span className="text-brand-600">持股: 正 {s.qtyU} / 槓 {s.qtyL}</span>
+                                                    {/* Dynamic Percentage Bar */}
+                                                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden relative mb-3">
+                                                        {/* Target Marker */}
+                                                        <div className="absolute top-0 bottom-0 w-1 bg-slate-400 z-10" style={{left: `${s.target_pct}%`}}></div>
+                                                        {/* Color changes if it hits profit (+%) or loss (-%) threshold */}
+                                                        <div className={`h-full transition-all ${s.currentPct >= s.target_pct * (1 + s.profit_pct/100) ? 'bg-fin-up' : (s.currentPct <= s.target_pct * (1 - s.loss_pct/100) && s.target_pct > 0 ? 'bg-fin-down' : 'bg-brand-400')}`} style={{width: `${s.currentPct}%`}}></div>
+                                                    </div>
+                                                    
+                                                    <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-slate-500 pt-3 border-t border-slate-100">
+                                                        <div>均線: <span className="font-mono text-slate-700">${s.ma200}</span></div>
+                                                        <div className="text-right">現價: <span className="font-mono text-slate-700">${s.uPrice.toFixed(2)}</span></div>
                                                     </div>
                                                 </div>
 
-                                                <div className="mt-4 text-sm font-black text-slate-700 pt-3 border-t border-slate-100 flex items-start gap-2 leading-relaxed">
+                                                <div className="text-sm font-black text-slate-700 flex items-start gap-2 leading-relaxed">
                                                     <span className="text-slate-300 mt-0.5">↳</span>
                                                     <span className={s.color}>{s.action}</span>
                                                 </div>
@@ -947,11 +1029,31 @@
                                                 <input type="number" inputMode="decimal" value={inputs.tqqq_avg_cost} onChange={e=>handleInputChange('tqqq_avg_cost', e.target.value)} onBlur={e=>syncToCloud('tqqq_avg_cost',e.target.value)} className="w-full text-xl font-mono font-black text-slate-800 bg-transparent text-left" placeholder="0.00" />
                                             </div>
                                         </div>
+                                        
+                                        <div className="pt-4 border-t border-slate-100">
+                                            <label className="text-xs text-brand-600 font-bold block mb-2 flex items-center gap-1"><Icon name="Activity" size={14}/> 核心動態再平衡標準</label>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="text-[10px] text-fin-up font-bold block mb-1">獲利收割標準 (+%)</label>
+                                                    <div className="flex items-center gap-1 bg-white p-2 rounded-xl border border-slate-200">
+                                                        <input type="number" inputMode="decimal" value={inputs.core_profit_pct} onChange={e=>handleInputChange('core_profit_pct', e.target.value)} onBlur={e=>syncToCloud('core_profit_pct',e.target.value)} className="w-full font-mono font-black text-slate-800 bg-transparent text-center" placeholder="25" />
+                                                        <span className="text-slate-400 pr-2 font-black">%</span>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] text-fin-down font-bold block mb-1">加碼補倉標準 (-%)</label>
+                                                    <div className="flex items-center gap-1 bg-white p-2 rounded-xl border border-slate-200">
+                                                        <input type="number" inputMode="decimal" value={inputs.core_loss_pct} onChange={e=>handleInputChange('core_loss_pct', e.target.value)} onBlur={e=>syncToCloud('core_loss_pct',e.target.value)} className="w-full font-mono font-black text-slate-800 bg-transparent text-center" placeholder="20" />
+                                                        <span className="text-slate-400 pr-2 font-black">%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
                                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
-                                    <h2 className="text-base font-black text-slate-800 mb-5 pb-3 border-b border-slate-100 flex items-center gap-2"><Icon name="Activity" size={20} className="text-fin-info"/> 個股雷達參數</h2>
+                                    <h2 className="text-base font-black text-slate-800 mb-5 pb-3 border-b border-slate-100 flex items-center gap-2"><Icon name="Activity" size={20} className="text-fin-info"/> 個股佔比與雷達參數</h2>
                                     <div className="space-y-5">
                                         {(inputs.satellites || []).map(s => (
                                             <div key={s.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 relative shadow-sm">
@@ -962,34 +1064,54 @@
                                                 <div className="flex flex-col gap-3 mb-4 pr-10">
                                                     <div className="flex gap-3">
                                                         <div className="flex-1">
-                                                            <label className="text-[10px] text-slate-500 font-bold block mb-1">現貨代號 (均線基準)</label>
-                                                            <input value={s.underlying} onChange={e=>updateSatellite(s.id, 'underlying', e.target.value.toUpperCase())} onBlur={saveSatellites} className="w-full bg-white font-black text-sm p-3 rounded-xl border border-slate-200 uppercase" placeholder="如 TSLA" />
+                                                            <label className="text-[10px] text-slate-500 font-bold block mb-1">現貨代號</label>
+                                                            <input value={s.underlying} onChange={e=>updateSatellite(s.id, 'underlying', e.target.value.toUpperCase().trim())} onBlur={saveSatellites} className="w-full bg-white font-black text-sm p-3 rounded-xl border border-slate-200 uppercase" placeholder="如 TSLA" />
                                                         </div>
                                                         <div className="flex-1">
-                                                            <label className="text-[10px] text-brand-600 font-bold block mb-1">槓桿代號 (實際買入)</label>
-                                                            <input value={s.leveraged} onChange={e=>updateSatellite(s.id, 'leveraged', e.target.value.toUpperCase())} onBlur={saveSatellites} className="w-full bg-brand-50 font-black text-brand-700 text-sm p-3 rounded-xl border border-brand-200 uppercase" placeholder="如 TSLL" />
+                                                            <label className="text-[10px] text-brand-600 font-bold block mb-1">槓桿代號</label>
+                                                            <input value={s.leveraged} onChange={e=>updateSatellite(s.id, 'leveraged', e.target.value.toUpperCase().trim())} onBlur={saveSatellites} className="w-full bg-brand-50 font-black text-brand-700 text-sm p-3 rounded-xl border border-brand-200 uppercase" placeholder="如 TSLL" />
                                                         </div>
                                                     </div>
                                                 </div>
+                                                
+                                                {/* 動態目標佔比設定 */}
+                                                <div className="mb-4 bg-white p-3 rounded-xl border border-brand-100 shadow-sm">
+                                                    <label className="text-xs text-brand-600 font-bold block mb-2 flex items-center gap-1"><Icon name="PieChart" size={14}/> 佔比設定與再平衡標準</label>
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                        <div>
+                                                            <label className="text-[9px] text-slate-500 font-bold block mb-1">目標佔比 (%)</label>
+                                                            <div className="flex items-center gap-1 bg-slate-50 p-1.5 rounded-lg border border-brand-200">
+                                                                <input type="number" inputMode="decimal" value={s.target_pct} onChange={e=>updateSatellite(s.id, 'target_pct', e.target.value)} onBlur={saveSatellites} className="w-full font-mono font-black text-brand-700 bg-transparent text-center" placeholder="10" />
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[9px] text-fin-up font-bold block mb-1">收割 (+%)</label>
+                                                            <div className="flex items-center gap-1 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+                                                                <input type="number" inputMode="decimal" value={s.profit_pct} onChange={e=>updateSatellite(s.id, 'profit_pct', e.target.value)} onBlur={saveSatellites} className="w-full font-mono font-black text-slate-800 bg-transparent text-center" placeholder="25" />
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[9px] text-fin-down font-bold block mb-1">補倉 (-%)</label>
+                                                            <div className="flex items-center gap-1 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+                                                                <input type="number" inputMode="decimal" value={s.loss_pct} onChange={e=>updateSatellite(s.id, 'loss_pct', e.target.value)} onBlur={saveSatellites} className="w-full font-mono font-black text-slate-800 bg-transparent text-center" placeholder="20" />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
                                                 <div className="grid grid-cols-2 gap-3 mb-3">
                                                     <div>
                                                         <label className="text-[10px] text-slate-500 font-bold block mb-1">200 日均線 ($)</label>
                                                         <input type="number" inputMode="decimal" value={s.ma200} onChange={e=>updateSatellite(s.id, 'ma200', e.target.value)} onBlur={saveSatellites} className="w-full bg-white font-mono font-black text-sm p-3 rounded-xl border border-slate-200" placeholder="0" />
                                                     </div>
                                                     <div>
-                                                        <label className="text-[10px] text-fin-info font-bold block mb-1">10 日均線 ($) 止跌指標</label>
+                                                        <label className="text-[10px] text-fin-info font-bold block mb-1">10 日均線 ($) 止跌</label>
                                                         <input type="number" inputMode="decimal" value={s.ma10} onChange={e=>updateSatellite(s.id, 'ma10', e.target.value)} onBlur={saveSatellites} className="w-full bg-white font-mono font-black text-sm p-3 rounded-xl border border-slate-200" placeholder="0" />
                                                     </div>
                                                 </div>
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <div>
-                                                        <label className="text-[10px] text-slate-500 font-bold block mb-1">槓桿總成本 ($)</label>
-                                                        <input type="number" inputMode="decimal" value={s.baseline} onChange={e=>updateSatellite(s.id, 'baseline', e.target.value)} onBlur={saveSatellites} className="w-full bg-white font-mono font-black text-sm p-3 rounded-xl border border-slate-200" placeholder="0" />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-[10px] text-slate-500 font-bold block mb-1">已補倉次數 (Max: 2)</label>
-                                                        <input type="number" inputMode="decimal" value={s.rescues} onChange={e=>updateSatellite(s.id, 'rescues', e.target.value)} onBlur={saveSatellites} className="w-full bg-white font-mono font-black text-sm p-3 rounded-xl border border-slate-200" placeholder="0" />
-                                                    </div>
+                                                <div>
+                                                    <label className="text-[10px] text-slate-500 font-bold block mb-1">已補倉次數 (Max: 2)</label>
+                                                    <input type="number" inputMode="decimal" value={s.rescues} onChange={e=>updateSatellite(s.id, 'rescues', e.target.value)} onBlur={saveSatellites} className="w-full bg-white font-mono font-black text-sm p-3 rounded-xl border border-slate-200" placeholder="0" />
                                                 </div>
                                             </div>
                                         ))}

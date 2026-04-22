@@ -6,10 +6,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Alpha Horizon - 投資計畫執行系統</title>
     
-    <!-- 專屬網頁圖示 (Favicon) - 藍色 Alpha 向上生長圖騰 -->
     <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f172a'/><path d='M25 75 L50 25 L75 75' stroke='%233b82f6' stroke-width='12' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='50' cy='25' r='8' fill='%233b82f6'/></svg>" type="image/svg+xml">
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         if (typeof tailwind !== 'undefined') {
@@ -28,14 +26,12 @@
         }
     </script>
 
-    <!-- React Libraries -->
     <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
     <script src="https://unpkg.com/recharts@2.10.0/umd/Recharts.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -567,7 +563,10 @@
 
                 // 雙槓桿比例計算
                 const growthExposure = (valCore1 * 1) + (valCore2 * 3) + (satValueU * 1) + (satValueL * 2);
-                const totalExposure = growthExposure + totalReserve; // 戰備與現金視為 1x 曝險
+                
+                // 【核心修正】：將 BOXX/現金 視為 0 倍市場風險
+                // 這樣總體槓桿 = 投入股市的曝險 / 總真實本金 (完美對齊 80% 投入的概念)
+                const totalExposure = growthExposure + 0; 
                 
                 const growthLeverageRatio = growthExposure / safeGrowth;
                 const totalLeverageRatio = totalExposure / safeTotal;
@@ -690,6 +689,7 @@
 
                 const ladderPreview = [10, 20, 30, 40].map(pct => {
                     const triggerPrice = qqqAth * (1 - pct / 100);
+                    // 根據策略，每階段轉入的目標額度大約為整體資金的 15% (即對應 目標佔比: 15/30/45/60)
                     const valueToMove = totalCapital * 0.15;
                     const estQqqSharesToSell = triggerPrice > 0 ? valueToMove / triggerPrice : 0;
                     return { pct, triggerPrice, valueToMove, estQqqSharesToSell, isTriggered: currentDD >= pct };

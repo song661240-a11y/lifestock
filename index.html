@@ -407,7 +407,6 @@
                 return () => { unsubscribeRecs(); unsubscribeConf(); };
             }, [user]);
 
-            // 🚀 API 優化：只在「代號」改變時才觸發 Fetch，避免輸入股數時瘋狂 Call API
             const symbolsString = useMemo(() => {
                 let syms = ['QQQ', 'TQQQ', 'BOXX'];
                 (inputs.satellites || []).forEach(s => { 
@@ -559,11 +558,18 @@
                 const totalReserve = cash + valBoxx;
                 const totalCore = valCore1 + valCore2;
                 const totalSat = satValueU + satValueL;
-                const totalCapital = totalReserve + totalCore + totalSat;
+                
+                const growthCapital = totalCore + totalSat; // 成長部位總和
+                const totalCapital = totalReserve + growthCapital; // 真實總資產
+                
                 const safeTotal = totalCapital > 0 ? totalCapital : 1;
+                const safeGrowth = growthCapital > 0 ? growthCapital : 1;
 
-                // 總暴露風險(槓桿比例)
-                const totalExposure = (cash * 1) + (valBoxx * 1) + (valCore1 * 1) + (valCore2 * 3) + (satValueU * 1) + (satValueL * 2);
+                // 雙槓桿比例計算
+                const growthExposure = (valCore1 * 1) + (valCore2 * 3) + (satValueU * 1) + (satValueL * 2);
+                const totalExposure = growthExposure + totalReserve; // 戰備與現金視為 1x 曝險
+                
+                const growthLeverageRatio = growthExposure / safeGrowth;
                 const totalLeverageRatio = totalExposure / safeTotal;
 
                 // 圓餅圖加入總資產百分比 (供 tooltip 使用)
@@ -684,7 +690,6 @@
 
                 const ladderPreview = [10, 20, 30, 40].map(pct => {
                     const triggerPrice = qqqAth * (1 - pct / 100);
-                    // 根據策略，每階段轉入的目標額度大約為整體資金的 15% (即對應 目標佔比: 15/30/45/60)
                     const valueToMove = totalCapital * 0.15;
                     const estQqqSharesToSell = triggerPrice > 0 ? valueToMove / triggerPrice : 0;
                     return { pct, triggerPrice, valueToMove, estQqqSharesToSell, isTriggered: currentDD >= pct };
@@ -702,7 +707,7 @@
                 }
 
                 return { 
-                    totalCapital, satStats: mappedSatStats, graphData: gData, pieData, totalLeverageRatio,
+                    totalCapital, satStats: mappedSatStats, graphData: gData, pieData, growthLeverageRatio, totalLeverageRatio,
                     classification: {
                         core: { u: valCore1, l: valCore2, total: totalCore, uPct: (valCore1/safeTotal)*100, lPct: (valCore2/safeTotal)*100, totalPct: (totalCore/safeTotal)*100 },
                         sat: { u: satValueU, l: satValueL, total: totalSat, uPct: (satValueU/safeTotal)*100, lPct: (satValueL/safeTotal)*100, totalPct: (totalSat/safeTotal)*100 },
@@ -834,9 +839,15 @@
                                     isOpen={sections.allocation} 
                                     onToggle={()=>toggleSection('allocation')}
                                     rightElement={
-                                        <div className={`px-2 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm transition-all ${metrics.totalLeverageRatio > 1.8 ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-brand-50 border-brand-200 text-brand-700'}`}>
-                                            <Icon name="Zap" size={14} className={metrics.totalLeverageRatio > 1.5 ? "animate-pulse" : ""} />
-                                            <span className="text-[10px] font-black tracking-tight whitespace-nowrap">總槓桿 {metrics.totalLeverageRatio.toFixed(2)}x</span>
+                                        <div className="flex items-center gap-1.5">
+                                            <div className={`px-1.5 py-0.5 rounded border flex items-center gap-1 shadow-sm transition-colors ${metrics.growthLeverageRatio > 1.8 ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-brand-50 border-brand-200 text-brand-700'}`}>
+                                                <Icon name="Zap" size={12} className={metrics.growthLeverageRatio > 1.5 ? "animate-pulse" : ""} />
+                                                <span className="text-[9px] font-black tracking-tight whitespace-nowrap">成長 {metrics.growthLeverageRatio.toFixed(2)}x</span>
+                                            </div>
+                                            <div className="px-1.5 py-0.5 rounded border bg-slate-100 border-slate-200 text-slate-600 flex items-center gap-1 shadow-sm">
+                                                <Icon name="Shield" size={12} />
+                                                <span className="text-[9px] font-black tracking-tight whitespace-nowrap">總體 {metrics.totalLeverageRatio.toFixed(2)}x</span>
+                                            </div>
                                         </div>
                                     }
                                 >

@@ -15,11 +15,11 @@
         }
     </script>
     
-    <!-- 核心 React 與圖表套件 (使用穩定版與防呆載入) -->
+    <!-- 核心 React 與圖表套件 (強制鎖定穩定版本) -->
     <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
-    <script src="https://unpkg.com/recharts@2.1.9/umd/Recharts.js"></script>
+    <script src="https://unpkg.com/recharts@2.1.12/umd/Recharts.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <!-- Firebase -->
@@ -44,20 +44,20 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useCallback, memo, useRef } = React;
         
-        // 加入安全防護：如果 Recharts CDN 失效，不會讓整個網頁崩潰
+        // --- 安全載入圖表套件防呆機制 ---
         const RechartsLib = window.Recharts || {};
         const { ComposedChart, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } = RechartsLib;
+        const hasCharts = !!ComposedChart && !!PieChart; // 檢查套件是否成功載入
 
-        // Firebase & Config
+        // --- 系統設定與 Firebase ---
         const FINNHUB_KEY = "d4q36b9r01qha6q0jclgd4q36b9r01qha6q0jcm0";
         const appId = 'alpha-horizon-2026-v1'; 
         const firebaseConfig = { apiKey: "AIzaSyDMR8Q20z9vnWtQlafDowRujzBexV0h_lI", authDomain: "lifestock-83480.firebaseapp.com", projectId: "lifestock-83480", storageBucket: "lifestock-83480.firebasestorage.app", messagingSenderId: "615080626396", appId: "1:615080626396:web:407135b548f3ed5b5c4c19" };
-        
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore(); 
         const auth = firebase.auth();
 
-        // Utils
+        // --- 輔助函數 ---
         const sanitize = (data) => JSON.parse(JSON.stringify(data, (k, v) => v === undefined ? null : v));
         const getNum = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
         const getTodayStr = () => { 
@@ -66,22 +66,18 @@
             return d.toISOString().split('T')[0]; 
         };
 
-        // Defaults
+        // --- 預設值區塊 ---
         const defPlan = `壹、 資金分配架構\n【成長部位】 (佔總額 80% — 比例管理)：\n• 核心配置 (70%)： 持有 QQQ。\n• 衛星配置 (30%)： 持有 TSLA, IBIT, AAPL 等。\n• 管理規則：單一標的上限 20%。若連續兩年報酬率低於 QQQ，轉入 QQQ。\n\n【戰備儲備水位】 (佔總額 20% — 動態再平衡)：\n• 標的： BOXX。\n• 回補機制： 獲利結清時，優先將資金補回至總資產設定水位。\n\n貳、 QQQ 與 TQQQ 轉換機制\n【下跌切換 (增加槓桿)】：依設定階梯將 QQQ 轉換為 TQQQ。\n【反彈切換與收割 (恢復配置)】：突破 ATH，且高於平均成本時執行轉換收割。\n\n參、 衛星 200 日均線狙擊與救援規則\n• 觸碰 200 日線、跌破 10%、止跌回升時分批轉槓桿。\n• 虧損 20%：戰備水位救援 (BOXX 撥款)。\n• 獲利 25%：結清回填 (優先補 BOXX)。\n\n肆、 執行紀律\n• 封閉系統，極限臥倒，不對稱操作。`;
         const defSats = [
             { id: '1', underlying: 'TSLA', leveraged: 'TSLL', qty_u: 0, qty_l: 0, ma200: 200, ma10: 190, target_pct: 15, profit_pct: 25, loss_pct: 20, rescues: 0 }, 
             { id: '2', underlying: 'IBIT', leveraged: 'BITU', qty_u: 0, qty_l: 0, ma200: 35, ma10: 36, target_pct: 10, profit_pct: 25, loss_pct: 20, rescues: 0 }
         ];
         const defLad = [
-            { id: 'l1', drop_pct: 10, move_pct: 15 }, 
-            { id: 'l2', drop_pct: 20, move_pct: 15 }, 
-            { id: 'l3', drop_pct: 30, move_pct: 15 }, 
-            { id: 'l4', drop_pct: 40, move_pct: 15 }
+            { id: 'l1', drop_pct: 10, move_pct: 15 }, { id: 'l2', drop_pct: 20, move_pct: 15 }, 
+            { id: 'l3', drop_pct: 30, move_pct: 15 }, { id: 'l4', drop_pct: 40, move_pct: 15 }
         ];
         const defUpLad = [
-            { id: 'u1', rise_pct: 0, target_pct: 30 }, 
-            { id: 'u2', rise_pct: 5, target_pct: 15 }, 
-            { id: 'u3', rise_pct: 10, target_pct: 0 }
+            { id: 'u1', rise_pct: 0, target_pct: 30 }, { id: 'u2', rise_pct: 5, target_pct: 15 }, { id: 'u3', rise_pct: 10, target_pct: 0 }
         ];
         const defInputs = { 
             motto: '動態佔比再平衡，嚴守紀律不凹單', planText: defPlan, 
@@ -90,11 +86,10 @@
             core_ladder: defLad, core_up_ladder: defUpLad, satellites: defSats 
         };
 
-        // UI Components
+        // --- UI 元件 ---
         const Icon = memo(({ name, size = 20, className = "" }) => {
             const i = { 
-                TrendingUp: <path d="m22 7-8.5 8.5-5-5L2 17M22 7h-6M22 7v6"/>, 
-                TrendingDown: <path d="m22 17-8.5-8.5-5 5L2 5M22 17h-6M22 17v-6"/>, 
+                TrendingUp: <path d="m22 7-8.5 8.5-5-5L2 17M22 7h-6M22 7v6"/>, TrendingDown: <path d="m22 17-8.5-8.5-5 5L2 5M22 17h-6M22 17v-6"/>, 
                 Settings: <path d="M12.22 2h-.44a2 2 0 0 0-2 2a2 2 0 0 1-2 2a2 2 0 0 1 2-2a2 2 0 0 1 2-2a2 2 0 0 0-2-2zM9 12a3 3 0 1 1 6 0a3 3 0 0 1-6 0z"/>, 
                 RefreshCcw: <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8m0 4a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16m-18-8h5V3m13 18h-5v5"/>, 
                 LayoutDashboard: <g><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></g>, 
@@ -105,10 +100,8 @@
                 Edit2: <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>, 
                 Lock: <g><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></g>, 
                 Unlock: <g><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 9.9-1" /></g>, 
-                ChevronDown: <path d="m6 9 6 6 6-6"/>, 
-                ChevronUp: <path d="m18 15-6-6-6 6"/>, 
-                Activity: <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>, 
-                PieChart: <path d="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z"/>, 
+                ChevronDown: <path d="m6 9 6 6 6-6"/>, ChevronUp: <path d="m18 15-6-6-6 6"/>, 
+                Activity: <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>, PieChart: <path d="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z"/>, 
                 Plus: <path d="M12 5v14M5 12h14"/>, 
                 Trash2: <g><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></g>, 
                 LogOut: <g><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></g>, 
@@ -312,13 +305,17 @@
                 setIsSwitching(true);
                 
                 const unsubRecs = refs.recsRef.onSnapshot(
-                    s => setRecords(s.docs.map(d => ({id: d.id, ...d.data()}))), 
+                    s => {
+                        if (s && s.docs) {
+                            setRecords(s.docs.map(d => ({id: d.id, ...d.data()})));
+                        }
+                    }, 
                     e => setAuthError("資料庫權限不足。")
                 ); 
                 
                 const unsubConf = refs.confRef.onSnapshot(s => { 
                     if (s.exists) { 
-                        const d = s.data(); 
+                        const d = s.data() || {}; 
                         setInputs(p => ({ 
                             ...p, 
                             ...d, 
@@ -338,8 +335,8 @@
             const symbolsString = useMemo(() => {
                 let syms = ['QQQ', 'TQQQ', 'BOXX'];
                 (inputs.satellites || []).forEach(s => { 
-                    if(s.underlying) syms.push(s.underlying.trim().toUpperCase()); 
-                    if(s.leveraged) syms.push(s.leveraged.trim().toUpperCase()); 
+                    if(s && s.underlying) syms.push(s.underlying.trim().toUpperCase()); 
+                    if(s && s.leveraged) syms.push(s.leveraged.trim().toUpperCase()); 
                 });
                 return [...new Set(syms.filter(Boolean))].sort().join(',');
             }, [inputs.satellites]);
@@ -348,12 +345,14 @@
 
             const fetchPrices = useCallback(async (force = false) => { 
                 if (loadingPrices && !force) return; 
-                const syms = symbolsString.split(','); 
-                if (!syms[0]) return;
+                if (!symbolsString) return;
+
+                const symsArray = symbolsString.split(','); 
+                if (!symsArray[0]) return;
                 
                 setLoadingPrices(true); 
                 try { 
-                    const res = await Promise.allSettled(syms.map(s => fetch(`https://finnhub.io/api/v1/quote?symbol=${s}&token=${FINNHUB_KEY}`).then(r => r.json()).then(d => ({s, p: d.c})))); 
+                    const res = await Promise.allSettled(symsArray.map(s => fetch(`https://finnhub.io/api/v1/quote?symbol=${s}&token=${FINNHUB_KEY}`).then(r => r.json()).then(d => ({s, p: d.c})))); 
                     setPrices(p => ({
                         ...p, 
                         ...res.reduce((acc, c) => (c.status === 'fulfilled' && c.value.p > 0 ? {...acc, [c.value.s]: c.value.p} : acc), {})
@@ -372,23 +371,24 @@
             };
 
             const updateArr = (arr, id, field, value) => {
-                setInputs(p => ({
-                    ...p, 
-                    [arr]: (p[arr] || []).map(i => i.id === id ? { ...i, [field]: value } : i)
-                }));
+                setInputs(p => {
+                    const currentArr = p[arr] || [];
+                    const newArr = currentArr.map(i => i.id === id ? { ...i, [field]: value } : i);
+                    return { ...p, [arr]: newArr };
+                });
             };
             
             const removeArr = (arr, id) => { 
-                const n = (inputs[arr] || []).filter(i => i.id !== id); 
-                setInputs(p => ({ ...p, [arr]: n })); 
-                syncToCloud(arr, n); 
+                const newArr = (inputs[arr] || []).filter(i => i.id !== id); 
+                setInputs(p => ({ ...p, [arr]: newArr })); 
+                syncToCloud(arr, newArr); 
                 showToast("已刪除"); 
             };
             
             const addArr = (arr, def) => { 
-                const n = [...(inputs[arr] || []), { id: Date.now().toString(), ...def }]; 
-                setInputs(p => ({ ...p, [arr]: n })); 
-                syncToCloud(arr, n); 
+                const newArr = [...(inputs[arr] || []), { id: Date.now().toString(), ...def }]; 
+                setInputs(p => ({ ...p, [arr]: newArr })); 
+                syncToCloud(arr, newArr); 
                 showToast("已新增"); 
             };
 
@@ -462,8 +462,10 @@
                 let tempU = 0; 
                 let tempL = 0;
                 (inputs.satellites || []).forEach(s => { 
-                    tempU += getP(s.underlying) * getNum(s.qty_u); 
-                    tempL += getP(s.leveraged) * getNum(s.qty_l); 
+                    if (s) {
+                        tempU += getP(s.underlying) * getNum(s.qty_u); 
+                        tempL += getP(s.leveraged) * getNum(s.qty_l); 
+                    }
                 });
                 
                 const tRes = cash + vBOXX; 
@@ -544,8 +546,11 @@
                 pieData.forEach(d => d.percentOfTotal = d.value / safeT);
 
                 const tgtRPct = inputs.reserve_pct !== undefined ? getNum(inputs.reserve_pct) : 20;
-                const tgtSPct = satStats.reduce((s, a) => s + a.tPct, 0);
-                const tgtCPct = 100 - tgtRPct - tgtSPct;
+                let satSumPct = 0;
+                (inputs.satellites || []).forEach(s => {
+                    if (s && s.target_pct !== undefined) satSumPct += getNum(s.target_pct);
+                });
+                const tgtCPct = 100 - tgtRPct - satSumPct;
                 
                 const qAth = getV('qqq_ath');
                 const cDD = qAth > 0 && pQQQ < qAth ? ((qAth - pQQQ) / qAth) * 100 : 0;
@@ -565,7 +570,9 @@
                         tTqqqPct = getNum(aUp.target_pct); 
                         phase = `突破收割：+${cRise.toFixed(1)}% (保留 ${tTqqqPct}%)`; 
                     } else { 
-                        tTqqqPct = lad.reduce((s, a) => s + getNum(a.move_pct), 0); 
+                        let sumLad = 0;
+                        lad.forEach(l => { sumLad += getNum(l.move_pct); });
+                        tTqqqPct = sumLad;
                         phase = `突破基準，準備收割`; 
                     }
                 } else {
@@ -610,12 +617,13 @@
                 }
 
                 let pEq = 0;
-                const gData = [...records].sort((a,b) => new Date(a.date) - new Date(b.date)).map(r => { 
-                    if(r.total_equity > pEq) pEq = r.total_equity; 
+                const safeRecords = Array.isArray(records) ? [...records] : [];
+                const gData = safeRecords.sort((a,b) => new Date(a.date) - new Date(b.date)).map(r => { 
+                    if(r && r.total_equity > pEq) pEq = r.total_equity; 
                     return { 
-                        date: r.date, 
-                        equity: r.total_equity, 
-                        dd: pEq > 0 ? (r.total_equity - pEq) / pEq * 100 : 0 
+                        date: r?.date, 
+                        equity: r?.total_equity, 
+                        dd: pEq > 0 ? ((r?.total_equity || 0) - pEq) / pEq * 100 : 0 
                     }; 
                 });
 
@@ -634,7 +642,7 @@
                     },
                     tgt: { 
                         c: { p: tgtCPct, ds: pQQQ>0 ? Math.round((tCap*(tgtCPct/100)-tCore)/pQQQ) : 0 }, 
-                        s: { p: tgtSPct, dv: (tCap*(tgtSPct/100))-(vSatU+vSatL) }, 
+                        s: { p: satSumPct, dv: (tCap*(satSumPct/100))-(vSatU+vSatL) }, 
                         r: { p: tgtRPct, ds: pBOXX>0 ? Math.round((tCap*(tgtRPct/100)-tRes)/pBOXX) : 0 } 
                     },
                     core: { 
@@ -786,20 +794,20 @@
                                         </div>
                                     }
                                 >
-                                    {metrics.pieData.length > 0 ? (
+                                    {(metrics.pieData || []).length > 0 ? (
                                         <>
                                             <div className="h-56 relative mb-6">
-                                                {window.Recharts ? (
+                                                {hasCharts ? (
                                                     <ResponsiveContainer>
                                                         <PieChart>
                                                             <Pie data={metrics.pieData} innerRadius={60} outerRadius={90} paddingAngle={2} dataKey="value" stroke="none">
-                                                                {metrics.pieData.map((e,i) => <Cell key={i} fill={e.fill}/>)}
+                                                                {(metrics.pieData || []).map((e,i) => <Cell key={i} fill={e.fill}/>)}
                                                             </Pie>
                                                             <Tooltip content={<CustomPieTooltip/>}/>
                                                         </PieChart>
                                                     </ResponsiveContainer>
                                                 ) : (
-                                                    <div className="h-full flex items-center justify-center text-slate-400 text-xs">圖表載入中...</div>
+                                                    <div className="h-full flex items-center justify-center text-slate-400 text-xs border border-dashed rounded-xl">圖表載入中，請確認網路連線...</div>
                                                 )}
                                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
                                                     <div className="text-xs text-slate-400">不含戰備</div>
@@ -1182,7 +1190,7 @@
                             <div className="space-y-6 animate-in fade-in">
                                 <div className="bg-white rounded-3xl p-5 shadow-sm border h-[300px]">
                                     <div className="text-xs font-black text-slate-700 mb-2 flex items-center gap-1"><Icon name="TrendingUp" size={14} className="text-brand-600"/> 資產歷史走勢</div>
-                                    {window.Recharts ? (
+                                    {hasCharts ? (
                                         <ResponsiveContainer width="100%" height="85%">
                                             <ComposedChart data={metrics.graphData} margin={{top:5,right:0,left:-20,bottom:0}}>
                                                 <defs>
@@ -1197,18 +1205,18 @@
                                                 <Area yAxisId="right" type="monotone" dataKey="dd" stroke="none" fill="url(#cDD)" name="大盤跌幅"/>
                                             </ComposedChart>
                                         </ResponsiveContainer>
-                                    ) : (<div className="h-full flex items-center justify-center text-slate-400 text-xs">圖表載入中...</div>)}
+                                    ) : (<div className="h-full flex items-center justify-center text-slate-400 text-xs border border-dashed rounded-xl">圖表載入中...</div>)}
                                 </div>
                                 <div className="bg-white rounded-3xl shadow-sm border p-4">
                                     <h3 className="text-sm font-black mb-3 border-b pb-2 flex items-center gap-1"><Icon name="FileText" size={14}/> 歷史紀錄</h3>
                                     {!records.length ? (<div className="text-center text-xs text-slate-400 py-6">尚無紀錄</div>) : (
                                         <div className="space-y-3 max-h-[500px] overflow-y-auto">
-                                            {records.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(r => (
+                                            {[...records].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(r => (
                                                 <div key={r.id} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                                                     <div className="flex justify-between items-center border-b pb-2 mb-2">
                                                         <span className="text-[10px] font-mono bg-white px-2 py-0.5 rounded border">{new Date(r.date).toLocaleDateString()}</span>
                                                         <div className="flex items-center gap-3">
-                                                            <span className="text-brand-600 font-mono font-black">${r.total_equity.toLocaleString()}</span>
+                                                            <span className="text-brand-600 font-mono font-black">${(r.total_equity||0).toLocaleString()}</span>
                                                             <div className="flex gap-1">
                                                                 <button onClick={()=>setModal({type:'EDIT_RECORD', data:r, temp:{}})} className="text-slate-400 hover:text-brand-600 p-1"><Icon name="Edit2" size={14}/></button>
                                                                 <button onClick={()=>setModal({type:'DELETE_RECORD', data:r})} className="text-slate-400 hover:text-fin-down p-1"><Icon name="Trash2" size={14}/></button>

@@ -6,8 +6,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Alpha Horizon - 投資計畫執行系統</title>
     
+    <!-- 專屬網頁圖示 (Favicon) - 藍色 Alpha 向上生長圖騰 -->
     <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f172a'/><path d='M25 75 L50 25 L75 75' stroke='%233b82f6' stroke-width='12' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='50' cy='25' r='8' fill='%233b82f6'/></svg>" type="image/svg+xml">
     
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         if (typeof tailwind !== 'undefined') {
@@ -26,12 +28,14 @@
         }
     </script>
 
+    <!-- React Libraries -->
     <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
     <script src="https://unpkg.com/recharts@2.10.0/umd/Recharts.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -45,7 +49,6 @@
         input[type=number] { -moz-appearance: textfield; }
         .loading-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; gap: 1rem; color: white; }
         ::-webkit-scrollbar { width: 0px; background: transparent; }
-        
         .input-focus-ring:focus-within { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); border-color: #3b82f6; }
     </style>
 </head>
@@ -56,7 +59,7 @@
         const { ComposedChart, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } = Recharts;
 
         const FINNHUB_KEY = "d4q36b9r01qha6q0jclgd4q36b9r01qha6q0jcm0";
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'alpha-horizon-std-app-latest'; 
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'alpha-horizon-std-app-2026'; 
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { 
             apiKey: "AIzaSyDMR8Q20z9vnWtQlafDowRujzBexV0h_lI",
             authDomain: "lifestock-83480.firebaseapp.com",
@@ -118,10 +121,12 @@
 
 【下跌切換 (增加槓桿)】：
 • QQQ 自高點下跌 10% / 20% / 30% / 40%：每階段將成長部位中 15% 的 QQQ 轉換為 TQQQ。
-【反彈切換 (恢復配置)】：
-• 指數自低點反彈 10% 與 20% 時：分批將 TQQQ 換回 QQQ。
-• 指數重回歷史高點：全數換回 QQQ。
-• 執行前提：轉換回 QQQ 時，賣出價格必須高於當初買入的平均成本。
+【反彈切換與收割 (恢復配置)】：
+• 當 QQQ 重新突破歷史高點，且 TQQQ 賣價高於平均成本時才執行轉換。
+• 突破 ATH：將 50% 換回 QQQ (保留目標佔比 30%)。
+• 突破 ATH + 5%：再將 25% 換回 QQQ (保留目標佔比 15%)。
+• 突破 ATH + 10%：將剩餘 TQQQ 全數換回 QQQ (目標歸 0%)。
+• 結算：獲利優先補滿 BOXX 軍火庫初始金額，剩餘推進核心成長。
 
 參、 個股 200 日均線狙擊與救援規則
 【槓桿切換點 (分三階段)】：
@@ -295,6 +300,12 @@
                 { id: 'l4', drop_pct: 40, move_pct: 15 }
             ];
 
+            const defaultUpLadder = [
+                { id: 'u1', rise_pct: 0, target_pct: 30 },
+                { id: 'u2', rise_pct: 5, target_pct: 15 },
+                { id: 'u3', rise_pct: 10, target_pct: 0 }
+            ];
+
             const defaultInputs = {
                 motto: '動態佔比再平衡，嚴守紀律不凹單',
                 planText: defaultPlan, 
@@ -308,6 +319,7 @@
                 cash_balance: 0, 
                 reserve_pct: 20,
                 core_ladder: defaultLadder,
+                core_up_ladder: defaultUpLadder,
                 satellites: defaultSatellites
             };
 
@@ -403,6 +415,7 @@
                         if(d.qty_boxx === undefined) d.qty_boxx = 0;
                         if(d.reserve_pct === undefined) d.reserve_pct = 20;
                         if(!d.core_ladder) d.core_ladder = defaultLadder;
+                        if(!d.core_up_ladder) d.core_up_ladder = defaultUpLadder;
                         setInputs(p => ({...p, ...d})); 
                     }
                     setIsSwitching(false); 
@@ -479,14 +492,36 @@
                 const newLadder = [...(inputs.core_ladder || []), { id: Date.now().toString(), drop_pct: 0, move_pct: 0 }];
                 setInputs(p => ({ ...p, core_ladder: newLadder }));
                 syncToCloud('core_ladder', newLadder);
-                showToast("已新增階梯");
+                showToast("已新增轉換階梯");
             };
 
             const removeLadder = (id) => {
                 const newLadder = (inputs.core_ladder || []).filter(l => l.id !== id);
                 setInputs(p => ({ ...p, core_ladder: newLadder }));
                 syncToCloud('core_ladder', newLadder);
-                showToast("已刪除階梯");
+                showToast("已刪除轉換階梯");
+            };
+
+            const updateUpLadder = (id, field, value) => {
+                setInputs(p => {
+                    const newLadder = (p.core_up_ladder || []).map(l => l.id === id ? { ...l, [field]: value } : l);
+                    return { ...p, core_up_ladder: newLadder };
+                });
+            };
+            const saveUpLadder = () => syncToCloud('core_up_ladder', inputsRef.current.core_up_ladder);
+            
+            const addUpLadder = () => {
+                const newLadder = [...(inputs.core_up_ladder || []), { id: Date.now().toString(), rise_pct: 0, target_pct: 0 }];
+                setInputs(p => ({ ...p, core_up_ladder: newLadder }));
+                syncToCloud('core_up_ladder', newLadder);
+                showToast("已新增收割階梯");
+            };
+
+            const removeUpLadder = (id) => {
+                const newLadder = (inputs.core_up_ladder || []).filter(l => l.id !== id);
+                setInputs(p => ({ ...p, core_up_ladder: newLadder }));
+                syncToCloud('core_up_ladder', newLadder);
+                showToast("已刪除收割階梯");
             };
 
             const save = async () => { 
@@ -594,10 +629,7 @@
 
                 // 雙槓桿比例計算
                 const growthExposure = (valCore1 * 1) + (valCore2 * 3) + (satValueU * 1) + (satValueL * 2);
-                
-                // 【核心修正】：將 BOXX/現金 視為 0 倍市場風險
-                // 這樣總體槓桿 = 投入股市的曝險 / 總真實本金 (完美對齊 80% 投入的概念)
-                const totalExposure = growthExposure + 0; 
+                const totalExposure = growthExposure + 0; // BOXX/現金視為 0 倍市場風險
                 
                 const growthLeverageRatio = growthExposure / safeGrowth;
                 const totalLeverageRatio = totalExposure / safeTotal;
@@ -679,62 +711,89 @@
                 });
 
                 const qqqAth = getV('qqq_ath');
-                const currentDD = qqqAth > 0 ? ((qqqAth - qqqPrice) / qqqAth) * 100 : 0;
+                const currentDD = qqqAth > 0 && qqqPrice < qqqAth ? ((qqqAth - qqqPrice) / qqqAth) * 100 : 0;
+                const currentRise = qqqAth > 0 && qqqPrice >= qqqAth ? ((qqqPrice - qqqAth) / qqqAth) * 100 : (qqqPrice >= qqqAth ? 0 : -1);
                 
                 let targetTqqqPct = 0; 
                 let phase = "正常巡航 (目標 100% QQQ)";
                 let triggeredCount = 0;
                 
                 const sortedLadder = [...(inputs.core_ladder || [])].sort((a,b) => getNum(a.drop_pct) - getNum(b.drop_pct));
-                
-                sortedLadder.forEach(step => {
-                    const dropPct = getNum(step.drop_pct);
-                    const movePct = getNum(step.move_pct);
-                    if (currentDD >= dropPct && dropPct > 0) {
-                        targetTqqqPct += movePct;
-                        triggeredCount++;
-                        phase = `第 ${triggeredCount} 階轉換區間 (目標 ${targetTqqqPct}% TQQQ)`;
+                const sortedUpLadder = [...(inputs.core_up_ladder || [])].sort((a,b) => getNum(a.rise_pct) - getNum(b.rise_pct));
+
+                if (currentRise >= 0) {
+                    let activeUpStep = null;
+                    sortedUpLadder.forEach(step => {
+                        if (currentRise >= getNum(step.rise_pct)) {
+                            activeUpStep = step;
+                            triggeredCount++;
+                        }
+                    });
+                    if (activeUpStep) {
+                        targetTqqqPct = getNum(activeUpStep.target_pct);
+                        phase = `突破收割：漲幅 +${currentRise.toFixed(1)}% (目標保留 ${targetTqqqPct}% TQQQ)`;
+                    } else {
+                        targetTqqqPct = sortedLadder.reduce((sum, s) => sum + getNum(s.move_pct), 0);
+                        phase = `突破基準，準備進入收割階梯`;
                     }
-                });
+                } else {
+                    sortedLadder.forEach(step => {
+                        const dropPct = getNum(step.drop_pct);
+                        const movePct = getNum(step.move_pct);
+                        if (currentDD >= dropPct && dropPct > 0) {
+                            targetTqqqPct += movePct;
+                            triggeredCount++;
+                            phase = `第 ${triggeredCount} 階轉換區間 (目標 ${targetTqqqPct}% TQQQ)`;
+                        }
+                    });
+                }
 
                 const targetTqqqVal = totalCapital * (targetTqqqPct / 100);
-                const currentTqqqPctTotal = (valCore2 / safeTotal) * 100;
+                const currentTqqqPctTotal = safeTotal > 0 ? (valCore2 / safeTotal) * 100 : 0;
                 
                 const coreProfitLimit = getV('core_profit_pct') / 100;
                 const coreLossLimit = getV('core_loss_pct') / 100;
 
-                const coreExcessPct = targetTqqqVal > 0 ? (valCore2 - targetTqqqVal) / targetTqqqVal : 0;
+                const coreExcessPct = targetTqqqVal > 0 ? (valCore2 - targetTqqqVal) / targetTqqqVal : (valCore2 > 0 ? 1 : 0);
                 const coreShortfallPct = targetTqqqVal > 0 ? (targetTqqqVal - valCore2) / targetTqqqVal : 0;
 
                 let coreAction = "維持現有配置比例"; let coreColor = "text-slate-600"; let coreDiff = 0;
                 
-                if (coreShortfallPct >= coreLossLimit && targetTqqqPct > 0) {
-                    coreAction = `佔比衰退 -${(coreShortfallPct*100).toFixed(1)}%：建議賣出 QQQ 加碼 TQQQ 進行再平衡`; 
-                    coreColor = "text-fin-down"; 
-                    coreDiff = targetTqqqVal - valCore2;
-                } 
-                else if (coreExcessPct >= coreProfitLimit || (targetTqqqPct === 0 && valCore2 > 0)) {
-                    const tAvg = getV('tqqq_avg_cost');
-                    if (tAvg > 0 && tqqqPrice <= tAvg && targetTqqqPct > 0) {
-                        coreAction = `成本保護中：TQQQ 現價($${tqqqPrice.toFixed(2)}) 低於成本($${tAvg})，暫緩收割`;
-                        coreColor = "text-fin-warn";
+                if (valCore2 < targetTqqqVal) {
+                    if (coreShortfallPct >= coreLossLimit && targetTqqqPct > 0) {
+                        coreAction = `佔比衰退 -${(coreShortfallPct*100).toFixed(1)}%：建議賣出 QQQ 加碼 TQQQ 進行再平衡`; 
+                        coreColor = "text-fin-down"; 
+                        coreDiff = targetTqqqVal - valCore2;
+                    }
+                } else if (valCore2 > targetTqqqVal) {
+                    coreDiff = valCore2 - targetTqqqVal;
+                    if (currentRise < 0) {
+                        coreAction = `反彈持有中：尚未突破 ATH，依紀律不賣出 TQQQ，等待回升。`;
+                        coreColor = "text-fin-info";
                         coreDiff = 0;
                     } else {
-                        coreAction = `佔比溢出 +${(coreExcessPct*100).toFixed(1)}%：建議賣出 TQQQ 換回 QQQ`; 
-                        coreColor = "text-fin-up"; 
-                        coreDiff = valCore2 - targetTqqqVal;
+                        const tAvg = getV('tqqq_avg_cost');
+                        if (tAvg > 0 && tqqqPrice <= tAvg) {
+                            coreAction = `成本保護中：TQQQ 現價($${tqqqPrice.toFixed(2)}) 低於成本($${tAvg})，暫緩收割`;
+                            coreColor = "text-fin-warn";
+                            coreDiff = 0;
+                        } else {
+                            coreAction = `達標收割：突破設定階梯，建議賣出溢出的 TQQQ。獲利優先補滿 BOXX 軍火庫！`; 
+                            coreColor = "text-fin-up"; 
+                        }
                     }
-                } else if (currentDD >= (sortedLadder.length > 0 ? getNum(sortedLadder[sortedLadder.length-1].drop_pct) : 40)) {
-                    coreAction = "極端應對：持滿 TQQQ，嚴禁割肉不動等待回升"; coreColor = "text-slate-700";
                 }
 
-                const ladderPreview = sortedLadder.map(step => {
+                const downLadderPreview = sortedLadder.map(step => {
                     const dropPct = getNum(step.drop_pct);
-                    const movePct = getNum(step.move_pct);
                     const triggerPrice = qqqAth * (1 - dropPct / 100);
-                    const valueToMove = totalCapital * (movePct / 100);
-                    const estQqqSharesToSell = triggerPrice > 0 ? valueToMove / triggerPrice : 0;
-                    return { pct: dropPct, movePct, triggerPrice, valueToMove, estQqqSharesToSell, isTriggered: currentDD >= dropPct };
+                    return { type: 'down', pct: dropPct, movePct: getNum(step.move_pct), triggerPrice, isTriggered: currentDD >= dropPct };
+                });
+
+                const upLadderPreview = sortedUpLadder.map(step => {
+                    const risePct = getNum(step.rise_pct);
+                    const triggerPrice = qqqAth * (1 + risePct / 100);
+                    return { type: 'up', pct: risePct, targetPct: getNum(step.target_pct), triggerPrice, isTriggered: currentRise >= risePct };
                 });
 
                 let gData = [];
@@ -760,7 +819,7 @@
                         sat: { pct: targetSatPct, diffVal: diffSatVal },
                         reserve: { pct: targetReservePct, diffShares: diffReserveShares, diffVal: diffReserveVal }
                     },
-                    coreStats: { qqqPrice, qqqAth, currentDD, targetTqqqPct, currentTqqqPctTotal, phase, coreAction, coreColor, coreDiff, ladderPreview }
+                    coreStats: { qqqPrice, qqqAth, currentDD, currentRise, targetTqqqPct, currentTqqqPctTotal, phase, coreAction, coreColor, coreDiff, downLadderPreview, upLadderPreview }
                 };
             }, [prices, inputs, records]);
 
@@ -808,7 +867,6 @@
 
                     <header className="fixed top-0 inset-x-0 bg-white z-50 px-5 py-4 flex justify-between items-center shadow-sm border-b border-slate-200">
                         <div className="flex items-center gap-2 font-black text-slate-800">
-                            {/* 使用內聯 SVG 當作 Logo 顯示在 Header */}
                             <svg viewBox="0 0 100 100" className="w-6 h-6">
                                 <rect width="100" height="100" rx="20" fill="#0f172a"/>
                                 <path d="M25 75 L50 25 L75 75" stroke="#3b82f6" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
@@ -1014,7 +1072,12 @@
                                 <CollapsibleCard title="核心動態轉換 (QQQ/TQQQ)" icon="BarChart2" isOpen={sections.core} onToggle={()=>toggleSection('core')}>
                                     <div className="flex justify-between items-end mb-5">
                                         <div><div className="text-[10px] text-slate-500 font-bold">歷史高點 (基準)</div><div className="font-mono font-black text-slate-700 text-lg">${metrics.coreStats.qqqAth}</div></div>
-                                        <div className="text-right"><div className="text-[10px] text-slate-500 font-bold">大盤回撤幅度</div><div className="font-mono font-black text-2xl text-fin-down">-{metrics.coreStats.currentDD.toFixed(1)}%</div></div>
+                                        <div className="text-right">
+                                            <div className="text-[10px] text-slate-500 font-bold">{metrics.coreStats.currentRise >= 0 ? '突破 ATH 幅度' : '大盤回撤幅度'}</div>
+                                            <div className={`font-mono font-black text-2xl ${metrics.coreStats.currentRise >= 0 ? 'text-fin-up' : 'text-fin-down'}`}>
+                                                {metrics.coreStats.currentRise >= 0 ? `+${metrics.coreStats.currentRise.toFixed(1)}%` : `-${metrics.coreStats.currentDD.toFixed(1)}%`}
+                                            </div>
+                                        </div>
                                     </div>
                                     
                                     <div className="bg-slate-50 rounded-2xl p-4 mb-5 border border-slate-100">
@@ -1042,22 +1105,30 @@
                                         )}
                                     </div>
 
-                                    <div className="mt-5 pt-5 border-t border-slate-100">
-                                        <div className="text-xs text-slate-500 font-bold mb-3 flex items-center gap-1.5"><Icon name="TrendingDown" size={16}/> 下跌階梯轉換預覽</div>
-                                        <div className="grid grid-cols-1 gap-2.5">
-                                            {metrics.coreStats.ladderPreview.map((tier, idx) => (
-                                                <div key={idx} className={`flex justify-between items-center p-3.5 rounded-xl border transition-opacity ${tier.isTriggered ? 'bg-slate-50 border-slate-100 opacity-50' : 'bg-white border-slate-200 shadow-sm'}`}>
-                                                    <div className="flex items-center gap-3">
-                                                        <span className={`text-xs font-black px-2 py-1 rounded-md ${tier.isTriggered ? 'bg-slate-200 text-slate-500' : 'bg-red-50 text-red-600'}`}>-{tier.pct}%</span>
-                                                        <div><div className="text-[10px] text-slate-400 font-bold mb-0.5">觸發價格</div><div className={`text-sm font-mono font-black ${tier.isTriggered ? 'text-slate-500' : 'text-slate-800'}`}>${tier.triggerPrice.toFixed(2)}</div></div>
+                                    <div className="mt-5 pt-5 border-t border-slate-100 grid grid-cols-2 gap-3">
+                                        <div>
+                                            <div className="text-[10px] text-fin-down font-bold mb-2 flex items-center gap-1"><Icon name="TrendingDown" size={12}/> 下跌加碼階梯</div>
+                                            <div className="flex flex-col gap-1.5">
+                                                {metrics.coreStats.downLadderPreview.map((tier, idx) => (
+                                                    <div key={idx} className={`flex justify-between items-center p-2 rounded-lg border ${tier.isTriggered ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-white border-slate-200 shadow-sm'}`}>
+                                                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${tier.isTriggered ? 'bg-slate-200 text-slate-500' : 'bg-red-50 text-red-600'}`}>-{tier.pct}%</span>
+                                                        <div className="text-right"><div className={`text-[10px] font-mono font-black ${tier.isTriggered ? 'text-slate-500' : 'text-slate-800'}`}>${tier.triggerPrice.toFixed(2)}</div></div>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <div className="text-[10px] text-slate-400 font-bold mb-0.5">轉換額度 ({tier.movePct}%)</div>
-                                                        <div className={`text-xs font-black font-mono ${tier.isTriggered ? 'text-slate-500' : 'text-brand-600'}`}>${Math.round(tier.valueToMove).toLocaleString()}</div>
+                                                ))}
+                                                {metrics.coreStats.downLadderPreview.length === 0 && <div className="text-center text-[9px] text-slate-400 py-1">尚未設定</div>}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="text-[10px] text-fin-up font-bold mb-2 flex items-center gap-1"><Icon name="TrendingUp" size={12}/> 突破收割階梯</div>
+                                            <div className="flex flex-col gap-1.5">
+                                                {metrics.coreStats.upLadderPreview.map((tier, idx) => (
+                                                    <div key={idx} className={`flex justify-between items-center p-2 rounded-lg border ${tier.isTriggered ? 'bg-brand-50 border-brand-100' : 'bg-white border-slate-200 shadow-sm opacity-60'}`}>
+                                                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${tier.isTriggered ? 'bg-brand-100 text-brand-700' : 'bg-slate-100 text-slate-500'}`}>+{tier.pct}%</span>
+                                                        <div className="text-right"><div className={`text-[10px] font-mono font-black ${tier.isTriggered ? 'text-brand-700' : 'text-slate-500'}`}>${tier.triggerPrice.toFixed(2)}</div></div>
                                                     </div>
-                                                </div>
-                                            ))}
-                                            {metrics.coreStats.ladderPreview.length === 0 && <div className="text-center text-[10px] text-slate-400 py-2">尚未設定轉換階梯</div>}
+                                                ))}
+                                                {metrics.coreStats.upLadderPreview.length === 0 && <div className="text-center text-[9px] text-slate-400 py-1">尚未設定</div>}
+                                            </div>
                                         </div>
                                     </div>
                                 </CollapsibleCard>
@@ -1262,6 +1333,32 @@
                                                 <button onClick={addLadder} className="w-full py-2.5 bg-white border border-dashed border-slate-300 rounded-xl text-slate-500 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-50 transition-colors active:scale-95"><Icon name="Plus" size={14} /> 新增轉換階梯</button>
                                             </div>
                                         </div>
+
+                                        <div className="pt-4 border-t border-slate-100">
+                                            <label className="text-xs text-brand-600 font-bold block mb-3 flex items-center gap-1"><Icon name="TrendingUp" size={14}/> 上漲收割階梯 (突破 ATH)</label>
+                                            <div className="space-y-3">
+                                                {(inputs.core_up_ladder || []).map((l, index) => (
+                                                    <div key={l.id} className="flex items-center gap-2 bg-brand-50/30 p-2.5 rounded-xl border border-brand-100 relative group">
+                                                        <div className="flex-1">
+                                                            <label className="text-[9px] text-slate-500 font-bold block mb-1 text-center">階梯 {index + 1} 突破漲幅 (%)</label>
+                                                            <div className="flex items-center justify-center bg-white border border-slate-200 rounded-lg p-1.5 focus-within:border-brand-400 transition-colors">
+                                                                <span className="text-brand-500 text-xs font-black mr-1">+</span>
+                                                                <input type="number" inputMode="decimal" value={l.rise_pct} onChange={e=>updateUpLadder(l.id, 'rise_pct', e.target.value)} onBlur={saveUpLadder} className="w-full font-mono font-black text-slate-800 bg-transparent text-center outline-none text-sm" />
+                                                            </div>
+                                                        </div>
+                                                        <Icon name="ChevronDown" size={16} className="text-slate-300 rotate-[-90deg] mt-4" />
+                                                        <div className="flex-1">
+                                                            <label className="text-[9px] text-brand-600 font-bold block mb-1 text-center">保留 TQQQ 佔比 (%)</label>
+                                                            <div className="flex items-center justify-center bg-white border border-brand-200 rounded-lg p-1.5 focus-within:border-brand-500 transition-colors">
+                                                                <input type="number" inputMode="decimal" value={l.target_pct} onChange={e=>updateUpLadder(l.id, 'target_pct', e.target.value)} onBlur={saveUpLadder} className="w-full font-mono font-black text-brand-700 bg-transparent text-center outline-none text-sm" />
+                                                            </div>
+                                                        </div>
+                                                        <button onClick={() => removeUpLadder(l.id)} className="absolute -right-2 -top-2 bg-white border border-slate-200 text-slate-400 hover:text-fin-down hover:border-red-200 rounded-full p-1 shadow-sm transition-all active:scale-95"><Icon name="X" size={12} /></button>
+                                                    </div>
+                                                ))}
+                                                <button onClick={addUpLadder} className="w-full py-2.5 bg-white border border-dashed border-slate-300 rounded-xl text-slate-500 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-50 transition-colors active:scale-95"><Icon name="Plus" size={14} /> 新增收割階梯</button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1369,6 +1466,7 @@
                 </div>
             );
         };
+
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>

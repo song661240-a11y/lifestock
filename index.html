@@ -14,15 +14,12 @@
             tailwind.config = { theme: { extend: { colors: { slate: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a' }, brand: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 900: '#1e3a8a' }, fin: { up: '#10b981', down: '#ef4444', warn: '#f59e0b', info: '#3b82f6', dark: '#0f172a' } }, boxShadow: { 'heavy': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' } } } }
         }
     </script>
-    
-    <!-- 核心 React 與圖表套件 (強制鎖定穩定版本) -->
     <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+    <!-- 修復 Recharts 版本問題，使用穩定支持 UMD 環境的 2.1.12 版本 -->
     <script src="https://unpkg.com/recharts@2.1.12/umd/Recharts.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -47,7 +44,7 @@
         // --- 安全載入圖表套件防呆機制 ---
         const RechartsLib = window.Recharts || {};
         const { ComposedChart, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } = RechartsLib;
-        const hasCharts = !!ComposedChart && !!PieChart; // 檢查套件是否成功載入
+        const hasCharts = !!ComposedChart && !!PieChart; 
 
         // --- 系統設定與 Firebase ---
         const FINNHUB_KEY = "d4q36b9r01qha6q0jclgd4q36b9r01qha6q0jcm0";
@@ -57,14 +54,14 @@
         const db = firebase.firestore(); 
         const auth = firebase.auth();
 
-        // --- 輔助函數 ---
+        // --- 輔助與安全防護函數 ---
         const sanitize = (data) => JSON.parse(JSON.stringify(data, (k, v) => v === undefined ? null : v));
         const getNum = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
         const getTodayStr = () => { 
-            const d = new Date(); 
-            d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); 
-            return d.toISOString().split('T')[0]; 
+            const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().split('T')[0]; 
         };
+        // 核心防禦：確保破壞的物件能安全轉回陣列，避免 map undefined 錯誤
+        const getArr = (arr) => Array.isArray(arr) ? arr : (arr && typeof arr === 'object' ? Object.values(arr) : []);
 
         // --- 預設值區塊 ---
         const defPlan = `壹、 資金分配架構\n【成長部位】 (佔總額 80% — 比例管理)：\n• 核心配置 (70%)： 持有 QQQ。\n• 衛星配置 (30%)： 持有 TSLA, IBIT, AAPL 等。\n• 管理規則：單一標的上限 20%。若連續兩年報酬率低於 QQQ，轉入 QQQ。\n\n【戰備儲備水位】 (佔總額 20% — 動態再平衡)：\n• 標的： BOXX。\n• 回補機制： 獲利結清時，優先將資金補回至總資產設定水位。\n\n貳、 QQQ 與 TQQQ 轉換機制\n【下跌切換 (增加槓桿)】：依設定階梯將 QQQ 轉換為 TQQQ。\n【反彈切換與收割 (恢復配置)】：突破 ATH，且高於平均成本時執行轉換收割。\n\n參、 衛星 200 日均線狙擊與救援規則\n• 觸碰 200 日線、跌破 10%、止跌回升時分批轉槓桿。\n• 虧損 20%：戰備水位救援 (BOXX 撥款)。\n• 獲利 25%：結清回填 (優先補 BOXX)。\n\n肆、 執行紀律\n• 封閉系統，極限臥倒，不對稱操作。`;
@@ -290,6 +287,13 @@
                 }
             };
 
+            const handleLogout = async () => { 
+                await auth.signOut(); 
+                showToast("已登出帳號，切換為訪客模式。"); 
+                // 登出後讓頁面回到 Dashboard
+                setView('dashboard');
+            };
+
             const getFirebaseRefs = () => {
                 if (!user) return null;
                 return { 
@@ -319,9 +323,10 @@
                         setInputs(p => ({ 
                             ...p, 
                             ...d, 
-                            satellites: d.satellites || defSats, 
-                            core_ladder: d.core_ladder || defLad, 
-                            core_up_ladder: d.core_up_ladder || defUpLad, 
+                            // 防禦機制：強制通過 getArr 解析，確保必定是陣列
+                            satellites: getArr(d.satellites).length > 0 ? getArr(d.satellites) : defSats, 
+                            core_ladder: getArr(d.core_ladder).length > 0 ? getArr(d.core_ladder) : defLad, 
+                            core_up_ladder: getArr(d.core_up_ladder).length > 0 ? getArr(d.core_up_ladder) : defUpLad, 
                             reserve_pct: d.reserve_pct !== undefined ? d.reserve_pct : 20 
                         })); 
                     }
@@ -334,7 +339,7 @@
 
             const symbolsString = useMemo(() => {
                 let syms = ['QQQ', 'TQQQ', 'BOXX'];
-                (inputs.satellites || []).forEach(s => { 
+                getArr(inputs.satellites).forEach(s => { 
                     if(s && s.underlying) syms.push(s.underlying.trim().toUpperCase()); 
                     if(s && s.leveraged) syms.push(s.leveraged.trim().toUpperCase()); 
                 });
@@ -372,21 +377,21 @@
 
             const updateArr = (arr, id, field, value) => {
                 setInputs(p => {
-                    const currentArr = p[arr] || [];
+                    const currentArr = getArr(p[arr]);
                     const newArr = currentArr.map(i => i.id === id ? { ...i, [field]: value } : i);
                     return { ...p, [arr]: newArr };
                 });
             };
             
             const removeArr = (arr, id) => { 
-                const newArr = (inputs[arr] || []).filter(i => i.id !== id); 
+                const newArr = getArr(inputs[arr]).filter(i => i.id !== id); 
                 setInputs(p => ({ ...p, [arr]: newArr })); 
                 syncToCloud(arr, newArr); 
                 showToast("已刪除"); 
             };
             
             const addArr = (arr, def) => { 
-                const newArr = [...(inputs[arr] || []), { id: Date.now().toString(), ...def }]; 
+                const newArr = [...getArr(inputs[arr]), { id: Date.now().toString(), ...def }]; 
                 setInputs(p => ({ ...p, [arr]: newArr })); 
                 syncToCloud(arr, newArr); 
                 showToast("已新增"); 
@@ -461,7 +466,13 @@
 
                 let tempU = 0; 
                 let tempL = 0;
-                (inputs.satellites || []).forEach(s => { 
+                
+                // 強制將輸入解析為陣列
+                const safeSatellites = getArr(inputs.satellites);
+                const safeLadder = getArr(inputs.core_ladder);
+                const safeUpLadder = getArr(inputs.core_up_ladder);
+
+                safeSatellites.forEach(s => { 
                     if (s) {
                         tempU += getP(s.underlying) * getNum(s.qty_u); 
                         tempL += getP(s.leveraged) * getNum(s.qty_l); 
@@ -473,7 +484,7 @@
                 const tCap = tRes + tCore + tempU + tempL;
                 const safeT = tCap > 0 ? tCap : 1;
 
-                const satStats = (inputs.satellites || []).map((s, i) => {
+                const satStats = safeSatellites.map((s, i) => {
                     const uP = getP(s.underlying); 
                     const lP = getP(s.leveraged);  
                     const vU = uP * getNum(s.qty_u); 
@@ -547,7 +558,7 @@
 
                 const tgtRPct = inputs.reserve_pct !== undefined ? getNum(inputs.reserve_pct) : 20;
                 let satSumPct = 0;
-                (inputs.satellites || []).forEach(s => {
+                safeSatellites.forEach(s => {
                     if (s && s.target_pct !== undefined) satSumPct += getNum(s.target_pct);
                 });
                 const tgtCPct = 100 - tgtRPct - satSumPct;
@@ -559,8 +570,8 @@
                 let tTqqqPct = 0; 
                 let phase = "正常巡航";
                 
-                const lad = [...(inputs.core_ladder || [])].sort((a,b) => getNum(a.drop_pct) - getNum(b.drop_pct));
-                const upLad = [...(inputs.core_up_ladder || [])].sort((a,b) => getNum(a.rise_pct) - getNum(b.rise_pct));
+                const lad = [...safeLadder].sort((a,b) => getNum(a.drop_pct) - getNum(b.drop_pct));
+                const upLad = [...safeUpLadder].sort((a,b) => getNum(a.rise_pct) - getNum(b.rise_pct));
 
                 if (cRise >= 0) {
                     let aUp = null; 
@@ -677,8 +688,12 @@
                             <div className="flex-1">
                                 <h4 className="text-red-800 text-sm">提示</h4>
                                 <p className="text-red-600 text-xs">{authError}</p>
+                                {/* 緊急登出還原按鈕 */}
+                                <button onClick={handleLogout} className="mt-2 text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg active:scale-95 transition-all">
+                                    緊急清除異常並登出
+                                </button>
                             </div>
-                            <button onClick={() => setAuthError(null)} className="text-red-400 p-1">
+                            <button onClick={() => setAuthError(null)} className="text-red-400 p-1 self-start">
                                 <Icon name="X" size={16}/>
                             </button>
                         </div>
@@ -807,7 +822,7 @@
                                                         </PieChart>
                                                     </ResponsiveContainer>
                                                 ) : (
-                                                    <div className="h-full flex items-center justify-center text-slate-400 text-xs border border-dashed rounded-xl">圖表載入中，請確認網路連線...</div>
+                                                    <div className="h-full flex items-center justify-center text-slate-400 text-xs border border-dashed rounded-xl bg-slate-50">圖表載入中，請確認網路連線...</div>
                                                 )}
                                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
                                                     <div className="text-xs text-slate-400">不含戰備</div>
@@ -1002,7 +1017,7 @@
                                             </div>
                                         </div>
                                         
-                                        {(inputs.satellites || []).map(s => (
+                                        {getArr(inputs.satellites).map(s => (
                                             <div key={s.id} className="grid grid-cols-2 gap-3 bg-slate-50 p-2 rounded-lg border">
                                                 <div className="focus-within:border-brand-400 border border-transparent rounded">
                                                     <div className="text-[10px] text-slate-500 mb-1">{s.underlying||'正股'}</div>
@@ -1015,7 +1030,7 @@
                                             </div>
                                         ))}
                                         
-                                        {!(inputs.satellites || []).length && (
+                                        {!getArr(inputs.satellites).length && (
                                             <div className="text-[10px] text-center text-slate-400 py-2">請至參數設定新增</div>
                                         )}
                                         
@@ -1070,7 +1085,7 @@
                                 <div className="bg-white rounded-3xl p-6 border border-slate-200">
                                     <div className="flex justify-between mb-4 border-b pb-2">
                                         <h2 className="font-black flex items-center gap-2"><Icon name="Settings" size={18} className="text-slate-500"/>大盤參數</h2>
-                                        <span className="text-[10px] bg-slate-100 px-2 py-1 rounded">核心 {100-getNum(inputs.reserve_pct)-(inputs.satellites||[]).reduce((s,a)=>s+getNum(a.target_pct),0)}%</span>
+                                        <span className="text-[10px] bg-slate-100 px-2 py-1 rounded">核心 {100-getNum(inputs.reserve_pct)-getArr(inputs.satellites).reduce((s,a)=>s+getNum(a.target_pct),0)}%</span>
                                     </div>
                                     <div className="space-y-3">
                                         <div className="flex items-center gap-2 bg-brand-50 p-2 rounded-lg border border-brand-200">
@@ -1101,7 +1116,7 @@
                                         
                                         <div className="pt-4 border-t">
                                             <label className="text-[10px] text-brand-600 font-bold mb-2 block">下跌轉換階梯</label>
-                                            {(inputs.core_ladder||[]).map((l,i) => (
+                                            {getArr(inputs.core_ladder).map((l,i) => (
                                                 <div key={l.id} className="flex gap-2 items-center mb-1">
                                                     <div className="flex-1 bg-slate-50 border rounded flex items-center px-2">
                                                         <span className="text-xs text-slate-400">-</span>
@@ -1119,7 +1134,7 @@
                                         
                                         <div className="pt-4 border-t">
                                             <label className="text-[10px] text-brand-600 font-bold mb-2 block">突破收割階梯</label>
-                                            {(inputs.core_up_ladder||[]).map((l,i) => (
+                                            {getArr(inputs.core_up_ladder).map((l,i) => (
                                                 <div key={l.id} className="flex gap-2 items-center mb-1">
                                                     <div className="flex-1 bg-slate-50 border rounded flex items-center px-2">
                                                         <span className="text-xs text-brand-500">+</span>
@@ -1140,10 +1155,10 @@
                                 <div className="bg-white rounded-3xl p-6 border border-slate-200">
                                     <div className="flex justify-between mb-4 border-b pb-2">
                                         <h2 className="font-black flex items-center gap-2"><Icon name="Activity" size={18} className="text-fin-info"/>衛星參數</h2>
-                                        <div className="text-[10px] bg-brand-50 px-2 py-1 text-brand-600 rounded">總計: {(inputs.satellites||[]).reduce((s,a)=>s+getNum(a.target_pct),0)}%</div>
+                                        <div className="text-[10px] bg-brand-50 px-2 py-1 text-brand-600 rounded">總計: {getArr(inputs.satellites).reduce((s,a)=>s+getNum(a.target_pct),0)}%</div>
                                     </div>
                                     <div className="space-y-4">
-                                        {(inputs.satellites||[]).map(s => (
+                                        {getArr(inputs.satellites).map(s => (
                                             <div key={s.id} className="bg-slate-50 p-3 rounded-xl border relative">
                                                 <button onClick={()=>removeArr('satellites', s.id)} className="absolute top-2 right-2 text-slate-400 hover:text-fin-down active:scale-95"><Icon name="Trash2" size={14}/></button>
                                                 <div className="flex gap-2 mb-2 pr-6">
@@ -1209,9 +1224,9 @@
                                 </div>
                                 <div className="bg-white rounded-3xl shadow-sm border p-4">
                                     <h3 className="text-sm font-black mb-3 border-b pb-2 flex items-center gap-1"><Icon name="FileText" size={14}/> 歷史紀錄</h3>
-                                    {!records.length ? (<div className="text-center text-xs text-slate-400 py-6">尚無紀錄</div>) : (
+                                    {!getArr(records).length ? (<div className="text-center text-xs text-slate-400 py-6">尚無紀錄</div>) : (
                                         <div className="space-y-3 max-h-[500px] overflow-y-auto">
-                                            {[...records].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(r => (
+                                            {getArr(records).sort((a,b)=>new Date(b.date)-new Date(a.date)).map(r => (
                                                 <div key={r.id} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                                                     <div className="flex justify-between items-center border-b pb-2 mb-2">
                                                         <span className="text-[10px] font-mono bg-white px-2 py-0.5 rounded border">{new Date(r.date).toLocaleDateString()}</span>

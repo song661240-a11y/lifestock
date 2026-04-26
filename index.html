@@ -59,6 +59,7 @@
         const getTodayStr = () => { 
             const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().split('T')[0]; 
         };
+        // 核心防禦：確保破壞的物件能安全轉回陣列，避免 map undefined 錯誤
         const getArr = (arr) => Array.isArray(arr) ? arr : (arr && typeof arr === 'object' ? Object.values(arr) : []);
 
         // --- 預設值區塊 ---
@@ -330,10 +331,10 @@
                     setIsSwitching(false); 
                 }, () => setIsSwitching(false)); 
                 
-                fetchPrices(true);
                 return () => { unsubRecs(); unsubConf(); };
             }, [user]);
 
+            // --- API 流量防護鎖 (Debounce) ---
             const symbolsString = useMemo(() => {
                 let syms = ['QQQ', 'TQQQ', 'BOXX'];
                 getArr(inputs.satellites).forEach(s => { 
@@ -343,14 +344,17 @@
                 return [...new Set(syms.filter(Boolean))].sort().join(',');
             }, [inputs.satellites]);
 
-            useEffect(() => { fetchPrices(); }, [symbolsString]);
+            const [debouncedSymbols, setDebouncedSymbols] = useState(symbolsString);
+            useEffect(() => {
+                const timer = setTimeout(() => setDebouncedSymbols(symbolsString), 800);
+                return () => clearTimeout(timer);
+            }, [symbolsString]);
 
             const fetchPrices = useCallback(async (force = false) => { 
-                if (loadingPrices && !force) return; 
-                if (!symbolsString) return;
-
-                const symsArray = symbolsString.split(','); 
-                if (!symsArray[0]) return;
+                const targetSyms = force ? symbolsString : debouncedSymbols;
+                if (!targetSyms || loadingPrices) return;
+                const symsArray = targetSyms.split(',').filter(Boolean); 
+                if (!symsArray.length) return;
                 
                 setLoadingPrices(true); 
                 try { 
@@ -362,7 +366,11 @@
                 } catch(e) {} finally { 
                     setLoadingPrices(false); 
                 } 
-            }, [symbolsString, loadingPrices]);
+            }, [debouncedSymbols, symbolsString, loadingPrices]);
+
+            useEffect(() => { 
+                if(debouncedSymbols) fetchPrices(); 
+            }, [debouncedSymbols]);
 
             const showToast = (txt) => { setMessage(txt); setTimeout(() => setMessage(null), 3000); };
             const handleInput = (f, v) => setInputs(p => ({ ...p, [f]: v }));
@@ -563,7 +571,6 @@
                 const cDD = qAth > 0 && pQQQ < qAth ? ((qAth - pQQQ) / qAth) * 100 : 0;
                 const cRise = qAth > 0 && pQQQ >= qAth ? ((pQQQ - qAth) / qAth) * 100 : (pQQQ >= qAth ? 0 : -1);
                 
-                // 新增波段低點與反彈計算
                 const tLow = getV('tqqq_low');
                 const tBounce = tLow > 0 ? ((pTQQQ - tLow) / tLow) * 100 : 0;
                 
@@ -606,7 +613,6 @@
                         cCol = "text-fin-down"; 
                         cDiff = tTqqqVal - vC2; 
                     } else if (tLow > 0 && tBounce >= 20 && cRise < 0) {
-                        // 當 TQQQ 實際佔比小於目標，但自低點反彈 20% 時，給予提早收利的建議
                         cAct = `波段反彈 +${tBounce.toFixed(0)}%：建議將 1/3 TQQQ 換回 QQQ 鎖利`;
                         cCol = "text-fin-info";
                     }
@@ -618,7 +624,7 @@
                             cCol = "text-fin-info";
                             cDiff = vC2 / 3; 
                         } else {
-                            cAct = `未突破 ATH，臥倒不賣。`; 
+                            cAct = `未突破 ATH，持倉續抱。`; 
                             cCol = "text-fin-info"; 
                             cDiff = 0; 
                         }
@@ -633,7 +639,7 @@
                         cCol = "text-fin-up"; 
                     }
                 } else if (cDD >= (lad.length > 0 ? getNum(lad[lad.length-1].drop_pct) : 40)) { 
-                    cAct = "持滿 TQQQ，不動等待回升"; 
+                    cAct = "滿倉 TQQQ，持倉等待反轉"; 
                     cCol = "text-slate-700"; 
                 }
 
@@ -698,7 +704,6 @@
                             <div className="flex-1">
                                 <h4 className="text-red-800 text-sm">提示</h4>
                                 <p className="text-red-600 text-xs">{authError}</p>
-                                {/* 緊急登出還原按鈕 */}
                                 <button onClick={handleLogout} className="mt-2 text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg active:scale-95 transition-all">
                                     緊急清除異常並登出
                                 </button>
@@ -732,7 +737,7 @@
                                 </div>
                                 <div>
                                     <label className="text-xs text-slate-500 mb-2 block">總資產 ($)</label>
-                                    <input type="number" inputMode="decimal" className="w-full bg-slate-50 p-4 rounded-xl border font-mono text-xl text-brand-700 outline-none input-focus-ring" defaultValue={modal.data.total_equity} onChange={e => setModal({...modal,temp:{...modal.temp,equity:e.target.value}})} />
+                                    <input type="number" inputMode="decimal" className="w-full bg-slate-50 p-4 rounded-xl border font-mono text-xl text-brand-700 outline-none input-focus-ring" defaultValue={modal.data.total_equity} onChange={e => setModal({...modal,temp:{...modal.temp,equity:e.target.value}})} onFocus={e=>e.target.select()} />
                                 </div>
                                 <button onClick={editRecord} className="w-full bg-brand-600 text-white py-4 rounded-xl active:scale-95">儲存變更</button>
                             </div>
@@ -1024,11 +1029,11 @@
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="bg-slate-50 p-2 rounded-lg border focus-within:border-brand-400">
                                                 <div className="text-[10px] text-slate-500 mb-1">QQQ 股數</div>
-                                                <input type="number" value={inputs.qty_core_1} onChange={e=>handleInput('qty_core_1',e.target.value)} onBlur={e=>syncToCloud('qty_core_1',e.target.value)} className="w-full font-mono text-lg outline-none bg-transparent"/>
+                                                <input type="number" inputMode="decimal" value={inputs.qty_core_1} onChange={e=>handleInput('qty_core_1',e.target.value)} onBlur={e=>syncToCloud('qty_core_1',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg outline-none bg-transparent"/>
                                             </div>
                                             <div className="bg-slate-50 p-2 rounded-lg border focus-within:border-brand-400">
                                                 <div className="text-[10px] text-slate-500 mb-1">TQQQ 股數</div>
-                                                <input type="number" value={inputs.qty_core_2} onChange={e=>handleInput('qty_core_2',e.target.value)} onBlur={e=>syncToCloud('qty_core_2',e.target.value)} className="w-full font-mono text-lg outline-none bg-transparent"/>
+                                                <input type="number" inputMode="decimal" value={inputs.qty_core_2} onChange={e=>handleInput('qty_core_2',e.target.value)} onBlur={e=>syncToCloud('qty_core_2',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg outline-none bg-transparent"/>
                                             </div>
                                         </div>
                                         
@@ -1036,11 +1041,11 @@
                                             <div key={s.id} className="grid grid-cols-2 gap-3 bg-slate-50 p-2 rounded-lg border">
                                                 <div className="focus-within:border-brand-400 border border-transparent rounded">
                                                     <div className="text-[10px] text-slate-500 mb-1">{s.underlying||'正股'}</div>
-                                                    <input type="number" value={s.qty_u} onChange={e=>updateArr('satellites', s.id, 'qty_u', e.target.value)} onBlur={()=>syncToCloud('satellites', inputs.satellites)} className="w-full font-mono bg-transparent outline-none"/>
+                                                    <input type="number" inputMode="decimal" value={s.qty_u} onChange={e=>updateArr('satellites', s.id, 'qty_u', e.target.value)} onBlur={()=>syncToCloud('satellites', inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono bg-transparent outline-none"/>
                                                 </div>
                                                 <div className="focus-within:border-brand-400 border border-transparent rounded">
                                                     <div className="text-[10px] text-brand-600 mb-1">{s.leveraged||'槓桿'}</div>
-                                                    <input type="number" value={s.qty_l} onChange={e=>updateArr('satellites', s.id, 'qty_l', e.target.value)} onBlur={()=>syncToCloud('satellites', inputs.satellites)} className="w-full font-mono text-brand-700 bg-transparent outline-none"/>
+                                                    <input type="number" inputMode="decimal" value={s.qty_l} onChange={e=>updateArr('satellites', s.id, 'qty_l', e.target.value)} onBlur={()=>syncToCloud('satellites', inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono text-brand-700 bg-transparent outline-none"/>
                                                 </div>
                                             </div>
                                         ))}
@@ -1052,11 +1057,14 @@
                                         <div className="grid grid-cols-2 gap-3 bg-slate-800 p-3 rounded-xl border border-slate-700 text-white">
                                             <div className="focus-within:border-brand-400 border border-transparent rounded">
                                                 <div className="text-[10px] text-slate-400 mb-1">BOXX 股數</div>
-                                                <input type="number" value={inputs.qty_boxx} onChange={e=>handleInput('qty_boxx',e.target.value)} onBlur={e=>syncToCloud('qty_boxx',e.target.value)} className="w-full font-mono text-lg bg-transparent text-brand-100 outline-none"/>
+                                                <input type="number" inputMode="decimal" value={inputs.qty_boxx} onChange={e=>handleInput('qty_boxx',e.target.value)} onBlur={e=>syncToCloud('qty_boxx',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg bg-transparent text-brand-100 outline-none"/>
                                             </div>
                                             <div className="focus-within:border-brand-400 border border-transparent rounded">
                                                 <div className="text-[10px] text-slate-400 mb-1">現金餘額 ($)</div>
-                                                <input type="number" value={inputs.cash_balance} onChange={e=>handleInput('cash_balance',e.target.value)} onBlur={e=>syncToCloud('cash_balance',e.target.value)} className="w-full font-mono text-lg bg-transparent text-brand-100 outline-none"/>
+                                                <div className="flex items-center">
+                                                    <button onClick={() => { const v = (getNum(inputs.cash_balance) * -1).toString(); handleInput('cash_balance', v); syncToCloud('cash_balance', v); }} className="mr-2 text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 px-1.5 py-0.5 rounded active:scale-95 transition-colors">+/-</button>
+                                                    <input type="number" inputMode="decimal" value={inputs.cash_balance} onChange={e=>handleInput('cash_balance',e.target.value)} onBlur={e=>syncToCloud('cash_balance',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg bg-transparent text-brand-100 outline-none"/>
+                                                </div>
                                             </div>
                                         </div>
                                         
@@ -1105,32 +1113,32 @@
                                     <div className="space-y-3">
                                         <div className="flex items-center gap-2 bg-brand-50 p-2 rounded-lg border border-brand-200">
                                             <label className="text-[10px] font-bold text-brand-700 w-24">戰備目標 %</label>
-                                            <input type="number" value={inputs.reserve_pct} onChange={e=>handleInput('reserve_pct', e.target.value)} onBlur={e=>syncToCloud('reserve_pct',e.target.value)} className="w-full bg-transparent font-mono text-brand-700 outline-none"/>
+                                            <input type="number" inputMode="decimal" value={inputs.reserve_pct} onChange={e=>handleInput('reserve_pct', e.target.value)} onBlur={e=>syncToCloud('reserve_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-brand-700 outline-none"/>
                                             <span className="text-brand-400 pr-3">%</span>
                                         </div>
                                         <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border">
                                             <label className="text-[10px] font-bold text-slate-500 w-24">QQQ 高點 $</label>
                                             <span className="text-slate-400 pl-3 font-mono text-lg">$</span>
-                                            <input type="number" value={inputs.qqq_ath} onChange={e=>handleInput('qqq_ath', e.target.value)} onBlur={e=>syncToCloud('qqq_ath',e.target.value)} className="w-full bg-transparent font-mono outline-none"/>
+                                            <input type="number" inputMode="decimal" value={inputs.qqq_ath} onChange={e=>handleInput('qqq_ath', e.target.value)} onBlur={e=>syncToCloud('qqq_ath',e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono outline-none"/>
                                         </div>
                                         <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
                                             <label className="text-[10px] font-bold text-slate-500 w-24">TQQQ 波段低點</label>
                                             <span className="text-slate-400 pl-3 font-mono text-lg">$</span>
-                                            <input type="number" value={inputs.tqqq_low} onChange={e=>handleInput('tqqq_low', e.target.value)} onBlur={e=>syncToCloud('tqqq_low',e.target.value)} className="w-full bg-transparent font-mono text-slate-700 outline-none" placeholder="用於計算反彈幅度"/>
+                                            <input type="number" inputMode="decimal" value={inputs.tqqq_low} onChange={e=>handleInput('tqqq_low', e.target.value)} onBlur={e=>syncToCloud('tqqq_low',e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-slate-700 outline-none" placeholder="用於計算反彈幅度"/>
                                         </div>
                                         <div className="flex items-center gap-2 bg-amber-50 p-2 rounded-lg border border-amber-200">
                                             <label className="text-[10px] font-bold text-amber-700 w-24">TQQQ 買入成本</label>
                                             <span className="text-amber-400 pl-3 font-mono text-lg">$</span>
-                                            <input type="number" value={inputs.tqqq_avg_cost} onChange={e=>handleInput('tqqq_avg_cost', e.target.value)} onBlur={e=>syncToCloud('tqqq_avg_cost',e.target.value)} className="w-full bg-transparent font-mono text-amber-700 outline-none"/>
+                                            <input type="number" inputMode="decimal" value={inputs.tqqq_avg_cost} onChange={e=>handleInput('tqqq_avg_cost', e.target.value)} onBlur={e=>syncToCloud('tqqq_avg_cost',e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-amber-700 outline-none"/>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2 pt-2 border-t">
                                             <div className="bg-white border rounded p-1.5">
                                                 <label className="text-[9px] text-fin-up block">收割閥值 +%</label>
-                                                <input type="number" value={inputs.core_profit_pct} onChange={e=>handleInput('core_profit_pct',e.target.value)} onBlur={e=>syncToCloud('core_profit_pct',e.target.value)} className="w-full font-mono text-center outline-none"/>
+                                                <input type="number" inputMode="decimal" value={inputs.core_profit_pct} onChange={e=>handleInput('core_profit_pct',e.target.value)} onBlur={e=>syncToCloud('core_profit_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-center outline-none"/>
                                             </div>
                                             <div className="bg-white border rounded p-1.5">
                                                 <label className="text-[9px] text-fin-down block">加碼閥值 -%</label>
-                                                <input type="number" value={inputs.core_loss_pct} onChange={e=>handleInput('core_loss_pct',e.target.value)} onBlur={e=>syncToCloud('core_loss_pct',e.target.value)} className="w-full font-mono text-center outline-none"/>
+                                                <input type="number" inputMode="decimal" value={inputs.core_loss_pct} onChange={e=>handleInput('core_loss_pct',e.target.value)} onBlur={e=>syncToCloud('core_loss_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-center outline-none"/>
                                             </div>
                                         </div>
                                         
@@ -1140,11 +1148,11 @@
                                                 <div key={l.id} className="flex gap-2 items-center mb-1">
                                                     <div className="flex-1 bg-slate-50 border rounded flex items-center px-2">
                                                         <span className="text-xs text-slate-400">-</span>
-                                                        <input type="number" value={l.drop_pct} onChange={e=>updateArr('core_ladder', l.id, 'drop_pct', e.target.value)} onBlur={()=>syncToCloud('core_ladder', inputs.core_ladder)} className="w-full p-1 bg-transparent font-mono text-sm outline-none"/>%
+                                                        <input type="number" inputMode="decimal" value={l.drop_pct} onChange={e=>updateArr('core_ladder', l.id, 'drop_pct', e.target.value)} onBlur={()=>syncToCloud('core_ladder', inputs.core_ladder)} onFocus={e=>e.target.select()} className="w-full p-1 bg-transparent font-mono text-sm outline-none"/>%
                                                     </div>
                                                     <Icon name="ChevronDown" size={14} className="-rotate-90 text-slate-300"/>
                                                     <div className="flex-1 bg-brand-50 border border-brand-100 rounded flex items-center px-2">
-                                                        <input type="number" value={l.move_pct} onChange={e=>updateArr('core_ladder', l.id, 'move_pct', e.target.value)} onBlur={()=>syncToCloud('core_ladder', inputs.core_ladder)} className="w-full p-1 bg-transparent text-brand-700 font-mono text-sm outline-none"/>%
+                                                        <input type="number" inputMode="decimal" value={l.move_pct} onChange={e=>updateArr('core_ladder', l.id, 'move_pct', e.target.value)} onBlur={()=>syncToCloud('core_ladder', inputs.core_ladder)} onFocus={e=>e.target.select()} className="w-full p-1 bg-transparent text-brand-700 font-mono text-sm outline-none"/>%
                                                     </div>
                                                     <button onClick={()=>removeArr('core_ladder',l.id)} className="p-1 text-slate-400 hover:text-red-500"><Icon name="X" size={14}/></button>
                                                 </div>
@@ -1158,11 +1166,11 @@
                                                 <div key={l.id} className="flex gap-2 items-center mb-1">
                                                     <div className="flex-1 bg-slate-50 border rounded flex items-center px-2">
                                                         <span className="text-xs text-brand-500">+</span>
-                                                        <input type="number" value={l.rise_pct} onChange={e=>updateArr('core_up_ladder', l.id, 'rise_pct', e.target.value)} onBlur={()=>syncToCloud('core_up_ladder', inputs.core_up_ladder)} className="w-full p-1 bg-transparent font-mono text-sm outline-none"/>%
+                                                        <input type="number" inputMode="decimal" value={l.rise_pct} onChange={e=>updateArr('core_up_ladder', l.id, 'rise_pct', e.target.value)} onBlur={()=>syncToCloud('core_up_ladder', inputs.core_up_ladder)} onFocus={e=>e.target.select()} className="w-full p-1 bg-transparent font-mono text-sm outline-none"/>%
                                                     </div>
                                                     <Icon name="ChevronDown" size={14} className="-rotate-90 text-slate-300"/>
                                                     <div className="flex-1 bg-fin-up/10 border border-fin-up/20 rounded flex items-center px-2">
-                                                        <input type="number" value={l.target_pct} onChange={e=>updateArr('core_up_ladder', l.id, 'target_pct', e.target.value)} onBlur={()=>syncToCloud('core_up_ladder', inputs.core_up_ladder)} className="w-full p-1 bg-transparent text-fin-up font-mono text-sm outline-none"/>%
+                                                        <input type="number" inputMode="decimal" value={l.target_pct} onChange={e=>updateArr('core_up_ladder', l.id, 'target_pct', e.target.value)} onBlur={()=>syncToCloud('core_up_ladder', inputs.core_up_ladder)} onFocus={e=>e.target.select()} className="w-full p-1 bg-transparent text-fin-up font-mono text-sm outline-none"/>%
                                                     </div>
                                                     <button onClick={()=>removeArr('core_up_ladder',l.id)} className="p-1 text-slate-400 hover:text-red-500"><Icon name="X" size={14}/></button>
                                                 </div>
@@ -1182,35 +1190,35 @@
                                             <div key={s.id} className="bg-slate-50 p-3 rounded-xl border relative">
                                                 <button onClick={()=>removeArr('satellites', s.id)} className="absolute top-2 right-2 text-slate-400 hover:text-fin-down active:scale-95"><Icon name="Trash2" size={14}/></button>
                                                 <div className="flex gap-2 mb-2 pr-6">
-                                                    <input value={s.underlying} onChange={e=>updateArr('satellites',s.id,'underlying',e.target.value.toUpperCase())} onBlur={()=>syncToCloud('satellites',inputs.satellites)} className="w-full bg-white text-xs p-2 rounded border font-black uppercase" placeholder="正股代號"/>
-                                                    <input value={s.leveraged} onChange={e=>updateArr('satellites',s.id,'leveraged',e.target.value.toUpperCase())} onBlur={()=>syncToCloud('satellites',inputs.satellites)} className="w-full bg-brand-50 text-brand-700 text-xs p-2 rounded border border-brand-200 font-black uppercase" placeholder="槓桿代號"/>
+                                                    <input value={s.underlying} onChange={e=>updateArr('satellites',s.id,'underlying',e.target.value.toUpperCase().trim())} onBlur={()=>syncToCloud('satellites',inputs.satellites)} className="w-full bg-white text-xs p-2 rounded border font-black uppercase" placeholder="正股代號"/>
+                                                    <input value={s.leveraged} onChange={e=>updateArr('satellites',s.id,'leveraged',e.target.value.toUpperCase().trim())} onBlur={()=>syncToCloud('satellites',inputs.satellites)} className="w-full bg-brand-50 text-brand-700 text-xs p-2 rounded border border-brand-200 font-black uppercase" placeholder="槓桿代號"/>
                                                 </div>
                                                 <div className="grid grid-cols-3 gap-1 mb-2 bg-white p-1 rounded border">
                                                     <div className="text-center">
                                                         <label className="text-[8px] text-slate-400">目標%</label>
-                                                        <input type="number" value={s.target_pct} onChange={e=>updateArr('satellites',s.id,'target_pct',e.target.value)} onBlur={()=>syncToCloud('satellites',inputs.satellites)} className="w-full font-mono text-[10px] outline-none bg-transparent"/>
+                                                        <input type="number" inputMode="decimal" value={s.target_pct} onChange={e=>updateArr('satellites',s.id,'target_pct',e.target.value)} onBlur={()=>syncToCloud('satellites',inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] outline-none bg-transparent"/>
                                                     </div>
                                                     <div className="text-center border-l">
                                                         <label className="text-[8px] text-fin-up">收割+%</label>
-                                                        <input type="number" value={s.profit_pct} onChange={e=>updateArr('satellites',s.id,'profit_pct',e.target.value)} onBlur={()=>syncToCloud('satellites',inputs.satellites)} className="w-full font-mono text-[10px] outline-none bg-transparent"/>
+                                                        <input type="number" inputMode="decimal" value={s.profit_pct} onChange={e=>updateArr('satellites',s.id,'profit_pct',e.target.value)} onBlur={()=>syncToCloud('satellites',inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] outline-none bg-transparent"/>
                                                     </div>
                                                     <div className="text-center border-l">
                                                         <label className="text-[8px] text-fin-down">補倉-%</label>
-                                                        <input type="number" value={s.loss_pct} onChange={e=>updateArr('satellites',s.id,'loss_pct',e.target.value)} onBlur={()=>syncToCloud('satellites',inputs.satellites)} className="w-full font-mono text-[10px] outline-none bg-transparent"/>
+                                                        <input type="number" inputMode="decimal" value={s.loss_pct} onChange={e=>updateArr('satellites',s.id,'loss_pct',e.target.value)} onBlur={()=>syncToCloud('satellites',inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] outline-none bg-transparent"/>
                                                     </div>
                                                 </div>
                                                 <div className="grid grid-cols-3 gap-1">
                                                     <div className="bg-white p-1 rounded border">
                                                         <label className="text-[8px] text-slate-400 block px-1">200MA</label>
-                                                        <input type="number" value={s.ma200} onChange={e=>updateArr('satellites',s.id,'ma200',e.target.value)} onBlur={()=>syncToCloud('satellites',inputs.satellites)} className="w-full font-mono text-[10px] outline-none bg-transparent"/>
+                                                        <input type="number" inputMode="decimal" value={s.ma200} onChange={e=>updateArr('satellites',s.id,'ma200',e.target.value)} onBlur={()=>syncToCloud('satellites',inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] outline-none bg-transparent"/>
                                                     </div>
                                                     <div className="bg-white p-1 rounded border">
                                                         <label className="text-[8px] text-fin-info block px-1">10MA</label>
-                                                        <input type="number" value={s.ma10} onChange={e=>updateArr('satellites',s.id,'ma10',e.target.value)} onBlur={()=>syncToCloud('satellites',inputs.satellites)} className="w-full font-mono text-[10px] outline-none bg-transparent"/>
+                                                        <input type="number" inputMode="decimal" value={s.ma10} onChange={e=>updateArr('satellites',s.id,'ma10',e.target.value)} onBlur={()=>syncToCloud('satellites',inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] outline-none bg-transparent"/>
                                                     </div>
                                                     <div className="bg-white p-1 rounded border">
                                                         <label className="text-[8px] text-slate-400 block px-1">補倉次</label>
-                                                        <input type="number" value={s.rescues} onChange={e=>updateArr('satellites',s.id,'rescues',e.target.value)} onBlur={()=>syncToCloud('satellites',inputs.satellites)} className="w-full font-mono text-[10px] outline-none bg-transparent"/>
+                                                        <input type="number" inputMode="decimal" value={s.rescues} onChange={e=>updateArr('satellites',s.id,'rescues',e.target.value)} onBlur={()=>syncToCloud('satellites',inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] outline-none bg-transparent"/>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1224,8 +1232,10 @@
                         {view === 'history' && (
                             <div className="space-y-6 animate-in fade-in">
                                 <div className="bg-white rounded-3xl p-5 shadow-sm border h-[300px]">
-                                    <div className="text-xs font-black text-slate-700 mb-2 flex items-center gap-1"><Icon name="TrendingUp" size={14} className="text-brand-600"/> 資產歷史走勢</div>
-                                    {hasCharts ? (
+                                    <div className="text-xs font-black text-slate-700 mb-2 flex items-center gap-1">
+                                        <Icon name="TrendingUp" size={14} className="text-brand-600"/> 資產歷史走勢
+                                    </div>
+                                    {hasCharts && metrics.graphData && metrics.graphData.length > 0 ? (
                                         <ResponsiveContainer width="100%" height="85%">
                                             <ComposedChart data={metrics.graphData} margin={{top:5,right:0,left:-20,bottom:0}}>
                                                 <defs>
@@ -1240,11 +1250,17 @@
                                                 <Area yAxisId="right" type="monotone" dataKey="dd" stroke="none" fill="url(#cDD)" name="大盤跌幅"/>
                                             </ComposedChart>
                                         </ResponsiveContainer>
-                                    ) : (<div className="h-full flex items-center justify-center text-slate-400 text-xs border border-dashed rounded-xl">圖表載入中...</div>)}
+                                    ) : (
+                                        <div className="h-full flex items-center justify-center text-slate-400 text-xs border border-dashed rounded-xl">
+                                            尚無歷史戰報，請先於主控台儲存今日紀錄
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="bg-white rounded-3xl shadow-sm border p-4">
                                     <h3 className="text-sm font-black mb-3 border-b pb-2 flex items-center gap-1"><Icon name="FileText" size={14}/> 歷史紀錄</h3>
-                                    {!getArr(records).length ? (<div className="text-center text-xs text-slate-400 py-6">尚無紀錄</div>) : (
+                                    {!getArr(records).length ? (
+                                        <div className="text-center text-xs text-slate-400 py-6">尚無紀錄</div>
+                                    ) : (
                                         <div className="space-y-3 max-h-[500px] overflow-y-auto">
                                             {getArr(records).sort((a,b)=>new Date(b.date)-new Date(a.date)).map(r => (
                                                 <div key={r.id} className="bg-slate-50 p-3 rounded-xl border border-slate-100">

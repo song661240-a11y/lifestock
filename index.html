@@ -59,15 +59,14 @@
         const getTodayStr = () => { 
             const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().split('T')[0]; 
         };
-        // 核心防禦：確保破壞的物件能安全轉回陣列，避免 map undefined 錯誤
         const getArr = (arr) => Array.isArray(arr) ? arr : (arr && typeof arr === 'object' ? Object.values(arr) : []);
 
         // --- 預設值區塊 ---
-        const defPlan = `🧠 Alpha Horizon 最終優化版實戰手冊\n\n一、 資產結構配置 (資產的骨架)\n【核心母艦】 (50% - 60%)：QQQ (長期成長主引擎，非必要不動)。\n【機動衛星】 (20% - 30%)：TSLA / IBIT / NET 等 (單一標的上限 10%)。原則：輸了不痛，贏了有感。\n【軍火庫】 (15% - 20%)：BOXX (防禦與救援資金)。核心規則：最低水位不可低於總資產 10%。\n\n二、 核心操作：QQQ ⇄ TQQQ 階梯轉換\n📉 下跌階梯 (加槓桿策略) - 以 QQQ「歷史高點 ATH」為基準：\n• 跌 10% → 將 15% 資金轉入 TQQQ。\n• 跌 20% → 再轉 15% 資金。\n• 跌 30% → 再轉 15% 資金。\n• 跌 40% → 剩餘 QQQ 資金全數轉入 TQQQ。\n(TQQQ 總上限：約佔總資產 60%)\n\n📈 獲利減碼 (鎖定利潤)：\n• 強彈鎖利：TQQQ 自低位反彈 +20% 時，賣出 1/3 的 TQQQ 換回 QQQ。\n• 創新高退場 (當 QQQ 突破 ATH 且有獲利時)：\n  - 達 ATH：賣出 50% 的 TQQQ 換回 QQQ。\n  - 達 ATH + 5%：再賣出 25% 的 TQQQ。\n  - 達 ATH + 10%：全數結清 TQQQ 換回 QQQ。\n• 獲利分配優先權：優先補滿 BOXX 至 20% 水位 → 剩餘資金全數投入 QQQ。\n\n三、 衛星部位操作 (高波動來源)\n📉 進場機制 (200MA 分批)：\n• 觸碰 200MA：投入 1/3 倉位 (轉換為 2 倍槓桿)。\n• 下跌 10%：再投入 1/3。\n• 止跌回升確認：投入最後 1/3。\n\n🆘 救援機制 (BOXX 支援)：\n• 條件：當衛星標的跌幅達 -20% 時。\n• 方式：動用 BOXX 補回原始倉位量體 (每檔最多 2 次)。\n• 限制：若 BOXX 低於 10%，停止所有救援。\n\n💰 鎖利出場：\n• 獲利達 +25%：結清槓桿部位，資金流向：補滿 BOXX → 剩餘進 QQQ。\n\n四、 風控禁律 (生存關鍵)\n• 允許小虧退出：槓桿部位不再死守成本，虧損達 -10% 即可減碼保命。\n• 去槓桿化：感到體感疲勞或嫉妒焦慮時，優先將衛星換回 1x 原型現貨。\n• 不全倉切換：所有操作必須分批，嚴禁一次性 All-in。\n• 封閉系統：不依賴外部現金注入，靠系統自我循環成長。\n\n五、 指揮官心法 (心理控制)\n• 系統定位：這套策略不保證「最賺」，但保證「最有機會讓你賺到最後」。\n• 對抗焦慮：看到別人的暴利對帳單時，默念：「我不是要抓每一段行情，我是那個活到最後的人。」\n• 戰術價值：用 QQQ 打長期，用 TQQQ 吃波段，用 BOXX 保命，用衛星拼爆擊。`;
+        const defPlan = `🧠 Alpha Horizon 最終優化版實戰手冊 (三軌並行版)\n\n一、 資產結構配置 (資產骨架)\n【核心母艦】 (50% - 60%)：QQQ (長期成長主引擎，非必要不動)。\n【機動衛星】 (20% - 30%)：TSLA / IBIT 等 (可搭配 現貨 / 2x 槓桿 ETF / 深度 Call)。\n原則：擁抱大趨勢，彈性運用選擇權 (LEAPS) 取代現貨以提升資本效率。\n【軍火庫】 (15% - 20%)：BOXX (防禦與救援資金)。核心規則：最低水位不可低於總資產 10%。\n\n二、 核心操作：QQQ ⇄ TQQQ (或 ITM Call) 階梯轉換\n📉 下跌階梯 (加槓桿策略) - 以 QQQ「歷史高點 ATH」為基準：\n• 跌 10% → 將 15% 資金轉入槓桿部位 (TQQQ 或 QQQ 價內 Call)。\n• 跌 20% → 再轉 15% 資金。\n• 跌 30% → 再轉 15% 資金。\n• 跌 40% → 剩餘 QQQ 資金全數轉入槓桿部位。\n\n📈 獲利減碼 (鎖定利潤)：\n• 強彈鎖利：槓桿部位自低位反彈 +20% 時，減碼 1/3 換回 QQQ 現貨。\n• 創新高退場 (當 QQQ 突破 ATH 且有獲利時)：\n  - 達 ATH：賣出 50% 的槓桿部位換回 QQQ。\n  - 達 ATH + 5%：再賣出 25% 槓桿部位。\n  - 達 ATH + 10%：全數結清槓桿，回歸 1x 曝險。\n• 獲利分配優先權：優先補滿 BOXX 至 20% 水位 → 剩餘資金全數投入 QQQ。\n\n三、 衛星部位操作 (現貨 / 2x ETF / Call 期權)\n📉 進場機制 (200MA 分批)：\n• 觸碰 200MA：投入 1/3 倉位 (轉換為槓桿/期權)。\n• 波段修正 (-10%)：再投入 1/3 倉位。\n• 止跌回升確認：投入最後 1/3 倉位。\n\n🆘 救援機制 (BOXX 支援)：\n• 條件：當衛星標的跌幅達 -20% 時。\n• 方式：動用 BOXX 補回原始倉位量體 (每檔最多 2 次)。\n• 限制：若 BOXX 低於 10%，停止所有救援。\n\n💰 鎖利出場：\n• 獲利達 +25%：結清高風險部位，資金流向：補滿 BOXX → 剩餘進 QQQ。\n\n四、 風控禁律 (生存關鍵)\n• 選擇權紀律：優先使用到期日大於 300 天，Delta > 0.8 的 LEAPS 取代正股。\n• 停損紀律：高槓桿部位不再死守成本，虧損達 -10% 即可減碼保命。\n• 不全倉切換：所有操作必須分批執行，嚴禁一次性 All-in。\n• 封閉系統：不依賴外部現金注入，靠系統自我循環成長。`;
         
         const defSats = [
-            { id: '1', underlying: 'TSLA', leveraged: 'TSLL', qty_u: 0, qty_l: 0, ma200: 200, ma10: 190, target_pct: 15, profit_pct: 25, loss_pct: 20, rescues: 0 }, 
-            { id: '2', underlying: 'IBIT', leveraged: 'BITU', qty_u: 0, qty_l: 0, ma200: 35, ma10: 36, target_pct: 10, profit_pct: 25, loss_pct: 20, rescues: 0 }
+            { id: '1', underlying: 'TSLA', leveraged: 'TSLL', qty_u: 0, qty_l: 0, qty_c: 0, opt_p_c: 0, opt_d_c: 0.9, ma200: 200, ma10: 190, target_pct: 15, profit_pct: 25, loss_pct: 20, rescues: 0 }, 
+            { id: '2', underlying: 'IBIT', leveraged: 'BITU', qty_u: 0, qty_l: 0, qty_c: 0, opt_p_c: 0, opt_d_c: 0.9, ma200: 35, ma10: 36, target_pct: 10, profit_pct: 25, loss_pct: 20, rescues: 0 }
         ];
         const defLad = [
             { id: 'l1', drop_pct: 10, move_pct: 15 }, { id: 'l2', drop_pct: 20, move_pct: 15 }, 
@@ -78,8 +77,13 @@
         ];
         const defInputs = { 
             motto: '動態佔比再平衡，嚴守紀律不凹單', planText: defPlan, 
-            qqq_ath: 0, qty_core_1: 0, qty_core_2: 0, qty_boxx: 0, tqqq_avg_cost: 0, tqqq_low: 0,
-            core_profit_pct: 25, core_loss_pct: 10, cash_balance: 0, reserve_pct: 20, 
+            qqq_ath: 0, qty_boxx: 0, cash_balance: 0, reserve_pct: 20, 
+            
+            core_1_type: 'stock', qty_core_1: 0, opt_p_c1: 0, opt_d_c1: 0.9,
+            core_2_type: 'stock', qty_core_2: 0, opt_p_c2: 0, opt_d_c2: 0.9,
+            tqqq_avg_cost: 0, tqqq_low: 0,
+            core_profit_pct: 25, core_loss_pct: 10, 
+            
             core_ladder: defLad, core_up_ladder: defUpLad, satellites: defSats 
         };
 
@@ -175,7 +179,8 @@
                     <div className="bg-slate-800 border border-slate-700 p-4 rounded-2xl shadow-xl text-sm font-black z-50 text-white">
                         <p className="mb-1 text-slate-400">{data.name}</p>
                         <p className="text-lg">${(data.value || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
-                        <p className="text-brand-400 text-xs mt-1">佔總資產: {((data.percentOfTotal || 0) * 100).toFixed(1)}%</p>
+                        <p className="text-brand-400 text-xs mt-1">佔總市值: {((data.percentOfTotal || 0) * 100).toFixed(1)}%</p>
+                        {data.exposure && <p className="text-slate-300 text-xs mt-1">真實曝險: ${(data.exposure).toLocaleString()}</p>}
                     </div>
                 );
             }
@@ -443,6 +448,7 @@
                 setModal({type: null}); 
             };
             
+            // --- 核心資產與三軌期權運算引擎 ---
             const metrics = useMemo(() => {
                 const getP = (t) => prices[String(t || "").trim().toUpperCase()] || 0;
                 const getV = (k) => getNum(inputs[k]);
@@ -451,13 +457,37 @@
                 const pTQQQ = getP('TQQQ'); 
                 const pBOXX = getP('BOXX') || 100; 
                 
-                const vC1 = pQQQ * getV('qty_core_1'); 
-                const vC2 = pTQQQ * getV('qty_core_2'); 
+                // 計算單一資產的真實市值與曝險市值
+                const calcAsset = (type, qty, price, optP, optD, multiplier = 1) => {
+                    if (type === 'option') {
+                        const val = qty * optP * 100;
+                        const exp = qty * 100 * optD * price;
+                        return { val, exp };
+                    } else {
+                        const val = qty * price;
+                        const exp = val * multiplier;
+                        return { val, exp };
+                    }
+                };
+
+                // 核心
+                const c1 = calcAsset(inputs.core_1_type||'stock', getV('qty_core_1'), pQQQ, getV('opt_p_c1'), getV('opt_d_c1'), 1);
+                const c2 = calcAsset(inputs.core_2_type||'stock', getV('qty_core_2'), pQQQ, getV('opt_p_c2'), getV('opt_d_c2'), 3); 
+                if((inputs.core_2_type||'stock') === 'stock') {
+                    c2.val = getV('qty_core_2') * pTQQQ;
+                    c2.exp = c2.val * 3; 
+                }
+
+                const valCore1 = c1.val; 
+                const valCore2 = c2.val; 
                 const vBOXX = pBOXX * getV('qty_boxx'); 
                 const cash = getV('cash_balance');
                 
                 let vSatU = 0; 
                 let vSatL = 0;
+                let vSatC = 0;
+                let expSat = 0;
+                
                 const colors = [
                     {u:'#3b82f6', l:'#93c5fd'},
                     {u:'#10b981', l:'#6ee7b7'},
@@ -466,41 +496,46 @@
                 ];
                 
                 const pieData = [];
-                if (vC1 > 0) pieData.push({ name: 'QQQ', value: vC1, fill: '#1e293b' });
-                if (vC2 > 0) pieData.push({ name: 'TQQQ', value: vC2, fill: '#64748b' });
+                if (valCore1 > 0) pieData.push({ name: inputs.core_1_type==='option'?'QQQ Call':'QQQ', value: valCore1, exposure: c1.exp, fill: '#1e293b' });
+                if (valCore2 > 0) pieData.push({ name: inputs.core_2_type==='option'?'Leveraged Call':'TQQQ', value: valCore2, exposure: c2.exp, fill: '#64748b' });
 
-                let tempU = 0; 
-                let tempL = 0;
-                
                 const safeSatellites = getArr(inputs.satellites);
                 const safeLadder = getArr(inputs.core_ladder);
                 const safeUpLadder = getArr(inputs.core_up_ladder);
 
+                // 第一次遍歷 Sat 計算總市值
                 safeSatellites.forEach(s => { 
                     if (s) {
-                        tempU += getP(s.underlying) * getNum(s.qty_u); 
-                        tempL += getP(s.leveraged) * getNum(s.qty_l); 
+                        const uP = getP(s.underlying); 
+                        const lP = getP(s.leveraged);  
+                        vSatU += uP * getNum(s.qty_u); 
+                        vSatL += lP * getNum(s.qty_l); 
+                        vSatC += getNum(s.qty_c) * getNum(s.opt_p_c) * 100;
                     }
                 });
                 
                 const tRes = cash + vBOXX; 
-                const tCore = vC1 + vC2;
-                const tCap = tRes + tCore + tempU + tempL;
+                const tCore = valCore1 + valCore2;
+                const tCap = tRes + tCore + vSatU + vSatL + vSatC;
                 const safeT = tCap > 0 ? tCap : 1;
 
+                // 第二次遍歷 Sat 補上佔比計算與建議邏輯
                 const satStats = safeSatellites.map((s, i) => {
                     const uP = getP(s.underlying); 
                     const lP = getP(s.leveraged);  
+                    
                     const vU = uP * getNum(s.qty_u); 
-                    const vL = lP * getNum(s.qty_l);
-                    const cV = vU + vL; 
+                    const vL = lP * getNum(s.qty_l); 
+                    const vC = getNum(s.qty_c) * getNum(s.opt_p_c) * 100;
+                    const expC = getNum(s.qty_c) * 100 * getNum(s.opt_d_c) * uP;
                     
-                    vSatU += vU; 
-                    vSatL += vL;
+                    const cV = vU + vL + vC; 
+                    expSat += (vU * 1) + (vL * 2) + expC;
                     
-                    if (vU > 0) pieData.push({ name: s.underlying || '正股', value: vU, fill: colors[i%colors.length].u });
-                    if (vL > 0) pieData.push({ name: s.leveraged || '槓桿', value: vL, fill: colors[i%colors.length].l });
-                    
+                    if (vU > 0) pieData.push({ name: s.underlying || '正股', value: vU, exposure: vU * 1, fill: colors[i%colors.length].u });
+                    if (vL > 0) pieData.push({ name: s.leveraged || '槓桿', value: vL, exposure: vL * 2, fill: colors[i%colors.length].l });
+                    if (vC > 0) pieData.push({ name: (s.underlying || '標的') + ' Call', value: vC, exposure: expC, fill: colors[i%colors.length].u });
+
                     const tPct = getNum(s.target_pct); 
                     const cPct = (cV / safeT) * 100; 
                     const tVal = tCap * (tPct / 100); 
@@ -510,15 +545,15 @@
                     const ex = tVal > 0 ? (cV - tVal) / tVal : 0; 
                     const sh = tVal > 0 ? (tVal - cV) / tVal : 0;
 
-                    if (vL > 0 || vU > 0) {
+                    if (vL > 0 || vU > 0 || vC > 0) {
                         if (ex >= getNum(s.profit_pct)/100 && uP > getNum(s.ma200)) { 
-                            st = `收割 (+${(ex*100).toFixed(1)}%)`; col = "text-fin-up"; act = `溢出，建議結清 ${s.leveraged || s.underlying}。優先補 BOXX，剩餘轉 QQQ。`; 
+                            st = `收割 (+${(ex*100).toFixed(1)}%)`; col = "text-fin-up"; act = `溢出，建議結清。優先補 BOXX，剩餘轉 QQQ。`; 
                         } 
                         else if (sh >= getNum(s.loss_pct)/100) { 
                             if (getNum(s.rescues) < 2) { 
-                                st = `補倉 (-${(sh*100).toFixed(1)}%)`; col = "text-fin-down"; act = `衰退，建議動用 BOXX 提取約 $${Math.round(tVal - cV)} 補足。`; 
+                                st = `觸發救援 (-${(sh*100).toFixed(1)}%)`; col = "text-fin-down"; act = `衰退，建議動用 BOXX 提取約 $${Math.round(tVal - cV)} 補足倉位。`; 
                             } else { 
-                                st = "補倉達上限"; col = "text-slate-600"; act = "已補 2 次，防禦等待。"; 
+                                st = "救援達上限"; col = "text-slate-600"; act = "已救援 2 次，防禦等待。"; 
                             } 
                         }
                         else if (vL === 0 && vU > 0) {
@@ -526,13 +561,13 @@
                                 st = "未設參數"; 
                             } 
                             else if (uP > getNum(s.ma10) && uP < getNum(s.ma200) && getNum(s.ma10) > 0) { 
-                                st = "站上 10MA"; col = "text-fin-info"; act = `止跌回升，全換槓桿。`; 
+                                st = "站上 10MA"; col = "text-fin-info"; act = `止跌回升，全數轉換為槓桿/期權。`; 
                             } 
                             else if (dPct <= -10) { 
-                                st = "跌破 10%"; col = "text-fin-warn"; act = `跌破 200MA 10%，1/3 換槓桿。`; 
+                                st = "跌破 10%"; col = "text-fin-warn"; act = `跌破 200MA 10%，1/3 換槓桿/期權。`; 
                             } 
                             else if (dPct <= 0 && dPct > -10) { 
-                                st = "觸碰 200MA"; col = "text-fin-info"; act = `進入防禦區，1/3 換槓桿。`; 
+                                st = "觸碰 200MA"; col = "text-fin-info"; act = `進入防禦區，1/3 換槓桿/期權。`; 
                             } 
                             else { 
                                 st = "持有現貨"; act = `高於 200MA。`; 
@@ -544,22 +579,21 @@
                         if (!s.underlying) { 
                             act = "輸入代號"; 
                         } else if (dPct <= 5 && dPct >= -5) { 
-                            st = "均線範圍"; col = "text-fin-up"; act = `可買入槓桿。`; 
+                            st = "均線範圍"; col = "text-fin-up"; act = `可買入槓桿/期權。`; 
                         } else if (dPct < -5) { 
-                            st = "低於均線"; col = "text-fin-down"; act = "偏弱觀察。"; 
+                            st = "低於均線"; col = "text-fin-down"; act = "偏弱持續觀察。"; 
                         } else { 
                             st = "高於均線"; col = "text-fin-info"; act = "乖離偏大暫停。"; 
                         }
                     }
-                    return { ...s, cV, vU, vL, uP, lP, tPct, cPct, tVal, dPct, st, col, act };
+                    return { ...s, cV, vU, vL, vC, expC, uP, lP, tPct, cPct, tVal, dPct, st, col, act };
                 });
 
-                const gExp = (vC1*1) + (vC2*3) + (vSatU*1) + (vSatL*2);
-                const gLev = gExp / (tCore + vSatU + vSatL > 0 ? tCore + vSatU + vSatL : 1);
+                const gExp = c1.exp + c2.exp + expSat;
+                const safeGrowthForLev = (tCore + vSatU + vSatL + vSatC) > 0 ? (tCore + vSatU + vSatL + vSatC) : 1;
+                const gLev = gExp / safeGrowthForLev;
                 const tLev = gExp / safeT; 
                 
-                pieData.forEach(d => d.percentOfTotal = d.value / safeT);
-
                 const tgtRPct = inputs.reserve_pct !== undefined ? getNum(inputs.reserve_pct) : 20;
                 let satSumPct = 0;
                 safeSatellites.forEach(s => {
@@ -601,45 +635,45 @@
                 }
 
                 const tTqqqVal = tCap * (tTqqqPct / 100);
-                const cTqqqPctT = safeT > 0 ? (vC2 / safeT) * 100 : 0;
+                const cTqqqPctT = safeT > 0 ? (valCore2 / safeT) * 100 : 0;
                 
                 let cAct = "維持現有配置比例"; 
                 let cCol = "text-slate-600"; 
                 let cDiff = 0;
                 
-                if (vC2 < tTqqqVal) {
-                    if (tTqqqVal > 0 && (tTqqqVal - vC2)/tTqqqVal >= getV('core_loss_pct')/100) { 
-                        cAct = `衰退建議加碼 TQQQ`; 
+                if (valCore2 < tTqqqVal) {
+                    if (tTqqqVal > 0 && (tTqqqVal - valCore2)/tTqqqVal >= getV('core_loss_pct')/100) { 
+                        cAct = `衰退建議加碼槓桿部位`; 
                         cCol = "text-fin-down"; 
-                        cDiff = tTqqqVal - vC2; 
+                        cDiff = tTqqqVal - valCore2; 
                     } else if (tLow > 0 && tBounce >= 20 && cRise < 0) {
-                        cAct = `強彈鎖利 +${tBounce.toFixed(0)}%：建議將 1/3 TQQQ 換回 QQQ`;
+                        cAct = `強彈鎖利 +${tBounce.toFixed(0)}%：建議將 1/3 槓桿換回 QQQ`;
                         cCol = "text-fin-info";
                     }
-                } else if (vC2 > tTqqqVal) {
-                    cDiff = vC2 - tTqqqVal;
+                } else if (valCore2 > tTqqqVal) {
+                    cDiff = valCore2 - tTqqqVal;
                     if (cRise < 0) { 
                         if (tLow > 0 && tBounce >= 20) {
-                            cAct = `強彈鎖利 +${tBounce.toFixed(0)}%：建議將 1/3 TQQQ 換回 QQQ`;
+                            cAct = `強彈鎖利 +${tBounce.toFixed(0)}%：建議將 1/3 槓桿換回 QQQ`;
                             cCol = "text-fin-info";
-                            cDiff = vC2 / 3; 
+                            cDiff = valCore2 / 3; 
                         } else {
                             cAct = `未突破 ATH，持倉續抱。`; 
                             cCol = "text-fin-info"; 
                             cDiff = 0; 
                         }
                     } 
-                    else if (getV('tqqq_avg_cost') > 0 && pTQQQ <= getV('tqqq_avg_cost')) { 
+                    else if (getV('tqqq_avg_cost') > 0 && pTQQQ <= getV('tqqq_avg_cost') && inputs.core_2_type !== 'option') { 
                         cAct = `低於成本保護中，暫緩收割`; 
                         cCol = "text-fin-warn"; 
                         cDiff = 0; 
                     } 
                     else { 
-                        cAct = `突破設定，建議賣出溢出 TQQQ。`; 
+                        cAct = `突破設定，建議賣出溢出之槓桿部位。`; 
                         cCol = "text-fin-up"; 
                     }
                 } else if (cDD >= (lad.length > 0 ? getNum(lad[lad.length-1].drop_pct) : 40)) { 
-                    cAct = "滿倉 TQQQ，持倉等待反轉"; 
+                    cAct = "滿倉槓桿，持倉等待反轉"; 
                     cCol = "text-slate-700"; 
                 }
 
@@ -663,13 +697,13 @@
                     growthLeverageRatio: gLev, 
                     totalLeverageRatio: tLev,
                     cls: { 
-                        c: { u: vC1, l: vC2, t: tCore, p: (tCore/safeT)*100 }, 
-                        s: { u: vSatU, l: vSatL, t: (vSatU+vSatL), p: ((vSatU+vSatL)/safeT)*100 }, 
+                        c: { u: valCore1, l: valCore2, t: tCore, p: (tCore/safeT)*100 }, 
+                        s: { u: vSatU, l: vSatL, c: vSatC, t: (vSatU+vSatL+vSatC), p: ((vSatU+vSatL+vSatC)/safeT)*100 }, 
                         r: { b: vBOXX, c: cash, t: tRes, p: (tRes/safeT)*100 } 
                     },
                     tgt: { 
                         c: { p: tgtCPct, ds: pQQQ>0 ? Math.round((tCap*(tgtCPct/100)-tCore)/pQQQ) : 0 }, 
-                        s: { p: satSumPct, dv: (tCap*(satSumPct/100))-(vSatU+vSatL) }, 
+                        s: { p: satSumPct, dv: (tCap*(satSumPct/100))-(vSatU+vSatL+vSatC) }, 
                         r: { p: tgtRPct, ds: pBOXX>0 ? Math.round((tCap*(tgtRPct/100)-tRes)/pBOXX) : 0 } 
                     },
                     core: { 
@@ -768,11 +802,8 @@
                                             <Icon name="Quote" size={16}/>
                                             <span className="text-xs uppercase tracking-widest text-slate-500">投資座右銘</span>
                                         </div>
-                                        <button onClick={() => setIsMottoLocked(!isMottoLocked)} className="text-slate-400 active:scale-95">
-                                            <Icon name={isMottoLocked?"Lock":"Unlock"} size={16}/>
-                                        </button>
                                     </div>
-                                    <textarea value={inputs.motto} readOnly={isMottoLocked} onChange={e => handleInput('motto', e.target.value)} onBlur={e => syncToCloud('motto', e.target.value)} className={`w-full bg-transparent text-base text-slate-700 outline-none text-center leading-relaxed transition-all ${isMottoLocked?'':'bg-slate-50 border-dashed border-slate-300 rounded-xl p-3 border'}`} rows="6" placeholder="輸入您的投資座右銘..." />
+                                    <textarea value={inputs.motto} onChange={e => handleInput('motto', e.target.value)} onBlur={e => syncToCloud('motto', e.target.value)} className="w-full bg-transparent text-base text-slate-700 outline-none text-center leading-relaxed transition-all p-3 focus:border-brand-500 border border-transparent focus:border-dashed focus:bg-slate-50 rounded-xl" rows="4" placeholder="輸入您的投資座右銘..." />
                                 </div>
 
                                 <div className="bg-white rounded-3xl p-5 shadow-sm border">
@@ -855,11 +886,11 @@
                                                     </div>
                                                     <div className="grid grid-cols-2 gap-4">
                                                         <div className="flex flex-col">
-                                                            <span className="text-[10px] text-slate-400">QQQ <span className="font-normal">/ 目標 {metrics.tgt.c.p - metrics.core.tTqqqPct}%</span></span>
+                                                            <span className="text-[10px] text-slate-400">{inputs.core_1_type==='option'?'QQQ Call':'QQQ'} <span className="font-normal">/ 目標 {metrics.tgt.c.p - metrics.core.tTqqqPct}%</span></span>
                                                             <span className="text-sm font-mono text-slate-700">{(metrics.cls.c.u/metrics.safeTotal*100).toFixed(1)}% <span className="text-[10px] text-slate-400">({(metrics.cls.c.u/1000).toFixed(1)}k)</span></span>
                                                         </div>
                                                         <div className="flex flex-col text-right">
-                                                            <span className="text-[10px] text-slate-400"><span className="font-normal">目標 {metrics.core.tTqqqPct}% / </span>TQQQ</span>
+                                                            <span className="text-[10px] text-slate-400"><span className="font-normal">目標 {metrics.core.tTqqqPct}% / </span>{inputs.core_2_type==='option'?'Leveraged Call':'TQQQ'}</span>
                                                             <span className="text-sm font-mono text-brand-500">{(metrics.cls.c.l/metrics.safeTotal*100).toFixed(1)}% <span className="text-[10px] text-slate-400">({(metrics.cls.c.l/1000).toFixed(1)}k)</span></span>
                                                         </div>
                                                     </div>
@@ -867,19 +898,23 @@
                                                 <div className="bg-slate-50 p-4 rounded-2xl border shadow-sm transition-all">
                                                     <div className="flex justify-between mb-3 border-b pb-2 cursor-pointer group" onClick={() => setIsSatDetailsOpen(!isSatDetailsOpen)}>
                                                         <div className="flex gap-2">
-                                                            <span className="text-xs group-hover:text-brand-600">2. 機動衛星 (1x/2x)</span>
+                                                            <span className="text-xs group-hover:text-brand-600">2. 機動衛星家族</span>
                                                             <Icon name={isSatDetailsOpen?"ChevronUp":"ChevronDown"} size={14} className="text-slate-400"/>
                                                         </div>
                                                         <span className="text-xs font-mono text-brand-600 bg-brand-50 px-2 py-0.5 rounded">佔 {metrics.cls.s.p.toFixed(1)}% / 目標 {metrics.tgt.s.p}%</span>
                                                     </div>
-                                                    <div className="grid grid-cols-2 gap-4">
+                                                    <div className="grid grid-cols-3 gap-2">
                                                         <div className="flex flex-col">
-                                                            <span className="text-[10px] text-slate-400">原型股票</span>
-                                                            <span className="text-sm font-mono text-slate-700">{(metrics.cls.s.u/metrics.safeTotal*100).toFixed(1)}% <span className="text-[10px] text-slate-400">({(metrics.cls.s.u/1000).toFixed(1)}k)</span></span>
+                                                            <span className="text-[10px] text-slate-400">現貨</span>
+                                                            <span className="text-sm font-mono text-slate-700">{(metrics.cls.s.u/metrics.safeTotal*100).toFixed(1)}%</span>
+                                                        </div>
+                                                        <div className="flex flex-col text-center">
+                                                            <span className="text-[10px] text-brand-400">Call 期權</span>
+                                                            <span className="text-sm font-mono text-brand-500">{(metrics.cls.s.c/metrics.safeTotal*100).toFixed(1)}%</span>
                                                         </div>
                                                         <div className="flex flex-col text-right">
-                                                            <span className="text-[10px] text-slate-400">槓桿股票</span>
-                                                            <span className="text-sm font-mono text-brand-500">{(metrics.cls.s.l/metrics.safeTotal*100).toFixed(1)}% <span className="text-[10px] text-slate-400">({(metrics.cls.s.l/1000).toFixed(1)}k)</span></span>
+                                                            <span className="text-[10px] text-slate-400">2x 槓桿</span>
+                                                            <span className="text-sm font-mono text-brand-600">{(metrics.cls.s.l/metrics.safeTotal*100).toFixed(1)}%</span>
                                                         </div>
                                                     </div>
                                                     {isSatDetailsOpen && (
@@ -887,19 +922,26 @@
                                                             {(metrics.satStats || []).map(s => { 
                                                                 const up = (s.vU/metrics.safeTotal)*100; 
                                                                 const lp = (s.vL/metrics.safeTotal)*100; 
+                                                                const cp = (s.vC/metrics.safeTotal)*100; 
                                                                 return (
-                                                                    <div key={s.id} className="grid grid-cols-3 items-center bg-white p-2.5 rounded-xl border shadow-sm">
-                                                                        <div className="flex flex-col">
-                                                                            <span className="text-[10px] text-slate-500">{s.underlying} (1x)</span>
-                                                                            <span className="text-xs font-mono">{up.toFixed(1)}%</span>
+                                                                    <div key={s.id} className="bg-white p-3 rounded-xl border shadow-sm">
+                                                                        <div className="flex justify-between items-center mb-2 pb-1 border-b border-slate-100">
+                                                                            <span className="text-[10px] font-black text-slate-700">{s.underlying} 家族</span>
+                                                                            <span className="text-[10px] font-mono text-brand-500">目標 {s.tPct}% / 實際 {(up+lp+cp).toFixed(1)}%</span>
                                                                         </div>
-                                                                        <div className="flex flex-col text-center border-x px-1">
-                                                                            <span className="text-[10px]">總計 <span className="text-brand-500">目標 {s.tPct}%</span></span>
-                                                                            <span className="text-xs font-mono">{(up+lp).toFixed(1)}%</span>
-                                                                        </div>
-                                                                        <div className="flex flex-col text-right">
-                                                                            <span className="text-[10px] text-brand-500">{s.leveraged} (2x)</span>
-                                                                            <span className="text-xs font-mono text-brand-600">{lp.toFixed(1)}%</span>
+                                                                        <div className="grid grid-cols-3 text-center divide-x">
+                                                                            <div className="flex flex-col px-1">
+                                                                                <span className="text-[9px] text-slate-400">現貨 1x</span>
+                                                                                <span className="text-xs font-mono text-slate-700">{up.toFixed(1)}%</span>
+                                                                            </div>
+                                                                            <div className="flex flex-col px-1">
+                                                                                <span className="text-[9px] text-brand-400">Call</span>
+                                                                                <span className="text-xs font-mono text-brand-500">{cp.toFixed(1)}%</span>
+                                                                            </div>
+                                                                            <div className="flex flex-col px-1">
+                                                                                <span className="text-[9px] text-slate-400">槓桿 2x</span>
+                                                                                <span className="text-xs font-mono text-brand-600">{lp.toFixed(1)}%</span>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
                                                                 );
@@ -945,7 +987,7 @@
                                     </div>
                                     <div className="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100">
                                         <div className="flex justify-between text-xs mb-2">
-                                            <span>TQQQ 目標: {metrics.core.tTqqqPct}%</span>
+                                            <span>槓桿目標: {metrics.core.tTqqqPct}%</span>
                                             <span className="text-brand-600">實際: {metrics.core.cTqqqPctT.toFixed(1)}%</span>
                                         </div>
                                         <div className="w-full bg-slate-200 h-2 rounded-full relative">
@@ -959,7 +1001,7 @@
                                         <div className={`text-sm ${metrics.core.cCol}`}>{metrics.core.cAct}</div>
                                         {metrics.core.cDiff!==0 && (
                                             <div className="text-[10px] font-mono mt-2 pt-2 border-t flex justify-between">
-                                                <span>建議調整:</span>
+                                                <span>建議調整市值:</span>
                                                 <span className={metrics.core.cDiff>0?'text-fin-down':'text-fin-up'}>${Math.abs(metrics.core.cDiff).toLocaleString(undefined,{maximumFractionDigits:0})}</span>
                                             </div>
                                         )}
@@ -994,7 +1036,7 @@
                                         {(metrics.satStats || []).map(s => (
                                             <div key={s.id} className={`bg-white border rounded-xl p-4 ${s.act.includes('建議')?'border-brand-300 shadow-md':'border-slate-200'}`}>
                                                 <div className="flex justify-between mb-3">
-                                                    <div><span className="font-black">{s.underlying}/{s.leveraged}</span></div>
+                                                    <div><span className="font-black text-lg">{s.underlying} 家族</span></div>
                                                     <div className={`text-[9px] px-2 py-1 rounded ${s.col.replace('text','bg')}/10 ${s.col}`}>{s.st}</div>
                                                 </div>
                                                 <div className="bg-slate-50 p-2 rounded-lg mb-3">
@@ -1014,7 +1056,7 @@
                                                             距 200MA {s.dPct > 0 ? '+' : ''}{s.dPct.toFixed(1)}%
                                                         </div>
                                                     )}
-                                                    <div className="text-right">現價: <span className="font-mono">${s.uP.toFixed(2)}</span></div>
+                                                    <div className="text-right">底層現價: <span className="font-mono">${s.uP.toFixed(2)}</span></div>
                                                 </div>
                                                 <div className={`text-xs ${s.col} flex gap-1 items-start`}>
                                                     <span className="text-slate-300">↳</span>{s.act}
@@ -1026,26 +1068,76 @@
 
                                 <CollapsibleCard title="資產數量更新" icon="Package" isOpen={sections.holdings} onToggle={() => toggleSection('holdings')}>
                                     <div className="space-y-4">
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="bg-slate-50 p-2 rounded-lg border focus-within:border-brand-400">
-                                                <div className="text-[10px] text-slate-500 mb-1">QQQ 股數</div>
-                                                <input type="number" inputMode="decimal" value={inputs.qty_core_1} onChange={e=>handleInput('qty_core_1',e.target.value)} onBlur={e=>syncToCloud('qty_core_1',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg outline-none bg-transparent"/>
+                                        <div className="bg-slate-50 p-3 rounded-xl border focus-within:border-brand-400">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-xs font-black text-slate-700">大盤核心 (Core)</span>
+                                                <button onClick={() => handleInput('core_1_type', inputs.core_1_type === 'option' ? 'stock' : 'option')} className="text-[10px] bg-white border px-2 py-0.5 rounded shadow-sm text-slate-500 active:scale-95">
+                                                    切換 {inputs.core_1_type === 'option' ? '現貨' : '選擇權'}
+                                                </button>
                                             </div>
-                                            <div className="bg-slate-50 p-2 rounded-lg border focus-within:border-brand-400">
-                                                <div className="text-[10px] text-slate-500 mb-1">TQQQ 股數</div>
-                                                <input type="number" inputMode="decimal" value={inputs.qty_core_2} onChange={e=>handleInput('qty_core_2',e.target.value)} onBlur={e=>syncToCloud('qty_core_2',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg outline-none bg-transparent"/>
+                                            {inputs.core_1_type === 'option' ? (
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    <div><label className="text-[8px] text-slate-500 block mb-1">合約口數</label><input type="number" inputMode="decimal" value={inputs.qty_core_1} onChange={e=>handleInput('qty_core_1',e.target.value)} onBlur={e=>syncToCloud('qty_core_1',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-2 rounded border"/></div>
+                                                    <div><label className="text-[8px] text-slate-500 block mb-1">權利金單價 $</label><input type="number" inputMode="decimal" value={inputs.opt_p_c1} onChange={e=>handleInput('opt_p_c1',e.target.value)} onBlur={e=>syncToCloud('opt_p_c1',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-2 rounded border"/></div>
+                                                    <div><label className="text-[8px] text-slate-500 block mb-1">Delta (0~1)</label><input type="number" inputMode="decimal" value={inputs.opt_d_c1} onChange={e=>handleInput('opt_d_c1',e.target.value)} onBlur={e=>syncToCloud('opt_d_c1',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-2 rounded border"/></div>
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <label className="text-[10px] text-slate-500 block mb-1">QQQ 股數</label>
+                                                    <input type="number" inputMode="decimal" value={inputs.qty_core_1} onChange={e=>handleInput('qty_core_1',e.target.value)} onBlur={e=>syncToCloud('qty_core_1',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg outline-none bg-transparent border-b border-slate-200 pb-1"/>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="bg-slate-50 p-3 rounded-xl border focus-within:border-brand-400">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-xs font-black text-slate-700">核心槓桿 (Leverage)</span>
+                                                <button onClick={() => handleInput('core_2_type', inputs.core_2_type === 'option' ? 'stock' : 'option')} className="text-[10px] bg-white border px-2 py-0.5 rounded shadow-sm text-slate-500 active:scale-95">
+                                                    切換 {inputs.core_2_type === 'option' ? '現貨(TQQQ)' : '選擇權'}
+                                                </button>
                                             </div>
+                                            {inputs.core_2_type === 'option' ? (
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    <div><label className="text-[8px] text-slate-500 block mb-1">合約口數</label><input type="number" inputMode="decimal" value={inputs.qty_core_2} onChange={e=>handleInput('qty_core_2',e.target.value)} onBlur={e=>syncToCloud('qty_core_2',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-2 rounded border"/></div>
+                                                    <div><label className="text-[8px] text-slate-500 block mb-1">權利金單價 $</label><input type="number" inputMode="decimal" value={inputs.opt_p_c2} onChange={e=>handleInput('opt_p_c2',e.target.value)} onBlur={e=>syncToCloud('opt_p_c2',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-2 rounded border"/></div>
+                                                    <div><label className="text-[8px] text-slate-500 block mb-1">Delta (0~1)</label><input type="number" inputMode="decimal" value={inputs.opt_d_c2} onChange={e=>handleInput('opt_d_c2',e.target.value)} onBlur={e=>syncToCloud('opt_d_c2',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-2 rounded border"/></div>
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <label className="text-[10px] text-slate-500 block mb-1">TQQQ 股數</label>
+                                                    <input type="number" inputMode="decimal" value={inputs.qty_core_2} onChange={e=>handleInput('qty_core_2',e.target.value)} onBlur={e=>syncToCloud('qty_core_2',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg outline-none bg-transparent border-b border-slate-200 pb-1"/>
+                                                </div>
+                                            )}
                                         </div>
                                         
                                         {getArr(inputs.satellites).map(s => (
-                                            <div key={s.id} className="grid grid-cols-2 gap-3 bg-slate-50 p-2 rounded-lg border">
-                                                <div className="focus-within:border-brand-400 border border-transparent rounded">
-                                                    <div className="text-[10px] text-slate-500 mb-1">{s.underlying||'正股'}</div>
-                                                    <input type="number" inputMode="decimal" value={s.qty_u} onChange={e=>updateArr('satellites', s.id, 'qty_u', e.target.value)} onBlur={()=>syncToCloud('satellites', inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono bg-transparent outline-none"/>
+                                            <div key={s.id} className="bg-slate-50 p-3 rounded-xl border focus-within:border-brand-400 transition-colors">
+                                                <div className="grid grid-cols-2 gap-3 mb-2">
+                                                    <div className="focus-within:border-brand-400 border border-transparent rounded">
+                                                        <div className="text-[10px] text-slate-500 mb-1">{s.underlying||'正股'}</div>
+                                                        <input type="number" inputMode="decimal" value={s.qty_u} onChange={e=>updateArr('satellites', s.id, 'qty_u', e.target.value)} onBlur={()=>syncToCloud('satellites', inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg bg-transparent outline-none border-b border-slate-200 pb-1" placeholder="股數"/>
+                                                    </div>
+                                                    <div className="focus-within:border-brand-400 border border-transparent rounded">
+                                                        <div className="text-[10px] text-brand-600 mb-1">{s.leveraged||'2x 槓桿'}</div>
+                                                        <input type="number" inputMode="decimal" value={s.qty_l} onChange={e=>updateArr('satellites', s.id, 'qty_l', e.target.value)} onBlur={()=>syncToCloud('satellites', inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg text-brand-700 bg-transparent outline-none border-b border-brand-200 pb-1" placeholder="股數"/>
+                                                    </div>
                                                 </div>
-                                                <div className="focus-within:border-brand-400 border border-transparent rounded">
-                                                    <div className="text-[10px] text-brand-600 mb-1">{s.leveraged||'槓桿'}</div>
-                                                    <input type="number" inputMode="decimal" value={s.qty_l} onChange={e=>updateArr('satellites', s.id, 'qty_l', e.target.value)} onBlur={()=>syncToCloud('satellites', inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono text-brand-700 bg-transparent outline-none"/>
+                                                <div className="pt-2 border-t border-slate-200">
+                                                    <div className="text-[10px] text-brand-600 font-bold mb-2 flex items-center gap-1"><Icon name="Zap" size={12}/> 深度 Call (LEAPS)</div>
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                        <div>
+                                                            <label className="text-[8px] text-slate-500 block mb-1">合約口數</label>
+                                                            <input type="number" inputMode="decimal" value={s.qty_c || 0} onChange={e=>updateArr('satellites', s.id, 'qty_c', e.target.value)} onBlur={()=>syncToCloud('satellites', inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-2 rounded border shadow-sm"/>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[8px] text-slate-500 block mb-1">權利金 $</label>
+                                                            <input type="number" inputMode="decimal" value={s.opt_p_c || 0} onChange={e=>updateArr('satellites', s.id, 'opt_p_c', e.target.value)} onBlur={()=>syncToCloud('satellites', inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-2 rounded border shadow-sm"/>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[8px] text-slate-500 block mb-1">Delta</label>
+                                                            <input type="number" inputMode="decimal" value={s.opt_d_c !== undefined ? s.opt_d_c : 0.9} onChange={e=>updateArr('satellites', s.id, 'opt_d_c', e.target.value)} onBlur={()=>syncToCloud('satellites', inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-2 rounded border shadow-sm"/>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}
@@ -1057,11 +1149,11 @@
                                         <div className="grid grid-cols-2 gap-3 bg-slate-800 p-3 rounded-xl border border-slate-700 text-white">
                                             <div className="focus-within:border-brand-400 border border-transparent rounded">
                                                 <div className="text-[10px] text-slate-400 mb-1">BOXX 股數</div>
-                                                <input type="number" inputMode="decimal" value={inputs.qty_boxx} onChange={e=>handleInput('qty_boxx',e.target.value)} onBlur={e=>syncToCloud('qty_boxx',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg bg-transparent text-brand-100 outline-none"/>
+                                                <input type="number" inputMode="decimal" value={inputs.qty_boxx} onChange={e=>handleInput('qty_boxx',e.target.value)} onBlur={e=>syncToCloud('qty_boxx',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg bg-transparent text-brand-100 outline-none border-b border-slate-600 pb-1"/>
                                             </div>
                                             <div className="focus-within:border-brand-400 border border-transparent rounded">
                                                 <div className="text-[10px] text-slate-400 mb-1">現金餘額 ($)</div>
-                                                <div className="flex items-center">
+                                                <div className="flex items-center border-b border-slate-600 pb-1">
                                                     <button onClick={() => { const v = (getNum(inputs.cash_balance) * -1).toString(); handleInput('cash_balance', v); syncToCloud('cash_balance', v); }} className="mr-2 text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 px-1.5 py-0.5 rounded active:scale-95 transition-colors">+/-</button>
                                                     <input type="number" inputMode="decimal" value={inputs.cash_balance} onChange={e=>handleInput('cash_balance',e.target.value)} onBlur={e=>syncToCloud('cash_balance',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg bg-transparent text-brand-100 outline-none"/>
                                                 </div>
@@ -1072,10 +1164,10 @@
                                             <span className="text-xs text-slate-500 w-16 text-center">存檔日</span>
                                             <input type="date" value={recordDate} onChange={e=>setRecordDate(e.target.value)} className="w-full bg-transparent font-mono outline-none"/>
                                             {recordDate!==getTodayStr() && (
-                                                <button onClick={()=>setRecordDate(getTodayStr())} className="text-[9px] bg-brand-100 text-brand-700 px-2 py-1 rounded">今</button>
+                                                <button onClick={()=>setRecordDate(getTodayStr())} className="text-[9px] bg-brand-100 text-brand-700 px-2 py-1 rounded active:scale-95 transition-all">今</button>
                                             )}
                                         </div>
-                                        <button onClick={saveRecord} disabled={isSaving} className="w-full py-4 rounded-xl bg-brand-600 text-white text-base active:scale-95 flex justify-center gap-2">
+                                        <button onClick={saveRecord} disabled={isSaving} className="w-full py-4 rounded-xl bg-brand-600 text-white text-base active:scale-95 flex justify-center gap-2 shadow-sm">
                                             <Icon name="Save" size={18}/> 儲存當前紀錄
                                         </button>
                                     </div>
@@ -1127,7 +1219,7 @@
                                         <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
                                             <label className="text-[10px] font-bold text-slate-500 w-24">TQQQ 波段低點</label>
                                             <span className="text-slate-400 pl-3 font-mono text-lg">$</span>
-                                            <input type="number" inputMode="decimal" value={inputs.tqqq_low} onChange={e=>handleInput('tqqq_low', e.target.value)} onBlur={e=>syncToCloud('tqqq_low',e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-slate-700 outline-none" placeholder="用於計算反彈幅度"/>
+                                            <input type="number" inputMode="decimal" value={inputs.tqqq_low} onChange={e=>handleInput('tqqq_low', e.target.value)} onBlur={e=>syncToCloud('tqqq_low',e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-slate-700 outline-none" placeholder="計算反彈"/>
                                         </div>
                                         <div className="flex items-center gap-2 bg-amber-50 p-2 rounded-lg border border-amber-200">
                                             <label className="text-[10px] font-bold text-amber-700 w-24">TQQQ 買入成本</label>
@@ -1226,7 +1318,7 @@
                                                 </div>
                                             </div>
                                         ))}
-                                        <button onClick={()=>addArr('satellites', { underlying:'', leveraged:'', qty_u:0, qty_l:0, ma200:0, ma10:0, target_pct:10, profit_pct:25, loss_pct:20, rescues:0 })} className="w-full py-3 border-dashed border-2 rounded-xl text-slate-500 text-sm active:scale-95">+ 新增衛星</button>
+                                        <button onClick={()=>addArr('satellites', { underlying:'', leveraged:'', qty_u:0, qty_l:0, qty_c:0, opt_p_c:0, opt_d_c:0.9, ma200:0, ma10:0, target_pct:10, profit_pct:25, loss_pct:20, rescues:0 })} className="w-full py-3 border-dashed border-2 rounded-xl text-slate-500 text-sm active:scale-95">+ 新增衛星</button>
                                     </div>
                                 </div>
                             </div>

@@ -1,4 +1,4 @@
-<!DOCTYPE<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -545,14 +545,17 @@
                     let st = "未定", col = "text-slate-500", act = "觀察中";
                     const ex = tVal > 0 ? (cV - tVal) / tVal : 0; 
                     const sh = tVal > 0 ? (tVal - cV) / tVal : 0;
+                    let sDiff = 0; // 新增：個別標的操作金額，正數需買，負數需賣
 
                     if (vL > 0 || vU > 0 || vC > 0) {
                         if (ex >= getNum(s.profit_pct)/100 && uP > getNum(s.ma200)) { 
                             st = `收割 (+${(ex*100).toFixed(1)}%)`; col = "text-fin-up"; act = `溢出，建議結清。優先補 BOXX，剩餘轉 QQQ。`; 
+                            sDiff = tVal - cV; // 負數，代表需賣出
                         } 
                         else if (sh >= getNum(s.loss_pct)/100) { 
                             if (getNum(s.rescues) < 2) { 
                                 st = `觸發救援 (-${(sh*100).toFixed(1)}%)`; col = "text-fin-down"; act = `衰退，建議動用 BOXX 提取約 $${Math.round(tVal - cV)} 補足倉位。`; 
+                                sDiff = tVal - cV; // 正數，代表需買入
                             } else { 
                                 st = "救援達上限"; col = "text-slate-600"; act = "已救援 2 次，防禦等待。"; 
                             } 
@@ -581,13 +584,14 @@
                             act = "輸入代號"; 
                         } else if (dPct <= 5 && dPct >= -5) { 
                             st = "均線範圍"; col = "text-fin-up"; act = `可建立初步槓桿/期權倉位。`; 
+                            sDiff = tVal; // 正數，代表建倉需買入
                         } else if (dPct < -5) { 
                             st = "低於均線"; col = "text-fin-down"; act = "偏弱持續觀察。"; 
                         } else { 
                             st = "高於均線"; col = "text-fin-info"; act = "乖離偏大暫停。"; 
                         }
                     }
-                    return { ...s, cV, vU, vL, vC, expC, uP, lP, tPct, cPct, tVal, dPct, st, col, act };
+                    return { ...s, cV, vU, vL, vC, expC, uP, lP, tPct, cPct, tVal, dPct, st, col, act, sDiff };
                 });
 
                 const gExp = c1.exp + c2.exp + expSat;
@@ -680,7 +684,6 @@
 
                 let pEq = 0;
                 const safeRecords = Array.isArray(records) ? [...records] : [];
-                // 修復 React Bug: 確保 sort 是在拷貝的新陣列上執行
                 const gData = safeRecords.sort((a,b) => new Date(a.date) - new Date(b.date)).map(r => { 
                     if(r && r.total_equity > pEq) pEq = r.total_equity; 
                     return { 
@@ -709,7 +712,7 @@
                         r: { p: tgtRPct, ds: pBOXX>0 ? Math.round((tCap*(tgtRPct/100)-tRes)/pBOXX) : 0 } 
                     },
                     core: { 
-                        pQQQ, qAth, cDD, cRise, tTqqqPct, cTqqqPctT, phase, cAct, cCol, cDiff, tBounce,
+                        pQQQ, pTQQQ, qAth, cDD, cRise, tTqqqPct, cTqqqPctT, phase, cAct, cCol, cDiff, tBounce,
                         dnL: lad.map(s => ({ 
                             p: getNum(s.drop_pct), 
                             m: getNum(s.move_pct), 
@@ -804,41 +807,62 @@
                                             <Icon name="Quote" size={16}/>
                                             <span className="text-xs uppercase tracking-widest text-slate-500">投資座右銘</span>
                                         </div>
-                                        <button onClick={() => setIsMottoLocked(!isMottoLocked)} className="text-slate-400 active:scale-95">
-                                            <Icon name={isMottoLocked?"Lock":"Unlock"} size={16}/>
-                                        </button>
                                     </div>
-                                    <textarea value={inputs.motto} readOnly={isMottoLocked} onChange={e => handleInput('motto', e.target.value)} onBlur={e => syncToCloud('motto', e.target.value)} className={`w-full bg-transparent text-base text-slate-700 outline-none text-center leading-relaxed transition-all ${isMottoLocked?'':'bg-slate-50 border-dashed border-slate-300 rounded-xl p-3 border'}`} rows="6" placeholder="輸入您的投資座右銘..." />
+                                    <textarea value={inputs.motto} onChange={e => handleInput('motto', e.target.value)} onBlur={e => syncToCloud('motto', e.target.value)} className="w-full bg-transparent text-base text-slate-700 outline-none text-center leading-relaxed transition-all p-3 focus:border-brand-500 border border-transparent focus:border-dashed focus:bg-slate-50 rounded-xl" rows="4" placeholder="輸入您的投資座右銘..." />
                                 </div>
 
                                 <div className="bg-white rounded-3xl p-5 shadow-sm border">
-                                    <div className="text-xs text-slate-500 mb-1">動態總資產價值 (USD)</div>
-                                    <div className="text-5xl font-mono tracking-tight text-slate-800">${metrics.totalCapital.toLocaleString(undefined,{maximumFractionDigits:0})}</div>
-                                    <div className="mt-5 pt-4 border-t grid grid-cols-3 gap-1 text-center divide-x">
-                                        <div className="px-1">
-                                            <div className="text-[10px] text-slate-400 mb-0.5">大盤核心</div>
-                                            <div className="text-sm font-mono text-slate-800">{metrics.cls.c.p.toFixed(1)}%</div>
-                                            <div className="text-[9px] text-slate-400">目標 {metrics.tgt.c.p}%</div>
-                                            <div className={`text-[9px] mt-2 px-1 py-1 rounded ${metrics.tgt.c.ds>0?'bg-fin-up/10 text-fin-up':metrics.tgt.c.ds<0?'bg-fin-down/10 text-fin-down':'bg-slate-50 text-slate-500'}`}>
-                                                {metrics.tgt.c.ds>0 ? `需買 ${metrics.tgt.c.ds.toLocaleString()} 股` : metrics.tgt.c.ds<0 ? `需賣 ${Math.abs(metrics.tgt.c.ds).toLocaleString()} 股` : '完美達標'}
-                                            </div>
+                                    <div className="text-xs text-slate-500 font-bold mb-1">動態總資產價值 (USD)</div>
+                                    <div className="text-5xl font-mono tracking-tight text-slate-800 font-black">${metrics.totalCapital.toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+                                    
+                                    <div className="mt-5 pt-4 border-t border-slate-100">
+                                        <div className="text-xs font-black text-brand-600 mb-3 flex items-center gap-1">
+                                            <Icon name="Zap" size={16}/> 本日操作指令
                                         </div>
-                                        <div className="px-1">
-                                            <div className="text-[10px] text-slate-400 mb-0.5">機動衛星</div>
-                                            <div className="text-sm font-mono text-slate-800">{metrics.cls.s.p.toFixed(1)}%</div>
-                                            <div className="text-[9px] text-slate-400">目標 {metrics.tgt.s.p}%</div>
-                                            <div className={`text-[9px] mt-2 px-1 py-1 rounded ${metrics.tgt.s.dv>50?'bg-fin-up/10 text-fin-up':metrics.tgt.s.dv<-50?'bg-fin-down/10 text-fin-down':'bg-slate-50 text-slate-500'}`}>
-                                                {metrics.tgt.s.dv>50 ? `總補 $${Math.round(metrics.tgt.s.dv).toLocaleString()}` : metrics.tgt.s.dv<-50 ? `總賣 $${Math.abs(Math.round(metrics.tgt.s.dv)).toLocaleString()}` : '完美達標'}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className={`p-3 rounded-xl border ${metrics.tgt.c.ds > 0 ? 'bg-fin-up/5 border-fin-up/20' : metrics.tgt.c.ds < 0 ? 'bg-fin-down/5 border-fin-down/20' : 'bg-slate-50 border-slate-100'}`}>
+                                                <div className="text-[10px] text-slate-500 font-bold mb-1">大盤 QQQ</div>
+                                                <div className={`text-sm font-black ${metrics.tgt.c.ds > 0 ? 'text-fin-up' : metrics.tgt.c.ds < 0 ? 'text-fin-down' : 'text-slate-400'}`}>
+                                                    {metrics.tgt.c.ds > 0 ? `需買 ${metrics.tgt.c.ds.toLocaleString()} 股` : metrics.tgt.c.ds < 0 ? `需賣 ${Math.abs(metrics.tgt.c.ds).toLocaleString()} 股` : '不需動作'}
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="px-1">
-                                            <div className="text-[10px] text-slate-400 mb-0.5">戰備儲備</div>
-                                            <div className={`text-sm font-mono ${metrics.cls.r.p<10?'text-red-600 font-black animate-pulse':metrics.cls.r.p<metrics.tgt.r.p?'text-fin-warn':'text-fin-up'}`}>{metrics.cls.r.p.toFixed(1)}%</div>
-                                            <div className="text-[9px] text-slate-400">目標 {metrics.tgt.r.p}%</div>
-                                            <div className={`text-[9px] mt-2 px-1 py-1 rounded ${metrics.cls.r.p<10?'bg-red-100 text-red-600 font-black':metrics.tgt.r.ds>0?'bg-fin-warn/10 text-fin-warn':metrics.tgt.r.ds<0?'bg-fin-down/10 text-fin-down':'bg-slate-50 text-slate-500'}`}>
-                                                {metrics.cls.r.p<10 ? `低於10%停止救援` : metrics.tgt.r.ds>0 ? `需買 ${metrics.tgt.r.ds.toLocaleString()} 股` : metrics.tgt.r.ds<0 ? `溢出 ${Math.abs(metrics.tgt.r.ds).toLocaleString()} 股` : '完美達標'}
+                                            
+                                            <div className={`p-3 rounded-xl border ${metrics.core.cDiff < 0 ? 'bg-fin-up/5 border-fin-up/20' : metrics.core.cDiff > 0 ? 'bg-fin-down/5 border-fin-down/20' : 'bg-slate-50 border-slate-100'}`}>
+                                                <div className="text-[10px] text-slate-500 font-bold mb-1">槓桿 {inputs.core_2_type==='option'?'Call':'TQQQ'}</div>
+                                                <div className={`text-sm font-black ${metrics.core.cDiff < 0 ? 'text-fin-up' : metrics.core.cDiff > 0 ? 'text-fin-down' : 'text-slate-400'}`}>
+                                                    {metrics.core.cDiff < 0 
+                                                        ? `需買 ${inputs.core_2_type==='option' ? `$${Math.abs(Math.round(metrics.core.cDiff)).toLocaleString()} 市值` : `${Math.round(Math.abs(metrics.core.cDiff)/(metrics.core.pTQQQ||1)).toLocaleString()} 股`}` 
+                                                        : metrics.core.cDiff > 0
+                                                            ? `需賣 ${inputs.core_2_type==='option' ? `$${Math.round(metrics.core.cDiff).toLocaleString()} 市值` : `${Math.round(metrics.core.cDiff/(metrics.core.pTQQQ||1)).toLocaleString()} 股`}` 
+                                                            : '不需動作'}
+                                                </div>
                                             </div>
+
+                                            <div className={`p-3 rounded-xl border ${metrics.tgt.r.ds > 0 ? 'bg-fin-warn/5 border-fin-warn/20' : metrics.tgt.r.ds < 0 ? 'bg-fin-down/5 border-fin-down/20' : 'bg-slate-50 border-slate-100'}`}>
+                                                <div className="text-[10px] text-slate-500 font-bold mb-1">儲備 BOXX</div>
+                                                <div className={`text-sm font-black ${metrics.tgt.r.ds > 0 ? 'text-fin-warn' : metrics.tgt.r.ds < 0 ? 'text-fin-down' : 'text-slate-400'}`}>
+                                                    {metrics.tgt.r.ds > 0 ? `需買 ${metrics.tgt.r.ds.toLocaleString()} 股` : metrics.tgt.r.ds < 0 ? `溢出 ${Math.abs(metrics.tgt.r.ds).toLocaleString()} 股` : '不需動作'}
+                                                </div>
+                                            </div>
+
+                                            {metrics.satStats.map(s => {
+                                                if (!s.underlying) return null;
+                                                return (
+                                                    <div key={s.id} className={`p-3 rounded-xl border ${s.sDiff > 0 ? 'bg-fin-up/5 border-fin-up/20' : s.sDiff < 0 ? 'bg-fin-down/5 border-fin-down/20' : 'bg-slate-50 border-slate-100'}`}>
+                                                        <div className="text-[10px] text-slate-500 font-bold mb-1">衛星 {s.underlying}</div>
+                                                        <div className={`text-sm font-black ${s.sDiff > 0 ? 'text-fin-up' : s.sDiff < 0 ? 'text-fin-down' : 'text-slate-400'}`}>
+                                                            {s.sDiff > 0 ? `需買 $${Math.abs(Math.round(s.sDiff)).toLocaleString()}` : s.sDiff < 0 ? `需賣 $${Math.abs(Math.round(s.sDiff)).toLocaleString()}` : '持倉續抱'}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
+                                    </div>
+
+                                    <div className="mt-5 pt-4 border-t border-slate-100 grid grid-cols-3 gap-1 text-center divide-x">
+                                        <div className="px-1"><div className="text-[10px] text-slate-400 mb-0.5">大盤佔比</div><div className="text-sm font-mono text-slate-800">{metrics.cls.c.p.toFixed(1)}% <span className="text-[9px] text-slate-400">/{metrics.tgt.c.p}%</span></div></div>
+                                        <div className="px-1"><div className="text-[10px] text-slate-400 mb-0.5">衛星佔比</div><div className="text-sm font-mono text-slate-800">{metrics.cls.s.p.toFixed(1)}% <span className="text-[9px] text-slate-400">/{metrics.tgt.s.p}%</span></div></div>
+                                        <div className="px-1"><div className="text-[10px] text-slate-400 mb-0.5">戰備佔比</div><div className={`text-sm font-mono ${metrics.cls.r.p<10?'text-red-600 font-black animate-pulse':metrics.cls.r.p<metrics.tgt.r.p?'text-fin-warn':'text-fin-up'}`}>{metrics.cls.r.p.toFixed(1)}% <span className="text-[9px] text-slate-400">/{metrics.tgt.r.p}%</span></div></div>
                                     </div>
                                 </div>
 

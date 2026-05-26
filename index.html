@@ -630,6 +630,28 @@
                 let tTqqqPct = 0; 
                 let phase = "正常巡航";
 
+                // 計算動態階梯的累計槓桿顯示
+                const baseCorePct = 100 - getV('reserve_pct_normal') - satSumPct; // 大盤基準 (e.g. 70%)
+                let runningQqq = 0;
+                let runningBoxx = 0;
+                const mappedDnLadder = safeLadder.map(s => {
+                    runningQqq += getNum(s.move_pct);
+                    const actualQqq = Math.min(runningQqq, 60); // QQQ 轉移極限 60%
+                    runningBoxx += (getNum(s.use_boxx) / 100) * (getV('reserve_pct_normal') / 2);
+                    const cumTqqq = actualQqq + runningBoxx;
+                    const currentQqq = baseCorePct - actualQqq;
+                    const currentCoreVal = currentQqq + cumTqqq;
+                    const currentCoreExp = currentQqq * 1 + cumTqqq * 3;
+                    const coreLev = currentCoreVal > 0 ? (currentCoreExp / currentCoreVal) : 1;
+                    return { 
+                        p: getNum(s.drop_pct), 
+                        m: getNum(s.move_pct), 
+                        tr: qAth * (1 - getNum(s.drop_pct) / 100), 
+                        t: cDD >= getNum(s.drop_pct),
+                        cumTqqq, coreLev
+                    };
+                });
+
                 if (cRise >= 0) {
                     let activeUp = null; 
                     safeUpLadder.forEach(s => { if (cRise >= getNum(s.rise_pct)) activeUp = s; });
@@ -644,7 +666,6 @@
                     safeLadder.forEach(l => { 
                         if (cDD >= getNum(l.drop_pct)) {
                             tgtTqqqFromQqqPct += getNum(l.move_pct);
-                            // use_boxx 是對戰略 BOXX (即 reserve_normal 的一半) 的使用比例
                             tgtTqqqFromBoxxPct += (getNum(l.use_boxx)/100) * (getV('reserve_pct_normal') / 2);
                         }
                     });
@@ -735,7 +756,7 @@
                     },
                     core: { 
                         pQQQ, pTQQQ, qAth, cDD, cRise, tTqqqPct, phase, cAct, cCol, cDiff, qDiff, bDiff,
-                        dnL: safeLadder.map(s => ({ p: getNum(s.drop_pct), m: getNum(s.move_pct), tr: qAth*(1-getNum(s.drop_pct)/100), t: cDD>=getNum(s.drop_pct) })), 
+                        dnL: mappedDnLadder, 
                         upL: safeUpLadder.map(s => ({ p: getNum(s.rise_pct), tp: getNum(s.target_pct), tr: qAth*(1+getNum(s.rise_pct)/100), t: cRise>=getNum(s.rise_pct) })) 
                     }
                 };
@@ -960,6 +981,16 @@
                                 </CollapsibleCard>
 
                                 <CollapsibleCard title="核心轉換參數 (QQQ/TQQQ)" icon="BarChart2" isOpen={sections.core} onToggle={() => toggleSection('core')}>
+                                    <div className="flex justify-between text-[10px] bg-slate-50 p-2 rounded-lg border border-slate-100 mb-4">
+                                        <div>
+                                            <span className="text-slate-400 block mb-0.5">波段低點 (反彈起算)</span>
+                                            <span className="font-mono text-slate-700 text-sm font-black">${inputs.tqqq_low}</span>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-slate-400 block mb-0.5">買入均價 (鐵律防護)</span>
+                                            <span className="font-mono text-amber-600 text-sm font-black">${inputs.tqqq_avg_cost}</span>
+                                        </div>
+                                    </div>
                                     <div className="flex justify-between items-end mb-4">
                                         <div><div className="text-[10px] text-slate-500">歷史高點 ATH</div><div className="font-mono text-lg">${metrics.core.qAth}</div></div>
                                         <div className="text-right"><div className="text-[10px] text-slate-500">{metrics.core.cRise>=0?'突破幅度':'回撤幅度'}</div><div className={`font-mono text-2xl ${metrics.core.cRise>=0?'text-fin-up':'text-fin-down'}`}>{metrics.core.cRise>=0 ? `+${metrics.core.cRise.toFixed(1)}%` : `-${metrics.core.cDD.toFixed(1)}%`}</div></div>
@@ -971,8 +1002,20 @@
                                     </div>
                                     <div className="mt-4 grid grid-cols-2 gap-2">
                                         <div>
-                                            <div className="text-[9px] text-fin-down flex gap-1 mb-1"><Icon name="TrendingDown" size={10}/>加碼階梯</div>
-                                            {(metrics.core.dnL || []).map((t,i) => <div key={i} className={`flex justify-between p-1.5 rounded border text-[9px] mb-1 ${t.t?'bg-slate-100 opacity-60':'bg-white'} ${i===metrics.core.dnL.length-1?'border-b-2 border-b-slate-400':''}`}><span className={t.t?'':'text-red-500'}>-{t.p}%</span><span className="font-mono">${t.tr.toFixed(1)}</span></div>)}
+                                            <div className="text-[9px] text-fin-down flex gap-1 mb-1"><Icon name="TrendingDown" size={10}/>加碼階梯 (觸發後累計預估)</div>
+                                            {(metrics.core.dnL || []).map((t,i) => (
+                                                <div key={i} className={`flex flex-col p-1.5 rounded border text-[9px] mb-1 ${t.t?'bg-slate-100 opacity-60':'bg-white'} ${i===metrics.core.dnL.length-1?'border-b-2 border-b-slate-400':''}`}>
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <span className={t.t?'':'text-red-500'}>-{t.p}%</span>
+                                                        <span className="font-mono">${t.tr.toFixed(1)}</span>
+                                                    </div>
+                                                    <div className="text-[8px] text-slate-500 bg-slate-50 p-1 rounded">
+                                                        累積 TQQQ: <span className="text-brand-600 font-bold">{t.cumTqqq.toFixed(1)}%</span> 
+                                                        <span className="mx-1">|</span> 
+                                                        核心槓桿: <span className="text-brand-600 font-bold">{t.coreLev.toFixed(2)}x</span>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                         <div>
                                             <div className="text-[9px] text-fin-up flex gap-1 mb-1"><Icon name="TrendingUp" size={10}/>收割階梯</div>
@@ -1122,11 +1165,11 @@
                                         </div>
                                         <div className="grid grid-cols-2 gap-2">
                                             <div className="bg-slate-50 p-2 rounded-lg border border-slate-200">
-                                                <label className="text-[9px] font-bold text-slate-500 block">TQQQ 波段低點</label>
+                                                <label className="text-[9px] font-bold text-slate-500 block">TQQQ 波段低點 (反彈起算)</label>
                                                 <input type="number" inputMode="decimal" value={inputs.tqqq_low} onChange={e=>handleInput('tqqq_low', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-slate-700 outline-none"/>
                                             </div>
                                             <div className="bg-amber-50 p-2 rounded-lg border border-amber-200">
-                                                <label className="text-[9px] font-bold text-amber-700 block">TQQQ 買入成本</label>
+                                                <label className="text-[9px] font-bold text-amber-700 block">TQQQ 買入成本 (防護鐵律)</label>
                                                 <input type="number" inputMode="decimal" value={inputs.tqqq_avg_cost} onChange={e=>handleInput('tqqq_avg_cost', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-amber-700 outline-none"/>
                                             </div>
                                         </div>

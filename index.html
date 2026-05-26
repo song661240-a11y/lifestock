@@ -58,7 +58,7 @@
 
         // --- 系統設定與 Firebase ---
         const FINNHUB_KEY = "d4q36b9r01qha6q0jclgd4q36b9r01qha6q0jcm0";
-        const appId = 'alpha-horizon-2026-vfinal'; 
+        const appId = 'alpha-horizon-2026-v1'; 
         const firebaseConfig = { apiKey: "AIzaSyDMR8Q20z9vnWtQlafDowRujzBexV0h_lI", authDomain: "lifestock-83480.firebaseapp.com", projectId: "lifestock-83480", storageBucket: "lifestock-83480.firebasestorage.app", messagingSenderId: "615080626396", appId: "1:615080626396:web:407135b548f3ed5b5c4c19" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore(); 
@@ -73,7 +73,7 @@
         const getArr = (arr) => Array.isArray(arr) ? arr : (arr && typeof arr === 'object' ? Object.values(arr) : []);
 
         // --- 預設值區塊 (100% 貼合 V_Final 白皮書) ---
-        const defPlan = `🧠 Alpha Horizon V_Final (波動循環動態槓桿系統 - BOXX 完全體)\n【系統核心】平時 QQQ 複利，回撤動態加槓桿，反彈與創高分批收割，BOXX 鎖死防禦閉環。\n\n壹、 資金絕對配置 (100% 封閉系統)\n• 核心母艦 (70%)：QQQ\n• 機動衛星 (20%)：TSLA (10%)、IBIT (10%)。平時持有 1x 現股。\n• 戰備儲備 (10% ➜ 創高期 15%)：BOXX。拆分為戰術 (救衛星) 與戰略 (救大盤)。\n\n貳、 母艦系統：動態槓桿與分批收割 (QQQ ⇄ TQQQ)\n1. 下跌加碼 (基準：QQQ 歷史高點 ATH)\n• -7%：15% QQQ ➜ TQQQ\n• -14%：15% QQQ ➜ TQQQ。加開 25% 戰略 BOXX 買 TQQQ。\n• -21%：15% QQQ ➜ TQQQ。加開 25% 戰略 BOXX 買 TQQQ。\n• -28%：15% QQQ ➜ TQQQ。加開 25% 戰略 BOXX 買 TQQQ。\n• -35%：最後 25% 戰略 BOXX 全開買 TQQQ。(極限：最多轉 60% QQQ)\n\n2. 反彈降風險 (防死貓反彈雙重確認)\n• +10% 且 QQQ 日K線站上 20MA：15% TQQQ ➜ QQQ\n• +20% (延續多頭趨勢)：再 15% TQQQ ➜ QQQ\n\n3. 創高收割 (現金防護網擴張)\n• ATH +7%：賣出剩餘 TQQQ 的 25% ➜ QQQ。同步將 BOXX 基準調升至 15%。\n• ATH +14%：再賣 25% ➜ QQQ。\n• ATH +21%：剩餘 TQQQ 全數轉回 QQQ，恢復原始配置。\n\n4. 成本保護鐵律\n• 任何 TQQQ 換回 QQQ 的動作，賣價 必須大於 該批次買入均價，否則無條件續抱。\n\n參、 衛星系統：LEAPS 攻擊與現股防禦\n1. LEAPS 攻擊機制\n• 絕對觸發：當標的「跌破 200 日均線」且「自前高回撤達 -20%」時，將現股換為 Deep ITM Call。\n• 退場三防線：獲利(+25%)結清；時間(<180天)強制平倉；結構(Delta<0.60)停損換回現股。\n\n2. 7% 現股補倉機制\n• 觸發：帳面每跌 -7%。\n• 動作：動用戰術 BOXX 補回總資產 10% 基準 (最多 3 次)。\n• 【末日凍結防線】：總 BOXX 水位低於 3% 時，強制凍結衛星補倉。\n\n肆、 資金閉環與絕對鐵律\n• 第一順位：所有操作獲利與套利收益，優先補滿 BOXX。這筆現金是房貸護城河，神聖不可侵犯。\n• 第二順位：剩餘資金全數買入 QQQ，無上限擴張母艦。\n• 決策：數字未到，原地臥倒。`;
+        const defPlan = `🧠 Alpha Horizon 波動循環動態槓桿系統\n【系統核心】平時 QQQ 複利，回撤動態加槓桿，反彈與創高分批收割，BOXX 鎖死防禦閉環。\n\n壹、 資金絕對配置 (封閉系統)\n• 核心母艦 (70%)：QQQ\n• 機動衛星 (20%)：TSLA (10%)、IBIT (10%)。平時持有 1x 現股。\n• 戰備儲備 (10%)：BOXX。平時基準為 10%，大盤創歷史新高時動態調升至 15%。\n\n貳、 核心母艦：動態槓桿與分批收割 (QQQ ⇄ TQQQ)\n1. 下跌加碼 (基準：QQQ 歷史高點 ATH)\n• -7%：15% QQQ ➜ TQQQ\n• -14%、-21%、-28%：各轉 15% QQQ ➜ TQQQ，並同步動用 25% 戰略 BOXX 買入 TQQQ。\n• -35%：最後 25% 戰略 BOXX 全開買入 TQQQ。\n(部位限制：最多轉 60% QQQ，強迫保留母艦底盤)\n\n2. 反彈降風險 (基準：波段低點反彈)\n• +10% 且 QQQ 日K線站上 20MA：15% TQQQ ➜ QQQ\n• +20% (延續多頭趨勢)：再 15% TQQQ ➜ QQQ\n\n3. 創高收割 (基準：突破 QQQ ATH)\n• ATH +7%：賣出剩餘 25% TQQQ ➜ QQQ。同步將 BOXX 儲備基準調升至 15%。\n• ATH +14%：再賣 25% TQQQ ➜ QQQ。\n• ATH +21%：剩餘 TQQQ 全數轉回 QQQ，恢復原始配置。\n(成本保護鐵律：任何 TQQQ 換回 QQQ，賣價必須大於買入均價，否則無條件續抱。)\n\n參、 衛星系統：攻擊與防禦\n1. LEAPS 攻擊機制 (量化深跌啟動)\n• 觸發條件：標的「跌破 200MA」且「自前波高點回撤達 -20%」時，將現股換為 Deep ITM Call (餘款退回 BOXX)。\n• 規格要求：>400天到期 (次年1月佳)、Delta 0.75~0.85。\n• 退場三防線：\n  - 獲利 (+25%)：結清。若 Delta > 0.95，向上轉倉 (Roll Up) 抽現金回 BOXX。\n  - 時間 (<180天)：強制平倉或轉倉至下一個 >400 天合約。\n  - 結構 (Delta < 0.60)：強制停損，認賠權利金換回 1x 現股。\n\n2. 現股補倉機制 (防禦)\n• 觸發條件：TSLA 或 IBIT 帳面每跌 -7%。\n• 執行動作：動用 BOXX 買入現股，將該部位補回總資產 10% 絕對基準 (單一標的最多連續補倉 3 次)。\n• 極端防禦機制：當總 BOXX 水位低於 3% 時，強制凍結衛星補倉，剩餘現金唯一支援 QQQ 母艦。\n\n肆、 資金閉環與系統鐵律\n1. 獲利流向 (絕對優先權)\n• 第一順位：所有操作獲利，優先補滿 BOXX (平時補至 10%，創高期補至 15%)。\n• 第二順位：剩餘資金全數買入 QQQ，無上限擴張母艦。\n\n2. 系統鐵律\n• 資金：嚴禁使用 BOXX 追漲或 FOMO 買進。\n• 合約：嚴禁買入 OTM (價外)、短天期合約、或以此賭財報。\n• 決策：嚴禁憑「感覺」進出場；觸發條件未達前，一律持股續抱，維持紀律。`;
         
         const defSats = [
             { id: '1', underlying: 'TSLA', leveraged: 'TSLL', qty_u: 0, qty_l: 0, opt_p_c: 0, opt_d_c: 2, ma200: 200, ma10: 190, peak_p: 300, avg_cost: 250, target_pct: 10, profit_pct: 25, loss_pct: 7, rescues: 0 }, 
@@ -232,7 +232,7 @@
             
             const [sections, setSections] = useState(() => { 
                 try { 
-                    const s = JSON.parse(localStorage.getItem('ah_vfinal_sections_2026')); 
+                    const s = JSON.parse(localStorage.getItem('ah_std_sections_2026')); 
                     return s || { plan: false, core: true, satellite: true, holdings: true, allocation: true, stress: true }; 
                 } catch(e) { 
                     return { plan: false, core: true, satellite: true, holdings: true, allocation: true, stress: true }; 
@@ -240,7 +240,7 @@
             });
             const toggleSection = (k) => setSections(p => { 
                 const n = {...p, [k]: !p[k]}; 
-                localStorage.setItem('ah_vfinal_sections_2026', JSON.stringify(n)); 
+                localStorage.setItem('ah_std_sections_2026', JSON.stringify(n)); 
                 return n; 
             });
 
@@ -268,15 +268,23 @@
 
             const [inputs, setInputs] = useState(() => { 
                 try { 
-                    const b = localStorage.getItem('ah_vfinal_backup_2026'); 
-                    return b ? { ...defInputs, ...JSON.parse(b) } : defInputs; 
+                    const b = localStorage.getItem('ah_local_backup_2026'); 
+                    if (b) {
+                        const parsed = JSON.parse(b);
+                        // 自動相容舊版參數，防止資料掉漏
+                        if (parsed.reserve_pct !== undefined && parsed.reserve_pct_normal === undefined) {
+                            parsed.reserve_pct_normal = parsed.reserve_pct;
+                        }
+                        return { ...defInputs, ...parsed };
+                    }
+                    return defInputs; 
                 } catch(e) { 
                     return defInputs; 
                 } 
             });
 
             useEffect(() => { 
-                localStorage.setItem('ah_vfinal_backup_2026', JSON.stringify(inputs)); 
+                localStorage.setItem('ah_local_backup_2026', JSON.stringify(inputs)); 
             }, [inputs]);
 
             useEffect(() => { 

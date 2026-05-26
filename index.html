@@ -722,18 +722,28 @@
                     phase = "空手巡航，無槓桿部位"; cAct = "配置達標"; cCol = "text-slate-500"; cDiff = 0; qDiff = 0; bDiff = 0;
                 }
 
+                // 第一層防禦：創新高絕對禁買鐵律
+                if (cRise >= 0 && cDiff > 0) {
+                    cAct = `【注意】現價已突破 ATH 基準，請至設定更新 ATH！`;
+                    cCol = "text-fin-warn";
+                    cDiff = 0; qDiff = 0; bDiff = 0;
+                }
+
                 if (Math.abs(cDiff) < 50) cDiff = 0;
                 if (Math.abs(bDiff) < 50) bDiff = 0;
                 if (Math.abs(qDiff) < 50) qDiff = 0;
 
                 let pEq = 0;
+                let mdd = 0;
                 const safeRecords = Array.isArray(records) ? [...records] : [];
                 const gData = safeRecords.sort((a,b) => new Date(a.date) - new Date(b.date)).map(r => { 
                     if(r && r.total_equity > pEq) pEq = r.total_equity; 
+                    const dd = pEq > 0 ? ((r?.total_equity || 0) - pEq) / pEq * 100 : 0;
+                    if (dd < mdd) mdd = dd; // 捕捉最低點 (最負的數字)
                     return { 
                         date: r?.date, 
                         equity: r?.total_equity, 
-                        dd: pEq > 0 ? ((r?.total_equity || 0) - pEq) / pEq * 100 : 0 
+                        dd: dd 
                     }; 
                 });
 
@@ -743,6 +753,8 @@
                     satStats: mappedSatStats, 
                     graphData: gData, 
                     pieData, 
+                    historicalPeak: pEq,
+                    mdd: mdd,
                     growthLeverageRatio: gLev, 
                     totalLeverageRatio: tLev,
                     cls: { 
@@ -826,7 +838,7 @@
                                             
                                             <div className="grid grid-cols-1 gap-3">
                                                 {metrics.core.cDiff === 0 ? (
-                                                    <div className="text-center text-slate-400 text-sm py-2">{metrics.core.cAct}</div>
+                                                    <div className={`text-center text-sm py-2 ${metrics.core.cCol}`}>{metrics.core.cAct}</div>
                                                 ) : metrics.core.cDiff > 0 ? (
                                                     <div className="space-y-2">
                                                         <div className="text-sm">
@@ -1271,6 +1283,23 @@
 
                         {view === 'history' && (
                             <div className="space-y-6 animate-in fade-in">
+                                {hasCharts && metrics.graphData && metrics.graphData.length > 0 && (
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200">
+                                            <div className="text-[10px] text-slate-400 mb-1 font-bold">歷史最高資產 (ATH)</div>
+                                            <div className="text-lg font-mono font-black text-slate-800">
+                                                ${metrics.historicalPeak.toLocaleString(undefined,{maximumFractionDigits:0})}
+                                            </div>
+                                        </div>
+                                        <div className="bg-white rounded-3xl p-4 shadow-sm border border-red-100 bg-red-50/30">
+                                            <div className="text-[10px] text-red-400 mb-1 font-bold">最大回撤 (MDD)</div>
+                                            <div className="text-lg font-mono font-black text-fin-down">
+                                                {metrics.mdd.toFixed(1)}%
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="bg-white rounded-3xl p-5 shadow-sm border h-[300px]">
                                     <div className="text-xs font-black text-slate-700 mb-2 flex items-center gap-1"><Icon name="TrendingUp" size={14} className="text-brand-600"/> 資產歷史走勢</div>
                                     {hasCharts && metrics.graphData && metrics.graphData.length > 0 ? (

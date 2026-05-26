@@ -358,7 +358,7 @@
                             satellites: getArr(d.satellites).length > 0 ? getArr(d.satellites) : defSats, 
                             core_ladder: getArr(d.core_ladder).length > 0 ? getArr(d.core_ladder) : defLad, 
                             core_up_ladder: getArr(d.core_up_ladder).length > 0 ? getArr(d.core_up_ladder) : defUpLad, 
-                            reserve_pct_normal: d.reserve_pct_normal !== undefined ? d.reserve_pct_normal : defInputs.reserve_pct_normal,
+                            reserve_pct_normal: d.reserve_pct_normal !== undefined ? d.reserve_pct_normal : (d.reserve_pct !== undefined ? d.reserve_pct : defInputs.reserve_pct_normal),
                             reserve_pct_ath: d.reserve_pct_ath !== undefined ? d.reserve_pct_ath : defInputs.reserve_pct_ath,
                             qty_boxx: d.qty_boxx !== undefined ? d.qty_boxx : (d.qty_sgov || 0) 
                         })); 

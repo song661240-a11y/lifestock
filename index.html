@@ -86,11 +86,12 @@
             { id: 'l4', drop_pct: 28, move_pct: 15, use_boxx: 25 },
             { id: 'l5', drop_pct: 35, move_pct: 0, use_boxx: 25 }
         ];
+        // 加入 SPMO 的絕對目標佔比設定
         const defUpLad = [
-            { id: 'u1', rise_pct: 0, target_pct: 60 }, 
-            { id: 'u2', rise_pct: 7, target_pct: 45 }, 
-            { id: 'u3', rise_pct: 14, target_pct: 0 }, 
-            { id: 'u4', rise_pct: 21, target_pct: 0 }
+            { id: 'u1', rise_pct: 0, target_pct: 60, spmo_pct: 0 }, 
+            { id: 'u2', rise_pct: 7, target_pct: 45, spmo_pct: 0 }, 
+            { id: 'u3', rise_pct: 14, target_pct: 0, spmo_pct: 45 }, 
+            { id: 'u4', rise_pct: 21, target_pct: 0, spmo_pct: 0 }
         ];
         const defInputs = { 
             motto: '數字未到，原地臥倒；數字一到，扣下扳機。', 
@@ -103,8 +104,6 @@
             cash_balance: 0, 
             reserve_pct_normal: 10, 
             reserve_pct_ath: 15, 
-            spmo_trigger_pct: 14,
-            spmo_drop_pct: 7,
             core_1_type: 'stock', qty_core_1: 0, opt_p_c1: 0, opt_d_c1: 2,
             core_2_type: 'stock', qty_core_2: 0, opt_p_c2: 0, opt_d_c2: 3,
             qty_spmo: 0,
@@ -169,8 +168,8 @@
             );
         });
 
-        const CollapsibleCard = ({ title, icon, isOpen, onToggle, children, rightElement, className="" }) => (
-            <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6 ${className}`}>
+        const CollapsibleCard = ({ title, icon, isOpen, onToggle, children, rightElement }) => (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
                 <div className="p-5 flex justify-between items-center cursor-pointer bg-slate-50/80 border-b border-slate-100 hover:bg-slate-100/50 transition-colors" onClick={onToggle}>
                     <div className="flex gap-3 items-center text-sm font-black text-slate-800">
                         <Icon name={icon} className="text-brand-600" /> {title}
@@ -300,9 +299,13 @@
                         if (parsed.reserve_pct !== undefined && parsed.reserve_pct_normal === undefined) parsed.reserve_pct_normal = parsed.reserve_pct;
                         
                         // 初始化 SPMO 相關變數
-                        if (parsed.spmo_trigger_pct === undefined) parsed.spmo_trigger_pct = 14;
-                        if (parsed.spmo_drop_pct === undefined) parsed.spmo_drop_pct = 7;
                         if (parsed.qty_spmo === undefined) parsed.qty_spmo = 0;
+                        if (parsed.core_up_ladder) {
+                            parsed.core_up_ladder = parsed.core_up_ladder.map(l => ({
+                                ...l,
+                                spmo_pct: l.spmo_pct !== undefined ? l.spmo_pct : (l.rise_pct >= 14 && l.target_pct === 0 ? 45 : 0)
+                            }));
+                        }
 
                         return { ...defInputs, ...parsed };
                     }
@@ -398,8 +401,6 @@
                             reserve_pct_normal: d.reserve_pct_normal !== undefined ? d.reserve_pct_normal : (d.reserve_pct !== undefined ? d.reserve_pct : defInputs.reserve_pct_normal),
                             reserve_pct_ath: d.reserve_pct_ath !== undefined ? d.reserve_pct_ath : defInputs.reserve_pct_ath,
                             qty_boxx: d.qty_boxx !== undefined ? d.qty_boxx : (d.qty_sgov || 0),
-                            spmo_trigger_pct: d.spmo_trigger_pct !== undefined ? d.spmo_trigger_pct : 14,
-                            spmo_drop_pct: d.spmo_drop_pct !== undefined ? d.spmo_drop_pct : 7,
                             qty_spmo: d.qty_spmo !== undefined ? d.qty_spmo : 0
                         })); 
                     }
@@ -661,16 +662,11 @@
                 const q20ma = getV('qqq_20ma');
                 const qWaveLow = getV('qqq_wave_low');
 
-                // 核心計算：下跌看 Rolling High，上漲看 Locked ATH
-                const baseHighForDrop = qLatestHigh > 0 ? qLatestHigh : qAthLocked;
-                const cDD = baseHighForDrop > 0 && pQQQ < baseHighForDrop ? ((baseHighForDrop - pQQQ) / baseHighForDrop) * 100 : 0;
+                // 核心計算：下跌看 Rolling High，創高看 Locked ATH
+                const cDD = qLatestHigh > 0 && pQQQ < qLatestHigh ? ((qLatestHigh - pQQQ) / qLatestHigh) * 100 : 0;
                 const cRise = qAthLocked > 0 && pQQQ >= qAthLocked ? ((pQQQ - qAthLocked) / qAthLocked) * 100 : -1;
                 const cBounce = qWaveLow > 0 ? ((pQQQ - qWaveLow) / qWaveLow) * 100 : 0;
                 const cSpmoDrop = qLatestHigh > 0 && pQQQ < qLatestHigh ? ((qLatestHigh - pQQQ) / qLatestHigh) * 100 : 0;
-                
-                // 抓取 SPMO 觸發參數
-                const spmoTrigger = getV('spmo_trigger_pct') || 14;
-                const spmoDrop = getV('spmo_drop_pct') || 7;
                 
                 // BOXX 動態基準：突破 ATH +7% 時提升至 15%
                 const tgtRPct = cRise >= 7 ? getV('reserve_pct_ath') : getV('reserve_pct_normal');
@@ -696,37 +692,34 @@
                     return { 
                         p: getNum(s.drop_pct), 
                         m: getNum(s.move_pct), 
-                        tr: baseHighForDrop * (1 - getNum(s.drop_pct) / 100), 
+                        tr: qLatestHigh * (1 - getNum(s.drop_pct) / 100), // 下跌看 Rolling High
                         t: cDD >= getNum(s.drop_pct),
                         cumTqqq, coreLev
                     };
                 });
 
                 if (cRise >= 0) {
-                    // SPMO 狂熱期退出機制
-                    if (qLatestHigh > qAthLocked && cSpmoDrop >= spmoDrop) {
-                        phase = `動能破線 (-${spmoDrop}%)：SPMO 全數退場回歸 QQQ`;
+                    // SPMO 狂熱期退出機制 (看 Rolling High 回撤)
+                    if (qLatestHigh > qAthLocked && cSpmoDrop >= 7) {
+                        phase = "動能破線 (-7%)：SPMO 全數退場回歸 QQQ";
                         tSpmoPct = 0;
                         tTqqqPct = 0;
                     } 
-                    // SPMO 狂熱期進入機制
-                    else if (cRise >= spmoTrigger) {
-                        phase = `狂熱期：剩餘 TQQQ 轉入 SPMO 延續動能`;
-                        // 將原本該有的槓桿池額度，全數強制轉給 SPMO，並把 TQQQ 歸零
-                        tSpmoPct = valCore2 > 0 ? (valCore2 / safeT * 100) : 0; 
-                        if (tSpmoPct === 0 && valSpmo > 0) tSpmoPct = valSpmo / safeT * 100; // 維持已轉換的動能池
-                        tTqqqPct = 0;
-                    }
-                    // 一般創高收割
+                    // 創高收割階梯比對 (絕對配比引擎)
                     else {
                         let activeUp = null; 
                         safeUpLadder.forEach(s => { if (cRise >= getNum(s.rise_pct)) activeUp = s; });
                         if (activeUp) { 
                             tTqqqPct = getNum(activeUp.target_pct); 
-                            phase = `創高收割 (保留 ${tTqqqPct}% TQQQ)`; 
+                            tSpmoPct = getNum(activeUp.spmo_pct) || 0;
+                            phase = activeUp.target_pct === 0 && activeUp.spmo_pct === 0 
+                                ? "ATH 結清，全回 QQQ" 
+                                : activeUp.spmo_pct > 0 
+                                    ? `狂熱期啟動 (目標 SPMO ${tSpmoPct}%)` 
+                                    : `創高收割 (目標 TQQQ ${tTqqqPct}%)`; 
                         } else {
                             phase = `準備創高收割`;
-                            tTqqqPct = valCore2 / safeT * 100; 
+                            tTqqqPct = valCore2 / safeT * 100; // 維持現有
                         }
                     }
                 } else {
@@ -759,7 +752,7 @@
                 const tTqqqVal = tCap * (tTqqqPct / 100);
                 const tSpmoVal = tCap * (tSpmoPct / 100);
                 
-                // 動態調整 BOXX 目標：如果我們把戰略 BOXX 拿去買 TQQQ 了，那此時的 BOXX 目標水位就應該下降
+                // 動態調整 BOXX 目標
                 let activeBoxxTargetPct = tgtRPct;
                 if (cRise < 0) activeBoxxTargetPct = Math.max(0, tgtRPct - tgtTqqqFromBoxxPct);
                 const tgtBoxxVal = tCap * (activeBoxxTargetPct / 100);
@@ -795,10 +788,11 @@
                     }
                 }
 
-                if (Math.abs(tDiff) < 50) tDiff = 0;
-                if (Math.abs(sDiff) < 50) sDiff = 0;
-                if (Math.abs(bDiff) < 50) bDiff = 0;
-                if (Math.abs(qDiff) < 50) qDiff = 0;
+                if (valCore2 <= 0 && tTqqqVal <= 0 && sDiff === 0) {
+                    phase = cRise >= 14 && tSpmoPct > 0 ? phase : "空手巡航，無槓桿部位"; 
+                    cAct = cRise >= 14 && sDiff > 0 ? cAct : "配置達標"; 
+                    cCol = cRise >= 14 && sDiff > 0 ? cCol : "text-slate-500"; 
+                }
 
                 // 第一層防禦：創新高絕對禁買鐵律 (防呆)
                 if (cRise >= 0 && tDiff > 0 && sDiff === 0) {
@@ -807,18 +801,10 @@
                     tDiff = 0; qDiff = 0; bDiff = 0;
                 }
 
-                // 如果進入 SPMO 狂熱期，強制發出 TQQQ 換 SPMO 的指令
-                if (cRise >= spmoTrigger && valCore2 > 50) {
-                    tDiff = -valCore2; // 賣出所有 TQQQ
-                    sDiff = valCore2;  // 買入等值 SPMO
-                    cAct = `狂熱期觸發：TQQQ 全數轉入 SPMO`;
-                    cCol = "text-purple-600";
-                }
-
-                if (tDiff === 0 && sDiff === 0 && bDiff === 0 && qDiff === 0) {
-                    cAct = "資金配比達標，穩定防禦中";
-                    cCol = "text-slate-500";
-                }
+                if (Math.abs(tDiff) < 50) tDiff = 0;
+                if (Math.abs(sDiff) < 50) sDiff = 0;
+                if (Math.abs(bDiff) < 50) bDiff = 0;
+                if (Math.abs(qDiff) < 50) qDiff = 0;
 
                 let pEq = 0;
                 let mdd = 0;
@@ -857,9 +843,9 @@
                         sm: { p: tSpmoPct }
                     },
                     core: { 
-                        pQQQ, pTQQQ, qAthLocked, qLatestHigh, cDD, cRise, tTqqqPct, tSpmoPct, phase, cAct, cCol, tDiff, sDiff, qDiff, bDiff, cBounce,
+                        pQQQ, pTQQQ, qAthLocked, qLatestHigh, cDD, cRise, tTqqqPct, phase, cAct, cCol, tDiff, sDiff, qDiff, bDiff, cBounce,
                         dnL: mappedDnLadder, 
-                        upL: safeUpLadder.map(s => ({ p: getNum(s.rise_pct), tp: getNum(s.target_pct), tr: qAthLocked*(1+getNum(s.rise_pct)/100), t: cRise>=getNum(s.rise_pct) })) 
+                        upL: safeUpLadder.map(s => ({ p: getNum(s.rise_pct), tp: getNum(s.target_pct), sp: getNum(s.spmo_pct), tr: qAthLocked*(1+getNum(s.rise_pct)/100), t: cRise>=getNum(s.rise_pct) })) 
                     }
                 };
             }, [prices, inputs, records]);
@@ -1026,11 +1012,11 @@
                                     {/* SPMO 狂熱期進度 */}
                                     <div className="mb-4">
                                         <div className="flex justify-between text-[10px] text-slate-500 mb-1">
-                                            <span>SPMO 狂熱期啟動 (目標 QQQ ATH +{inputs.spmo_trigger_pct}%)</span>
-                                            <span className={metrics.core.cRise >= inputs.spmo_trigger_pct ? 'text-purple-600 font-bold' : ''}>{metrics.core.cRise >= 0 ? `+${metrics.core.cRise.toFixed(1)}%` : '未過高'}</span>
+                                            <span>SPMO 狂熱期啟動 (目標 Locked ATH +14%)</span>
+                                            <span className={metrics.core.cRise >= 14 ? 'text-purple-600 font-bold' : ''}>{metrics.core.cRise >= 0 ? `+${metrics.core.cRise.toFixed(1)}%` : '未過高'}</span>
                                         </div>
                                         <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                            <div className="h-full bg-purple-500 transition-all duration-500" style={{width:`${Math.min(100, Math.max(0, metrics.core.cRise/inputs.spmo_trigger_pct)*100)}%`}}></div>
+                                            <div className="h-full bg-purple-500 transition-all duration-500" style={{width:`${Math.min(100, Math.max(0, metrics.core.cRise/14)*100)}%`}}></div>
                                         </div>
                                     </div>
                                     
@@ -1229,17 +1215,6 @@
                                             </div>
                                         </div>
                                         
-                                        <div className="grid grid-cols-2 gap-2 mt-2 text-left">
-                                            <div className="bg-purple-50 p-2 rounded-lg border border-purple-200">
-                                                <label className="text-[9px] font-bold text-purple-700 block">SPMO 啟動 (+%)</label>
-                                                <input type="number" inputMode="decimal" value={inputs.spmo_trigger_pct} onChange={e=>handleInput('spmo_trigger_pct', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-purple-700 mt-1 outline-none"/>
-                                            </div>
-                                            <div className="bg-purple-50 p-2 rounded-lg border border-purple-200">
-                                                <label className="text-[9px] font-bold text-purple-700 block">SPMO 退出 (-%)</label>
-                                                <input type="number" inputMode="decimal" value={inputs.spmo_drop_pct} onChange={e=>handleInput('spmo_drop_pct', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-purple-700 mt-1 outline-none"/>
-                                            </div>
-                                        </div>
-                                        
                                         <div className="pt-4 border-t text-left">
                                             <label className="text-[10px] text-brand-600 font-bold mb-2 block">下跌轉換階梯 & BOXX動用</label>
                                             {getArr(inputs.core_ladder).map((l,i) => (
@@ -1263,7 +1238,7 @@
                                         </div>
                                         
                                         <div className="pt-4 border-t text-left">
-                                            <label className="text-[10px] text-brand-600 font-bold mb-2 block">突破收割階梯 (TQQQ 目標保留%)</label>
+                                            <label className="text-[10px] text-brand-600 font-bold mb-2 block">突破收割階梯 (TQQQ/SPMO 目標保留%)</label>
                                             {getArr(inputs.core_up_ladder).map((l,i) => (
                                                 <div key={l.id} className="flex gap-2 items-center mb-1">
                                                     <div className="flex-1 bg-slate-50 border rounded flex items-center px-2">
@@ -1271,14 +1246,20 @@
                                                         <input type="number" inputMode="decimal" value={l.rise_pct} onChange={e=>updateArr('core_up_ladder', l.id, 'rise_pct', e.target.value)} onFocus={e=>e.target.select()} className="w-full p-1 bg-transparent font-mono text-sm outline-none"/>%
                                                     </div>
                                                     <Icon name="ChevronDown" size={14} className="-rotate-90 text-slate-300"/>
-                                                    <div className="flex-1 bg-fin-up/10 border border-fin-up/20 rounded flex items-center px-2">
-                                                        <span className="text-[8px] text-fin-up whitespace-nowrap pr-1">目標</span>
-                                                        <input type="number" inputMode="decimal" value={l.target_pct} onChange={e=>updateArr('core_up_ladder', l.id, 'target_pct', e.target.value)} onFocus={e=>e.target.select()} className="w-full p-1 bg-transparent text-fin-up font-mono text-sm outline-none"/>%
+                                                    <div className="flex-[1.5] flex gap-1">
+                                                        <div className="flex-1 bg-fin-up/10 border border-fin-up/20 rounded flex items-center px-1">
+                                                            <span className="text-[8px] text-fin-up whitespace-nowrap pr-1">TQQQ</span>
+                                                            <input type="number" inputMode="decimal" value={l.target_pct} onChange={e=>updateArr('core_up_ladder', l.id, 'target_pct', e.target.value)} onFocus={e=>e.target.select()} className="w-full p-1 bg-transparent text-fin-up font-mono text-sm outline-none"/>%
+                                                        </div>
+                                                        <div className="flex-1 bg-purple-50 border border-purple-200 rounded flex items-center px-1">
+                                                            <span className="text-[8px] text-purple-600 whitespace-nowrap pr-1">SPMO</span>
+                                                            <input type="number" inputMode="decimal" value={l.spmo_pct || 0} onChange={e=>updateArr('core_up_ladder', l.id, 'spmo_pct', e.target.value)} onFocus={e=>e.target.select()} className="w-full p-1 bg-transparent text-purple-700 font-mono text-sm outline-none"/>%
+                                                        </div>
                                                     </div>
                                                     <button onClick={()=>removeArr('core_up_ladder',l.id)} className="p-1 text-slate-400 hover:text-red-500"><Icon name="X" size={14}/></button>
                                                 </div>
                                             ))}
-                                            <button onClick={()=>addArr('core_up_ladder', {rise_pct:0, target_pct:0})} className="w-full py-2 mt-2 border-dashed border-2 rounded-lg text-xs text-slate-500 active:scale-95">+ 新增階梯</button>
+                                            <button onClick={()=>addArr('core_up_ladder', {rise_pct:0, target_pct:0, spmo_pct:0})} className="w-full py-2 mt-2 border-dashed border-2 rounded-lg text-xs text-slate-500 active:scale-95">+ 新增階梯</button>
                                         </div>
                                     </div>
                                 </div>
@@ -1291,8 +1272,8 @@
                                                 <button onClick={()=>removeArr('satellites', s.id)} className="absolute top-2 right-2 text-slate-400 hover:text-fin-down active:scale-95"><Icon name="Trash2" size={14}/></button>
                                                 
                                                 <div className="flex gap-2 mb-2 pr-6">
-                                                    <input value={s.underlying} onChange={e=>updateArr('satellites',s.id,'underlying',e.target.value.toUpperCase())} className="w-24 bg-white text-xs p-1.5 rounded border font-black uppercase outline-none text-center" placeholder="正股"/>
-                                                    <input value={s.leveraged !== undefined ? s.leveraged : ''} onChange={e=>updateArr('satellites',s.id,'leveraged',e.target.value.toUpperCase())} className="w-24 bg-brand-50 text-brand-700 text-xs p-1.5 rounded border border-brand-200 font-black uppercase outline-none text-center" placeholder="2x槓桿"/>
+                                                    <input value={s.underlying} onChange={e=>updateArr('satellites',s.id,'underlying',e.target.value.toUpperCase().trim())} className="w-24 bg-white text-xs p-1.5 rounded border font-black uppercase outline-none text-center" placeholder="正股"/>
+                                                    <input value={s.leveraged !== undefined ? s.leveraged : ''} onChange={e=>updateArr('satellites',s.id,'leveraged',e.target.value.toUpperCase().trim())} className="w-24 bg-brand-50 text-brand-700 text-xs p-1.5 rounded border border-brand-200 font-black uppercase outline-none text-center" placeholder="2x槓桿"/>
                                                 </div>
 
                                                 <div className="grid grid-cols-3 gap-1 mb-2 bg-white p-1 rounded border">
@@ -1319,8 +1300,8 @@
                                                         <input type="number" inputMode="decimal" value={s.ma10} onChange={e=>updateArr('satellites',s.id,'ma10',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/>
                                                     </div>
                                                     <div className="text-center border-l">
-                                                        <label className="text-[8px] text-fin-up">停利%</label>
-                                                        <input type="number" inputMode="decimal" value={s.profit_pct} onChange={e=>updateArr('satellites',s.id,'profit_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/>
+                                                        <label className="text-[8px] text-fin-up">目標%</label>
+                                                        <input type="number" inputMode="decimal" value={s.target_pct} onChange={e=>updateArr('satellites',s.id,'target_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/>
                                                     </div>
                                                     <div className="text-center border-l">
                                                         <label className="text-[8px] text-fin-down">補倉-%</label>

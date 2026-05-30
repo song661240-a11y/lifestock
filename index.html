@@ -40,7 +40,6 @@
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #f1f5f9; color: #1e293b; }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
         
-        /* 核心修復：徹底拔除強制的 Padding，釋放輸入框空間 */
         input, select, textarea { 
             width: 100%; 
             background: transparent; 
@@ -48,7 +47,6 @@
             outline: none; 
         }
         
-        /* 核心修復：徹底隱藏所有的數字上下箭頭 (Spinners)，騰出左右空間給三位數 */
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { 
             -webkit-appearance: none; 
@@ -56,7 +54,7 @@
         }
         input[type=number] { 
             -moz-appearance: textfield; 
-            text-align: center; /* 預設數字置中 */
+            text-align: center; 
         }
         
         .loading-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; gap: 1rem; color: white; }
@@ -69,10 +67,10 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useCallback, memo, useRef } = React;
         
-        // --- 安全載入圖表套件防呆機制 ---
+        // --- 優化：移除未使用的圖表組件 (PieChart等) 減輕負擔 ---
         const RechartsLib = window.Recharts || {};
-        const { ComposedChart, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } = RechartsLib;
-        const hasCharts = !!ComposedChart && !!PieChart; 
+        const { ComposedChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } = RechartsLib;
+        const hasCharts = !!ComposedChart; 
 
         // --- 系統設定與 Firebase ---
         const FINNHUB_KEY = "d4q36b9r01qha6q0jclgd4q36b9r01qha6q0jcm0";
@@ -140,7 +138,6 @@
                 LayoutDashboard: <g><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></g>, 
                 Save: <g><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></g>, 
                 FileText: <g><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><polyline points="10 9 9 9 8 9"/></g>,
-                BarChart2: <g><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></g>, 
                 CheckCircle: <g><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></g>, 
                 Edit2: <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>, 
                 Lock: <g><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></g>, 
@@ -149,16 +146,12 @@
                 ChevronUp: <path d="m18 15-6-6-6 6"/>, 
                 Activity: <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>, 
                 PieChart: <path d="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z"/>, 
-                Plus: <path d="M12 5v14M5 12h14"/>, 
                 Trash2: <g><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></g>, 
-                LogOut: <g><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></g>, 
-                User: <g><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></g>,
                 Google: <path fill="currentColor" d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81z"/>, 
                 X: <g><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></g>, 
                 Quote: <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1 0 2.5 0 2-2 4-.5.5-.5 1 0 1.5zM16 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2h-2c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1 0 2.5 0 2-2 4-.5.5-.5 1 0 1.5z"/>, 
                 AlertCircle: <g><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></g>, 
                 Zap: <path d="M13 2 L3 14 L12 14 L11 22 L21 10 L12 10 L13 2 Z" />, 
-                Shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>, 
                 Package: <g><path d="M16.5 9.4 7.5 4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></g>
             };
             return (
@@ -234,21 +227,6 @@
             return null;
         };
 
-        const CustomPieTooltip = ({ active, payload }) => {
-            if (active && payload && payload.length && payload[0].payload) {
-                const data = payload[0].payload;
-                return (
-                    <div className="bg-slate-800 border border-slate-700 p-4 rounded-2xl shadow-xl text-sm font-black z-50 text-white">
-                        <p className="mb-1 text-slate-400">{data.name}</p>
-                        <p className="text-lg">${(data.value || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
-                        <p className="text-brand-400 text-xs mt-1">佔總市值: {((data.percentOfTotal || 0) * 100).toFixed(1)}%</p>
-                        {data.exposure > 0 && <p className="text-slate-300 text-xs mt-1">真實火力 (曝險): ${(data.exposure).toLocaleString()}</p>}
-                    </div>
-                );
-            }
-            return null;
-        };
-
         // --- 主程式 ---
         const App = () => {
             const [user, setUser] = useState(null);
@@ -261,8 +239,6 @@
             const [authError, setAuthError] = useState(null);
             
             const [isMottoLocked, setIsMottoLocked] = useState(true);
-            const [isPlanLocked, setIsPlanLocked] = useState(true);
-            const [isSatDetailsOpen, setIsSatDetailsOpen] = useState(false);
             
             const [sections, setSections] = useState(() => { 
                 try { 
@@ -308,7 +284,6 @@
                         if (parsed.qqq_ath && !parsed.qqq_locked_ath) parsed.qqq_locked_ath = parsed.qqq_ath;
                         if (parsed.tqqq_low && !parsed.qqq_wave_low) parsed.qqq_wave_low = parsed.tqqq_low;
                         if (parsed.reserve_pct !== undefined && parsed.reserve_pct_normal === undefined) parsed.reserve_pct_normal = parsed.reserve_pct;
-                        
                         if (parsed.qty_spmo === undefined) parsed.qty_spmo = 0;
                         
                         if (parsed.core_up_ladder) {
@@ -320,7 +295,6 @@
                                 }));
                             }
                         }
-
                         return { ...defInputs, ...parsed };
                     }
                     return defInputs; 
@@ -360,18 +334,14 @@
                             if (e.code === 'auth/credential-already-in-use') { 
                                 await auth.signInWithCredential(e.credential); 
                                 showToast("已載入現有雲端資料。"); 
-                            } else {
-                                throw e; 
-                            }
+                            } else { throw e; }
                         }
                     } else { 
                         await auth.signInWithPopup(provider); 
                         showToast("Google 登入成功！"); 
                     }
                     setAuthError(null);
-                } catch (e) { 
-                    setAuthError(e.message); 
-                }
+                } catch (e) { setAuthError(e.message); }
             };
 
             const handleLogout = async () => { 
@@ -395,11 +365,7 @@
                 setIsSwitching(true);
                 
                 const unsubRecs = refs.recsRef.onSnapshot(
-                    s => {
-                        if (s && s.docs) {
-                            setRecords(s.docs.map(d => ({id: d.id, ...d.data()})));
-                        }
-                    }, 
+                    s => { if (s && s.docs) setRecords(s.docs.map(d => ({id: d.id, ...d.data()}))); }, 
                     e => setAuthError("資料庫權限不足。")
                 ); 
                 
@@ -407,8 +373,7 @@
                     if (s.exists) { 
                         const d = s.data() || {}; 
                         setInputs(p => ({ 
-                            ...p, 
-                            ...d, 
+                            ...p, ...d, 
                             satellites: getArr(d.satellites).length > 0 ? getArr(d.satellites) : defSats, 
                             core_ladder: getArr(d.core_ladder).length > 0 ? getArr(d.core_ladder) : defLad, 
                             core_up_ladder: getArr(d.core_up_ladder).length > 0 ? getArr(d.core_up_ladder) : defUpLad, 
@@ -452,14 +417,12 @@
                         ...p, 
                         ...res.reduce((acc, c) => (c.status === 'fulfilled' && c.value.p > 0 ? {...acc, [c.value.s]: c.value.p} : acc), {})
                     })); 
-                } catch(e) {} finally { 
+                } catch(e) { console.error("價格更新失敗", e); } finally { 
                     setLoadingPrices(false); 
                 } 
             }, [debouncedSymbols, symbolsString, loadingPrices]);
 
-            useEffect(() => { 
-                if(debouncedSymbols) fetchPrices(); 
-            }, [debouncedSymbols]);
+            useEffect(() => { if(debouncedSymbols) fetchPrices(); }, [debouncedSymbols]);
 
             const showToast = (txt) => { setMessage(txt); setTimeout(() => setMessage(null), 3000); };
             const handleInput = (f, v) => setInputs(p => ({ ...p, [f]: v }));
@@ -493,18 +456,11 @@
 
             const saveRecord = async () => { 
                 const refs = getFirebaseRefs(); 
-                if (!refs) return;
-                if (isSaving) return; 
-                
+                if (!refs || isSaving) return; 
                 setIsSaving(true); 
                 try { 
                     const cln = sanitize(inputs); 
-                    await refs.recsRef.add({ 
-                        date: new Date(recordDate).toISOString(), 
-                        total_equity: metrics.totalCapital || 0, 
-                        prices: sanitize(prices), 
-                        inputs: cln 
-                    }); 
+                    await refs.recsRef.add({ date: new Date(recordDate).toISOString(), total_equity: metrics.totalCapital || 0, prices: sanitize(prices), inputs: cln }); 
                     await refs.confRef.set(cln, { merge: true }); 
                     showToast("紀錄已儲存"); 
                 } catch(e) {} 
@@ -525,17 +481,31 @@
                 const u = {}; 
                 if (modal.temp.date) u.date = modal.temp.date; 
                 if (modal.temp.equity) u.total_equity = parseFloat(modal.temp.equity); 
-                if (Object.keys(u).length) { 
-                    await refs.recsRef.doc(modal.data.id).update(u); 
-                    showToast("紀錄已更新"); 
-                } 
+                if (Object.keys(u).length) { await refs.recsRef.doc(modal.data.id).update(u); showToast("紀錄已更新"); } 
                 setModal({type: null}); 
             };
 
+            // --- 優化：修復複製功能，使用備用 textarea 以防 iframe 阻擋 ---
             const copyCommand = () => {
                 const text = `【Alpha Horizon 操作指令】\n日期: ${getTodayStr()}\n狀態: ${metrics.core.phase}\n---\n需動作:\nQQQ: ${metrics.core.qDiff > 0 ? '買入' : '賣出'} $${Math.abs(Math.round(metrics.core.qDiff))}\nTQQQ: ${metrics.core.tDiff > 0 ? '買入' : '賣出'} $${Math.abs(Math.round(metrics.core.tDiff))}\nSPMO: ${metrics.core.sDiff > 0 ? '買入' : '賣出'} $${Math.abs(Math.round(metrics.core.sDiff))}\nBOXX: ${metrics.core.bDiff > 0 ? '買入' : '賣出'} $${Math.abs(Math.round(metrics.core.bDiff))}`;
-                navigator.clipboard.writeText(text);
-                showToast("✅ 指令已複製到剪貼簿");
+                try {
+                    if (navigator.clipboard && window.isSecureContext) {
+                        navigator.clipboard.writeText(text);
+                        showToast("✅ 指令已複製到剪貼簿");
+                    } else {
+                        const textArea = document.createElement("textarea");
+                        textArea.value = text;
+                        textArea.style.position = "absolute";
+                        textArea.style.left = "-999999px";
+                        document.body.prepend(textArea);
+                        textArea.select();
+                        document.execCommand('copy');
+                        textArea.remove();
+                        showToast("✅ 指令已複製到剪貼簿");
+                    }
+                } catch (error) {
+                    showToast("❌ 複製失敗");
+                }
             };
             
             // --- 核心運算引擎 V_Final 2026 ---
@@ -550,10 +520,8 @@
                 
                 const valCore1 = getV('qty_core_1') * pQQQ;
                 const expCore1 = valCore1 * 1;
-                
                 const valCore2 = getV('qty_core_2') * pTQQQ;
                 const expCore2 = valCore2 * 3;
-
                 const valSpmo = getV('qty_spmo') * pSPMO;
 
                 const vBOXX = pBOXX * getV('qty_boxx'); 
@@ -561,18 +529,6 @@
                 
                 let vSatU = 0, vSatL = 0, vSatC = 0, expSat = 0;
                 let satSumPct = 0;
-                
-                const colors = [
-                    {u:'#3b82f6', l:'#93c5fd', c:'#1d4ed8'}, // Blue
-                    {u:'#10b981', l:'#6ee7b7', c:'#047857'}, // Emerald
-                    {u:'#f59e0b', l:'#fcd34d', c:'#b45309'}, // Amber
-                    {u:'#8b5cf6', l:'#c4b5fd', c:'#6d28d9'}  // Violet
-                ];
-                
-                const pieData = [];
-                if (valCore1 > 0) pieData.push({ name: 'QQQ', value: valCore1, exposure: expCore1, fill: '#1e293b' });
-                if (valCore2 > 0) pieData.push({ name: 'TQQQ', value: valCore2, exposure: expCore2, fill: '#64748b' });
-                if (valSpmo > 0) pieData.push({ name: 'SPMO', value: valSpmo, exposure: valSpmo, fill: '#8b5cf6' });
 
                 const safeSatellites = getArr(inputs.satellites);
                 const safeLadder = [...getArr(inputs.core_ladder)].sort((a,b) => getNum(a.drop_pct) - getNum(b.drop_pct));
@@ -597,7 +553,6 @@
                 const mappedSatStats = safeSatellites.map((s, i) => {
                     const uP = getP(s.underlying); 
                     const lP = getP(s.leveraged);  
-                    
                     const vU = uP * getNum(s.qty_u); 
                     const vL = lP * getNum(s.qty_l); 
                     const vC = getNum(s.opt_p_c);
@@ -606,10 +561,6 @@
                     const cV = vU + vL + vC; 
                     expSat += (vU * 1) + (vL * 2) + expC;
                     
-                    if (vU > 0) pieData.push({ name: s.underlying || '正股', value: vU, exposure: vU * 1, fill: colors[i%colors.length].u });
-                    if (vL > 0) pieData.push({ name: s.leveraged || '槓桿', value: vL, exposure: vL * 2, fill: colors[i%colors.length].l });
-                    if (vC > 0) pieData.push({ name: (s.underlying || '標的') + ' Call', value: vC, exposure: expC, fill: colors[i%colors.length].c });
-
                     const tPct = getNum(s.target_pct); 
                     const cPct = (cV / safeT) * 100; 
                     const tVal = tCap * (tPct / 100); 
@@ -625,36 +576,23 @@
                     if (vL > 0 || vU > 0 || vC > 0) {
                         if (ex >= getNum(s.profit_pct)/100 && uP > getNum(s.ma200)) { 
                             st = `收割 (+${(ex*100).toFixed(1)}%)`; col = "text-fin-up"; act = `獲利達標，建議分批退場。`; 
-                        } 
-                        else if (isBoxxFrozen && costDD >= getNum(s.loss_pct)) {
+                        } else if (isBoxxFrozen && costDD >= getNum(s.loss_pct)) {
                             st = "末日凍結"; col = "text-red-600 font-black"; act = "BOXX < 3%，停止補倉，保全母艦。"; 
                             alert = "末日凍結中";
-                        }
-                        else if (uP < getNum(s.ma200) && peakDD >= 20 && vC === 0) {
+                        } else if (uP < getNum(s.ma200) && peakDD >= 20 && vC === 0) {
                             st = "啟動 LEAPS"; col = "text-fin-info"; act = "達雙重條件，現股轉 Deep ITM Call"; 
-                        }
-                        else if (costDD >= getNum(s.loss_pct)) { 
-                            if (getNum(s.rescues) < 3) { 
-                                st = `觸發補倉 (-${costDD.toFixed(1)}%)`; col = "text-fin-down"; act = `動用戰術 BOXX 補足配置。`; 
-                            } else { 
-                                st = "補倉達上限"; col = "text-slate-600"; act = "已連補 3 次，停止補倉防禦等待。"; 
-                            } 
-                        }
-                        else { 
+                        } else if (costDD >= getNum(s.loss_pct)) { 
+                            if (getNum(s.rescues) < 3) { st = `觸發補倉 (-${costDD.toFixed(1)}%)`; col = "text-fin-down"; act = `動用戰術 BOXX 補足配置。`; } 
+                            else { st = "補倉達上限"; col = "text-slate-600"; act = "已連補 3 次，停止補倉防禦等待。"; } 
+                        } else { 
                             st = "穩定防禦中"; col = "text-brand-600"; act = `未達收割/補倉標準，維持紀律。`; 
                         }
                     } else {
-                        if (!s.underlying) { 
-                            act = "輸入代號"; 
-                        } else if (dPct <= 5 && dPct >= -5) { 
-                            st = "均線範圍"; col = "text-fin-up"; act = `可建立初步倉位。`; 
-                        } else if (dPct < -5) { 
-                            st = "低於均線"; col = "text-fin-down"; act = "偏弱持續觀察。"; 
-                        } else { 
-                            st = "高於均線"; col = "text-fin-info"; act = "乖離偏大暫停。"; 
-                        }
+                        if (!s.underlying) { act = "輸入代號"; } 
+                        else if (dPct <= 5 && dPct >= -5) { st = "均線範圍"; col = "text-fin-up"; act = `可建立初步倉位。`; } 
+                        else if (dPct < -5) { st = "低於均線"; col = "text-fin-down"; act = "偏弱持續觀察。"; } 
+                        else { st = "高於均線"; col = "text-fin-info"; act = "乖離偏大暫停。"; }
                     }
-                    
                     return { ...s, cV, vU, vL, vC, expC, uP, lP, tPct, cPct, tVal, dPct, st, col, act, gapVal, alert };
                 });
 
@@ -668,12 +606,13 @@
                 const q20ma = getV('qqq_20ma');
                 const qWaveLow = getV('qqq_wave_low');
 
-                const cDD = qLatestHigh > 0 && pQQQ < qLatestHigh ? ((qLatestHigh - pQQQ) / qLatestHigh) * 100 : 0;
-                const cRise = qAthLocked > 0 && pQQQ >= qAthLocked ? ((pQQQ - qAthLocked) / qAthLocked) * 100 : -1;
-                const cBounce = qWaveLow > 0 ? ((pQQQ - qWaveLow) / qWaveLow) * 100 : 0;
-                const cSpmoDrop = qLatestHigh > 0 && pQQQ < qLatestHigh ? ((qLatestHigh - pQQQ) / qLatestHigh) * 100 : 0;
+                // --- 優化防呆機制：確保空值不會引發奇怪的NaN或符號 ---
+                const cDD = (qLatestHigh > 0 && pQQQ < qLatestHigh) ? ((qLatestHigh - pQQQ) / qLatestHigh) * 100 : null;
+                const cRise = qAthLocked > 0 ? ((pQQQ - qAthLocked) / qAthLocked) * 100 : null;
+                const cBounce = qWaveLow > 0 ? ((pQQQ - qWaveLow) / qWaveLow) * 100 : null;
+                const cSpmoDrop = (qLatestHigh > 0 && pQQQ < qLatestHigh) ? ((qLatestHigh - pQQQ) / qLatestHigh) * 100 : 0;
                 
-                const tgtRPct = cRise >= 7 ? getV('reserve_pct_ath') : getV('reserve_pct_normal');
+                const tgtRPct = (cRise !== null && cRise >= 7) ? getV('reserve_pct_ath') : getV('reserve_pct_normal');
                 let tgtTqqqFromQqqPct = 0;
                 let tgtTqqqFromBoxxPct = 0;
                 let tTqqqPct = 0; 
@@ -693,22 +632,20 @@
                     const currentCoreExp = currentQqq * 1 + cumTqqq * 3;
                     const coreLev = currentCoreVal > 0 ? (currentCoreExp / currentCoreVal) : 1;
                     return { 
-                        p: getNum(s.drop_pct), 
-                        m: getNum(s.move_pct), 
+                        p: getNum(s.drop_pct), m: getNum(s.move_pct), 
                         tr: qLatestHigh * (1 - getNum(s.drop_pct) / 100), 
-                        t: cDD >= getNum(s.drop_pct),
+                        t: cDD !== null && cDD >= getNum(s.drop_pct),
                         cumTqqq, coreLev
                     };
                 });
 
                 let diagnosticMsg = "";
 
-                if (cRise >= 0) {
+                if (cRise !== null && cRise >= 0) {
                     if (qLatestHigh > qAthLocked && cSpmoDrop >= 7) {
                         phase = "動能破線 (-7%)：SPMO 全數退場回歸 QQQ";
                         diagnosticMsg = `⚠️ 已觸發 SPMO 動能破線退出機制 (自最新高點回撤達 -7%，目前 -${cSpmoDrop.toFixed(1)}%)，強制轉回 QQQ。`;
-                        tSpmoPct = 0;
-                        tTqqqPct = 0;
+                        tSpmoPct = 0; tTqqqPct = 0;
                     } 
                     else {
                         let activeUp = null; 
@@ -719,45 +656,40 @@
                             tSpmoPct = getNum(activeUp.spmo_pct) || 0;
                             
                             if (activeUp.target_pct === 0 && activeUp.spmo_pct === 0) {
-                                phase = "ATH 結清，全回 QQQ";
-                                diagnosticMsg = `✅ 已超越收割階梯，槓桿全數結清回歸 QQQ。`;
+                                phase = "ATH 結清，全回 QQQ"; diagnosticMsg = `✅ 已超越收割階梯，槓桿全數結清回歸 QQQ。`;
                             } else if (activeUp.spmo_pct > 0) {
-                                phase = `狂熱期啟動 (目標 SPMO ${tSpmoPct}%)`;
-                                diagnosticMsg = `🔥 狂熱期已啟動！SPMO 目標佔比：${tSpmoPct.toFixed(1)}%。`;
+                                phase = `狂熱期啟動 (目標 SPMO ${tSpmoPct}%)`; diagnosticMsg = `🔥 狂熱期已啟動！SPMO 目標佔比：${tSpmoPct.toFixed(1)}%。`;
                             } else {
-                                phase = `創高收割 (目標 TQQQ ${tTqqqPct}%)`;
-                                diagnosticMsg = `📈 創高收割中，保留 ${tTqqqPct.toFixed(1)}% TQQQ。 (距離下階段 SPMO 啟動還差 ${(14 - cRise).toFixed(1)}%)`;
+                                phase = `創高收割 (目標 TQQQ ${tTqqqPct}%)`; diagnosticMsg = `📈 創高收割中，保留 ${tTqqqPct.toFixed(1)}% TQQQ。 (距離下階段 SPMO 啟動還差 ${(14 - cRise).toFixed(1)}%)`;
                             }
                         } else {
-                            phase = `準備創高收割`;
-                            diagnosticMsg = `📈 突破 ATH，準備進入收割階梯。 (距離首階 +7% 還差 ${(7 - cRise).toFixed(1)}%)`;
+                            phase = `準備創高收割`; diagnosticMsg = `📈 突破 ATH，準備進入收割階梯。 (距離首階 +7% 還差 ${(7 - cRise).toFixed(1)}%)`;
                             tTqqqPct = valCore2 / safeT * 100; 
                         }
                     }
                 } else {
-                    diagnosticMsg = `📉 目前處於水面下 (距 ATH -${cDD.toFixed(1)}%)，等待加碼或反彈。`;
-                    safeLadder.forEach(l => { 
-                        if (cDD >= getNum(l.drop_pct)) {
-                            tgtTqqqFromQqqPct += getNum(l.move_pct);
-                            tgtTqqqFromBoxxPct += (getNum(l.use_boxx)/100) * (getV('reserve_pct_normal') / 2);
-                        }
-                    });
+                    diagnosticMsg = cDD !== null ? `📉 目前處於水面下 (距 ATH -${cDD.toFixed(1)}%)，等待加碼或反彈。` : '💤 待命中：請輸入有效歷史高點與低點。';
+                    if (cDD !== null) {
+                        safeLadder.forEach(l => { 
+                            if (cDD >= getNum(l.drop_pct)) {
+                                tgtTqqqFromQqqPct += getNum(l.move_pct);
+                                tgtTqqqFromBoxxPct += (getNum(l.use_boxx)/100) * (getV('reserve_pct_normal') / 2);
+                            }
+                        });
+                    }
                     tgtTqqqFromQqqPct = Math.min(tgtTqqqFromQqqPct, 60);
                     tTqqqPct = tgtTqqqFromQqqPct + tgtTqqqFromBoxxPct;
                     phase = `回撤加碼中 (目標槓桿 ${tTqqqPct.toFixed(1)}%)`;
 
-                    if (cBounce >= 10 && cBounce < 20) {
+                    if (cBounce !== null && cBounce >= 10 && cBounce < 20) {
                         if (pQQQ > q20ma && q20ma > 0) {
-                            phase = "反彈 10% 收割確認 (站上20MA)";
-                            diagnosticMsg = `🟢 反彈達標且站上 20MA，執行首階降風險收割。`;
+                            phase = "反彈 10% 收割確認 (站上20MA)"; diagnosticMsg = `🟢 反彈達標且站上 20MA，執行首階降風險收割。`;
                             tTqqqPct = Math.max(0, tTqqqPct - 15);
                         } else {
-                            phase = "防死貓反彈 (未過 20MA，暫不卸載)";
-                            diagnosticMsg = `⚠️ 反彈達 10%，但未站上 20MA，防死貓機制啟動，暫不卸載槓桿。`;
+                            phase = "防死貓反彈 (未過 20MA，暫不卸載)"; diagnosticMsg = `⚠️ 反彈達 10%，但未站上 20MA，防死貓機制啟動，暫不卸載槓桿。`;
                         }
-                    } else if (cBounce >= 20) {
-                        phase = "反彈 20% 趨勢確立收割";
-                        diagnosticMsg = `🟢 反彈達 20% 趨勢確立，執行次階降風險收割。`;
+                    } else if (cBounce !== null && cBounce >= 20) {
+                        phase = "反彈 20% 趨勢確立收割"; diagnosticMsg = `🟢 反彈達 20% 趨勢確立，執行次階降風險收割。`;
                         tTqqqPct = Math.max(0, tTqqqPct - 30);
                     }
                 }
@@ -766,7 +698,7 @@
                 const tSpmoVal = tCap * (tSpmoPct / 100);
                 
                 let activeBoxxTargetPct = tgtRPct;
-                if (cRise < 0) activeBoxxTargetPct = Math.max(0, tgtRPct - tgtTqqqFromBoxxPct);
+                if (cRise === null || cRise < 0) activeBoxxTargetPct = Math.max(0, tgtRPct - tgtTqqqFromBoxxPct);
                 const tgtBoxxVal = tCap * (activeBoxxTargetPct / 100);
 
                 let tDiff = tTqqqVal - valCore2; 
@@ -787,7 +719,7 @@
                     cCol = sDiff > 50 ? "text-purple-600" : "text-fin-down"; 
                 } 
                 else if (tDiff < -50 || sDiff < -50) {
-                    if (cRise < 0 && getV('tqqq_avg_cost') > 0 && pTQQQ < getV('tqqq_avg_cost') && tDiff < -50) { 
+                    if ((cRise === null || cRise < 0) && getV('tqqq_avg_cost') > 0 && pTQQQ < getV('tqqq_avg_cost') && tDiff < -50) { 
                         cAct = `【成本防護】低於買入均價，不強制賣出 TQQQ`; 
                         cCol = "text-fin-warn"; 
                         tDiff = 0; qDiff = 0; bDiff = 0; sDiff = 0; 
@@ -798,14 +730,13 @@
                 }
 
                 if (valCore2 <= 0 && tTqqqVal <= 0 && sDiff === 0) {
-                    phase = cRise >= 14 && tSpmoPct > 0 ? phase : "空手巡航，無槓桿部位"; 
-                    cAct = cRise >= 14 && sDiff > 0 ? cAct : "配置達標"; 
-                    cCol = cRise >= 14 && sDiff > 0 ? cCol : "text-slate-500"; 
+                    phase = (cRise !== null && cRise >= 14 && tSpmoPct > 0) ? phase : "空手巡航，無槓桿部位"; 
+                    cAct = (cRise !== null && cRise >= 14 && sDiff > 0) ? cAct : "配置達標"; 
+                    cCol = (cRise !== null && cRise >= 14 && sDiff > 0) ? cCol : "text-slate-500"; 
                 }
 
-                if (cRise >= 0 && tDiff > 0 && sDiff === 0) {
-                    cAct = `【注意】現價已突破波段高點，禁買 TQQQ`;
-                    cCol = "text-fin-warn";
+                if (cRise !== null && cRise >= 0 && tDiff > 0 && sDiff === 0) {
+                    cAct = `【注意】現價已突破波段高點，禁買 TQQQ`; cCol = "text-fin-warn";
                     tDiff = 0; qDiff = 0; bDiff = 0;
                 }
 
@@ -821,39 +752,22 @@
                     if(r && r.total_equity > pEq) pEq = r.total_equity; 
                     const dd = pEq > 0 ? ((r?.total_equity || 0) - pEq) / pEq * 100 : 0;
                     if (dd < mdd) mdd = dd; 
-                    return { 
-                        date: r?.date, 
-                        equity: r?.total_equity, 
-                        dd: dd 
-                    }; 
+                    return { date: r?.date, equity: r?.total_equity, dd: dd }; 
                 });
 
                 return { 
-                    totalCapital: tCap, 
-                    safeTotal: safeT, 
-                    satStats: mappedSatStats, 
-                    graphData: gData, 
-                    pieData, 
-                    historicalPeak: pEq,
-                    mdd: mdd,
-                    growthLeverageRatio: gLev, 
-                    totalLeverageRatio: tLev,
+                    totalCapital: tCap, safeTotal: safeT, satStats: mappedSatStats, graphData: gData, 
+                    historicalPeak: pEq, mdd: mdd, growthLeverageRatio: gLev, totalLeverageRatio: tLev,
                     cls: { 
                         c: { u: valCore1, l: valCore2, sm: valSpmo, t: tCore, p: (tCore/safeT)*100 }, 
                         s: { u: vSatU, l: vSatL, c: vSatC, t: (vSatU+vSatL+vSatC), p: ((vSatU+vSatL+vSatC)/safeT)*100 }, 
                         r: { b: vBOXX, c: cash, t: tRes, p: (tRes/safeT)*100 } 
                     },
-                    tgt: { 
-                        r: { p: tgtRPct },
-                        s: { p: satSumPct },
-                        q: { p: tgtQqqPct },
-                        t: { p: tTqqqPct },
-                        sm: { p: tSpmoPct }
-                    },
+                    tgt: { r: { p: tgtRPct }, s: { p: satSumPct }, q: { p: tgtQqqPct }, t: { p: tTqqqPct }, sm: { p: tSpmoPct } },
                     core: { 
-                        pQQQ, pTQQQ, qAthLocked, qLatestHigh, cDD, cRise, tTqqqPct, tSpmoPct, phase, cAct, cCol, tDiff, sDiff, qDiff, bDiff, cBounce, diagnosticMsg,
+                        pQQQ, pTQQQ, qAthLocked, qLatestHigh, qWaveLow, cDD, cRise, tTqqqPct, tSpmoPct, phase, cAct, cCol, tDiff, sDiff, qDiff, bDiff, cBounce, diagnosticMsg,
                         dnL: mappedDnLadder, 
-                        upL: safeUpLadder.map(s => ({ p: getNum(s.rise_pct), tp: getNum(s.target_pct), sp: getNum(s.spmo_pct), tr: qAthLocked*(1+getNum(s.rise_pct)/100), t: cRise>=getNum(s.rise_pct) })) 
+                        upL: safeUpLadder.map(s => ({ p: getNum(s.rise_pct), tp: getNum(s.target_pct), sp: getNum(s.spmo_pct), tr: qAthLocked*(1+getNum(s.rise_pct)/100), t: cRise !== null && cRise >= getNum(s.rise_pct) })) 
                     }
                 };
             }, [prices, inputs, records]);
@@ -897,23 +811,23 @@
                                         <div className="grid grid-cols-3 gap-2 text-center relative z-10">
                                             <div className="bg-slate-800 p-2 rounded-lg border border-slate-700">
                                                 <div className="text-slate-400 text-[9px] mb-1">上次波段高點(ATH)</div>
-                                                <div className="font-bold text-sm">${metrics.core.qAthLocked}</div>
-                                                <div className={`text-[10px] mt-1 ${metrics.core.cRise >= 0 ? "text-fin-up" : "text-slate-500"}`}>
-                                                    突破: {metrics.core.cRise >= 0 ? `+${metrics.core.cRise.toFixed(1)}%` : '未過高'}
+                                                <div className="font-bold text-sm">{metrics.core.qAthLocked > 0 ? `$${metrics.core.qAthLocked}` : '--'}</div>
+                                                <div className={`text-[10px] mt-1 ${metrics.core.cRise !== null && metrics.core.cRise >= 0 ? "text-fin-up" : "text-slate-500"}`}>
+                                                    突破: {metrics.core.cRise !== null ? (metrics.core.cRise >= 0 ? `+${metrics.core.cRise.toFixed(1)}%` : `${metrics.core.cRise.toFixed(1)}%`) : '--'}
                                                 </div>
                                             </div>
                                             <div className="bg-slate-800 p-2 rounded-lg border border-slate-700">
                                                 <div className="text-slate-400 text-[9px] mb-1">本次最新高點</div>
-                                                <div className="font-bold text-sm">${metrics.core.qLatestHigh}</div>
-                                                <div className={`text-[10px] mt-1 text-fin-down`}>
-                                                    回撤: -{metrics.core.cDD.toFixed(1)}%
+                                                <div className="font-bold text-sm">{metrics.core.qLatestHigh > 0 ? `$${metrics.core.qLatestHigh}` : '--'}</div>
+                                                <div className={`text-[10px] mt-1 ${metrics.core.cDD !== null && metrics.core.cDD > 0 ? "text-fin-down" : "text-slate-500"}`}>
+                                                    回撤: {metrics.core.cDD !== null ? `-${metrics.core.cDD.toFixed(1)}%` : '--'}
                                                 </div>
                                             </div>
                                             <div className="bg-slate-800 p-2 rounded-lg border border-slate-700">
                                                 <div className="text-slate-400 text-[9px] mb-1">波段反彈低點</div>
-                                                <div className="font-bold text-sm">${metrics.core.qWaveLow}</div>
-                                                <div className={`text-[10px] mt-1 text-fin-up`}>
-                                                    反彈: +{metrics.core.cBounce.toFixed(1)}%
+                                                <div className="font-bold text-sm">{metrics.core.qWaveLow > 0 ? `$${metrics.core.qWaveLow}` : '--'}</div>
+                                                <div className={`text-[10px] mt-1 ${metrics.core.cBounce !== null && metrics.core.cBounce > 0 ? "text-fin-up" : "text-slate-500"}`}>
+                                                    反彈: {metrics.core.cBounce !== null ? `+${metrics.core.cBounce.toFixed(1)}%` : '--'}
                                                 </div>
                                             </div>
                                         </div>
@@ -929,30 +843,30 @@
                                         <div className="mb-4">
                                             <div className="flex justify-between text-[10px] text-slate-500 mb-1">
                                                 <span>🟢 QQQ 波段反彈 (看波段低點：目標 +10% / +20%)</span>
-                                                <span className={metrics.core.cBounce >= 10 ? 'text-fin-up font-bold' : ''}>+{metrics.core.cBounce.toFixed(1)}%</span>
+                                                <span className={metrics.core.cBounce >= 10 ? 'text-fin-up font-bold' : ''}>{metrics.core.cBounce !== null ? `+${metrics.core.cBounce.toFixed(1)}%` : '--'}</span>
                                             </div>
                                             <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                                <div className="h-full bg-fin-up transition-all duration-500" style={{width:`${Math.min(100, (metrics.core.cBounce/20)*100)}%`}}></div>
+                                                <div className="h-full bg-fin-up transition-all duration-500" style={{width:`${Math.min(100, ((metrics.core.cBounce||0)/20)*100)}%`}}></div>
                                             </div>
                                         </div>
 
                                         <div className="mb-4">
                                             <div className="flex justify-between text-[10px] text-slate-500 mb-1">
                                                 <span>🟣 SPMO 狂熱期啟動 (看上次高點：目標 +14%)</span>
-                                                <span className={metrics.core.cRise >= 14 ? 'text-purple-600 font-bold' : ''}>{metrics.core.cRise >= 0 ? `+${metrics.core.cRise.toFixed(1)}%` : '未過高'}</span>
+                                                <span className={metrics.core.cRise >= 14 ? 'text-purple-600 font-bold' : ''}>{metrics.core.cRise !== null ? (metrics.core.cRise >= 0 ? `+${metrics.core.cRise.toFixed(1)}%` : '未過高') : '--'}</span>
                                             </div>
                                             <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                                <div className="h-full bg-purple-500 transition-all duration-500" style={{width:`${Math.min(100, Math.max(0, metrics.core.cRise/14)*100)}%`}}></div>
+                                                <div className="h-full bg-purple-500 transition-all duration-500" style={{width:`${Math.min(100, Math.max(0, (metrics.core.cRise||0)/14)*100)}%`}}></div>
                                             </div>
                                         </div>
                                         
                                         <div>
                                             <div className="flex justify-between text-[10px] text-slate-500 mb-1">
                                                 <span>🔴 QQQ 回撤加碼階梯 (看最新高點：目標 -35%)</span>
-                                                <span className={metrics.core.cRise < 0 ? 'text-fin-down font-bold' : ''}>{metrics.core.cRise < 0 ? `-${metrics.core.cDD.toFixed(1)}%` : '創新高中'}</span>
+                                                <span className={(metrics.core.cRise === null || metrics.core.cRise < 0) ? 'text-fin-down font-bold' : ''}>{(metrics.core.cRise === null || metrics.core.cRise < 0) ? (metrics.core.cDD !== null ? `-${metrics.core.cDD.toFixed(1)}%` : '--') : '創新高中'}</span>
                                             </div>
                                             <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                                <div className="h-full bg-fin-down transition-all duration-500" style={{width:`${Math.min(100, (metrics.core.cDD/35)*100)}%`}}></div>
+                                                <div className="h-full bg-fin-down transition-all duration-500" style={{width:`${Math.min(100, ((metrics.core.cDD||0)/35)*100)}%`}}></div>
                                             </div>
                                         </div>
                                     </div>

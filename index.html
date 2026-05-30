@@ -72,7 +72,7 @@
         };
         const getArr = (arr) => Array.isArray(arr) ? arr : (arr && typeof arr === 'object' ? Object.values(arr) : []);
 
-        // --- 預設值區塊 (100% 貼合 V_Final 白皮書) ---
+        // --- 預設值區塊 ---
         const defPlan = `🧠 Alpha Horizon 波動循環動態槓桿系統\n【系統核心】平時 QQQ 複利，回撤動態加槓桿，反彈與創高分批收割，BOXX 鎖死防禦閉環。\n\n壹、 資金絕對配置 (封閉系統)\n• 核心母艦 (70%)：QQQ\n• 機動衛星 (20%)：TSLA (10%)、IBIT (10%)。平時持有 1x 現股。\n• 戰備儲備 (10%)：BOXX。平時基準為 10%，大盤創歷史新高時動態調升至 15%。\n\n貳、 核心母艦：動態槓桿與分批收割 (QQQ ⇄ TQQQ)\n1. 下跌加碼 (基準：QQQ 歷史高點 ATH)\n• -7%：15% QQQ ➜ TQQQ\n• -14%、-21%、-28%：各轉 15% QQQ ➜ TQQQ，並同步動用 25% 戰略 BOXX 買入 TQQQ。\n• -35%：最後 25% 戰略 BOXX 全開買入 TQQQ。\n(部位限制：最多轉 60% QQQ，強迫保留母艦底盤)\n\n2. 反彈降風險 (基準：波段低點反彈)\n• +10% 且 QQQ 日K線站上 20MA：15% TQQQ ➜ QQQ\n• +20% (延續多頭趨勢)：再 15% TQQQ ➜ QQQ\n\n3. 創高收割 (基準：突破 QQQ ATH)\n• ATH +7%：賣出剩餘 25% TQQQ ➜ QQQ。同步將 BOXX 儲備基準調升至 15%。\n• ATH +14%：剩餘全部 TQQQ ➜ SPMO，進入狂熱動能期。\n• SPMO 退出：當 QQQ 自「創高後最新高點」回撤 -7%，SPMO 全數退出回歸 QQQ。\n(成本保護鐵律：任何 TQQQ 換回 QQQ，賣價必須大於買入均價，否則無條件續抱。)\n\n參、 衛星系統：攻擊與防禦\n1. LEAPS 攻擊機制 (量化深跌啟動)\n• 觸發條件：標的「跌破 200MA」且「自前波高點回撤達 -20%」時，將現股換為 Deep ITM Call (餘款退回 BOXX)。\n• 退場三防線：獲利(+25%)結清；時間(<180天)強制平倉；結構(Delta<0.60)停損換現股。\n\n2. 現股補倉機制 (防禦)\n• 觸發條件：帳面每跌 -7%，動用戰術 BOXX 補回 10% 基準 (最多 3 次)。\n• 末日凍結：當 BOXX 水位低於 3%，強制凍結補倉，保留資金救母艦。\n\n肆、 資金閉環與系統鐵律\n• 第一順位優先補滿 BOXX (常態 10%，創高 15%)，第二順位擴張 QQQ。\n• 嚴禁憑「感覺」進出場；數字未到，原地臥倒。`;
         
         const defSats = [
@@ -103,6 +103,8 @@
             cash_balance: 0, 
             reserve_pct_normal: 10, 
             reserve_pct_ath: 15, 
+            spmo_trigger_pct: 14,
+            spmo_drop_pct: 7,
             core_1_type: 'stock', qty_core_1: 0, opt_p_c1: 0, opt_d_c1: 2,
             core_2_type: 'stock', qty_core_2: 0, opt_p_c2: 0, opt_d_c2: 3,
             qty_spmo: 0,
@@ -167,8 +169,8 @@
             );
         });
 
-        const CollapsibleCard = ({ title, icon, isOpen, onToggle, children, rightElement }) => (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+        const CollapsibleCard = ({ title, icon, isOpen, onToggle, children, rightElement, className="" }) => (
+            <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6 ${className}`}>
                 <div className="p-5 flex justify-between items-center cursor-pointer bg-slate-50/80 border-b border-slate-100 hover:bg-slate-100/50 transition-colors" onClick={onToggle}>
                     <div className="flex gap-3 items-center text-sm font-black text-slate-800">
                         <Icon name={icon} className="text-brand-600" /> {title}
@@ -296,6 +298,12 @@
                         if (parsed.qqq_ath && !parsed.qqq_locked_ath) parsed.qqq_locked_ath = parsed.qqq_ath;
                         if (parsed.tqqq_low && !parsed.qqq_wave_low) parsed.qqq_wave_low = parsed.tqqq_low;
                         if (parsed.reserve_pct !== undefined && parsed.reserve_pct_normal === undefined) parsed.reserve_pct_normal = parsed.reserve_pct;
+                        
+                        // 初始化 SPMO 相關變數
+                        if (parsed.spmo_trigger_pct === undefined) parsed.spmo_trigger_pct = 14;
+                        if (parsed.spmo_drop_pct === undefined) parsed.spmo_drop_pct = 7;
+                        if (parsed.qty_spmo === undefined) parsed.qty_spmo = 0;
+
                         return { ...defInputs, ...parsed };
                     }
                     return defInputs; 
@@ -389,7 +397,10 @@
                             core_up_ladder: getArr(d.core_up_ladder).length > 0 ? getArr(d.core_up_ladder) : defUpLad, 
                             reserve_pct_normal: d.reserve_pct_normal !== undefined ? d.reserve_pct_normal : (d.reserve_pct !== undefined ? d.reserve_pct : defInputs.reserve_pct_normal),
                             reserve_pct_ath: d.reserve_pct_ath !== undefined ? d.reserve_pct_ath : defInputs.reserve_pct_ath,
-                            qty_boxx: d.qty_boxx !== undefined ? d.qty_boxx : (d.qty_sgov || 0) 
+                            qty_boxx: d.qty_boxx !== undefined ? d.qty_boxx : (d.qty_sgov || 0),
+                            spmo_trigger_pct: d.spmo_trigger_pct !== undefined ? d.spmo_trigger_pct : 14,
+                            spmo_drop_pct: d.spmo_drop_pct !== undefined ? d.spmo_drop_pct : 7,
+                            qty_spmo: d.qty_spmo !== undefined ? d.qty_spmo : 0
                         })); 
                     }
                     setIsSwitching(false); 
@@ -616,7 +627,7 @@
                         }
                         else if (costDD >= getNum(s.loss_pct)) { 
                             if (getNum(s.rescues) < 3) { 
-                                st = `觸發補倉 (-${costDD.toFixed(1)}%)`; col = "text-fin-down"; act = `動用戰術 BOXX 補足配置。`; 
+                                st = `觸發補倉 (-${costDD.toFixed(1)}%)`; col = "text-fin-down"; act = `動用戰術 BOXX 補回 10% 基準。`; 
                             } else { 
                                 st = "補倉達上限"; col = "text-slate-600"; act = "已連補 3 次，停止補倉防禦等待。"; 
                             } 
@@ -650,10 +661,16 @@
                 const q20ma = getV('qqq_20ma');
                 const qWaveLow = getV('qqq_wave_low');
 
-                const cDD = qAthLocked > 0 && pQQQ < qAthLocked ? ((qAthLocked - pQQQ) / qAthLocked) * 100 : 0;
+                // 下跌看 Rolling High, 上漲看 Locked ATH
+                const baseHighForDrop = qLatestHigh > 0 ? qLatestHigh : qAthLocked;
+                const cDD = baseHighForDrop > 0 && pQQQ < baseHighForDrop ? ((baseHighForDrop - pQQQ) / baseHighForDrop) * 100 : 0;
                 const cRise = qAthLocked > 0 && pQQQ >= qAthLocked ? ((pQQQ - qAthLocked) / qAthLocked) * 100 : -1;
                 const cBounce = qWaveLow > 0 ? ((pQQQ - qWaveLow) / qWaveLow) * 100 : 0;
                 const cSpmoDrop = qLatestHigh > 0 && pQQQ < qLatestHigh ? ((qLatestHigh - pQQQ) / qLatestHigh) * 100 : 0;
+                
+                // 抓取 SPMO 觸發參數
+                const spmoTrigger = getV('spmo_trigger_pct') || 14;
+                const spmoDrop = getV('spmo_drop_pct') || 7;
                 
                 // BOXX 動態基準：突破 ATH +7% 時提升至 15%
                 const tgtRPct = cRise >= 7 ? getV('reserve_pct_ath') : getV('reserve_pct_normal');
@@ -679,7 +696,7 @@
                     return { 
                         p: getNum(s.drop_pct), 
                         m: getNum(s.move_pct), 
-                        tr: qAthLocked * (1 - getNum(s.drop_pct) / 100), 
+                        tr: baseHighForDrop * (1 - getNum(s.drop_pct) / 100), 
                         t: cDD >= getNum(s.drop_pct),
                         cumTqqq, coreLev
                     };
@@ -687,14 +704,14 @@
 
                 if (cRise >= 0) {
                     // SPMO 狂熱期退出機制
-                    if (qLatestHigh > qAthLocked && cSpmoDrop >= 7) {
-                        phase = "動能破線 (-7%)：SPMO 全數退場回歸 QQQ";
+                    if (qLatestHigh > qAthLocked && cSpmoDrop >= spmoDrop) {
+                        phase = `動能破線 (-${spmoDrop}%)：SPMO 全數退場回歸 QQQ`;
                         tSpmoPct = 0;
                         tTqqqPct = 0;
                     } 
                     // SPMO 狂熱期進入機制
-                    else if (cRise >= 14) {
-                        phase = "狂熱期：剩餘 TQQQ 轉入 SPMO 延續動能";
+                    else if (cRise >= spmoTrigger) {
+                        phase = `狂熱期：剩餘 TQQQ 轉入 SPMO 延續動能`;
                         tSpmoPct = (valCore2 + valSpmo) / safeT * 100; // 維持動能池
                         tTqqqPct = 0;
                     }
@@ -830,7 +847,7 @@
                         sm: { p: tSpmoPct }
                     },
                     core: { 
-                        pQQQ, pTQQQ, qAthLocked, qLatestHigh, cDD, cRise, tTqqqPct, tSpmoPct, phase, cAct, cCol, tDiff, sDiff, qDiff, bDiff,
+                        pQQQ, pTQQQ, qAthLocked, qLatestHigh, cDD, cRise, tTqqqPct, tSpmoPct, phase, cAct, cCol, tDiff, sDiff, qDiff, bDiff, cBounce,
                         dnL: mappedDnLadder, 
                         upL: safeUpLadder.map(s => ({ p: getNum(s.rise_pct), tp: getNum(s.target_pct), tr: qAthLocked*(1+getNum(s.rise_pct)/100), t: cRise>=getNum(s.rise_pct) })) 
                     }
@@ -867,7 +884,7 @@
                     {isSwitching && !authError && <div className="loading-overlay"><div className="w-10 h-10 border-4 border-slate-600 border-t-white rounded-full animate-spin"/><div className="text-sm">同步中...</div></div>}
 
                     {modal.type === 'DELETE_RECORD' && <Modal title="刪除紀錄" icon="Trash2" isOpen={true} onClose={() => setModal({type:null})}><p className="text-sm text-slate-600 mb-4">確定刪除此紀錄？</p><button onClick={deleteRecord} className="w-full bg-fin-down text-white py-4 rounded-xl active:scale-95">刪除</button></Modal>}
-                    {modal.type === 'EDIT_RECORD' && <Modal title="編輯紀錄" icon="Edit2" isOpen={true} onClose={() => setModal({type:null})}><div className="space-y-4"><div><label className="text-xs text-slate-500 mb-2 block">日期</label><input type="date" className="w-full bg-slate-50 p-4 rounded-xl border font-black outline-none input-focus-ring" defaultValue={modal.data.date?.split('T')[0]} onChange={e => setModal({...modal,temp:{...modal.temp,date:new Date(e.target.value).toISOString()}})} /></div><div><label className="text-xs text-slate-500 mb-2 block">總資產 ($)</label><input type="number" inputMode="decimal" className="w-full bg-slate-50 p-4 rounded-xl border font-mono text-xl text-brand-700 outline-none input-focus-ring" defaultValue={modal.data.total_equity} onChange={e => setModal({...modal,temp:{...modal.temp,equity:e.target.value}})} onFocus={e=>e.target.select()} /></div><button onClick={editRecord} className="w-full bg-brand-600 text-white py-4 rounded-xl active:scale-95">儲存變更</button></div></Modal>}
+                    {modal.type === 'EDIT_RECORD' && <Modal title="編輯紀錄" icon="Edit2" isOpen={true} onClose={() => setModal({type:null})}><div className="space-y-4"><div><label className="text-xs text-slate-500 mb-2 block">日期</label><input type="date" className="w-full bg-slate-50 p-4 rounded-xl border font-black outline-none input-focus-ring text-left px-3" defaultValue={modal.data.date?.split('T')[0]} onChange={e => setModal({...modal,temp:{...modal.temp,date:new Date(e.target.value).toISOString()}})} /></div><div><label className="text-xs text-slate-500 mb-2 block">總資產 ($)</label><input type="number" inputMode="decimal" className="w-full bg-slate-50 p-4 rounded-xl border font-mono text-xl text-brand-700 outline-none input-focus-ring" defaultValue={modal.data.total_equity} onChange={e => setModal({...modal,temp:{...modal.temp,equity:e.target.value}})} onFocus={e=>e.target.select()} /></div><button onClick={editRecord} className="w-full bg-brand-600 text-white py-4 rounded-xl active:scale-95">儲存變更</button></div></Modal>}
 
                     <header className="fixed top-0 inset-x-0 bg-white z-50 px-5 py-4 flex justify-between items-center shadow-sm border-b border-slate-200">
                         <div className="flex items-center gap-2">
@@ -880,100 +897,23 @@
                     <main className="max-w-md mx-auto p-4 pt-24 space-y-6">
                         {view === 'dashboard' && (
                             <div className="space-y-6 animate-in fade-in">
-                                <div className="bg-white rounded-3xl p-5 shadow-sm border relative input-focus-ring group">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <div className="flex items-center gap-2 text-brand-600"><Icon name="Quote" size={16}/><span className="text-xs uppercase tracking-widest text-slate-500">投資座右銘</span></div>
-                                        <button onClick={() => setIsMottoLocked(!isMottoLocked)} className="text-slate-400 active:scale-95"><Icon name={isMottoLocked?"Lock":"Unlock"} size={16}/></button>
-                                    </div>
-                                    <textarea value={inputs.motto} readOnly={isMottoLocked} onChange={e => handleInput('motto', e.target.value)} onBlur={e => syncToCloud('motto', e.target.value)} className={`w-full bg-transparent text-base text-slate-700 outline-none text-center leading-relaxed transition-all ${isMottoLocked?'':'bg-slate-50 border-dashed border-slate-300 rounded-xl p-3 border'}`} rows="2" placeholder="輸入您的投資座右銘..." />
-                                </div>
-
+                                
+                                {/* Top 1: 總資產與大盤/衛星佔比 */}
                                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
                                     <div className="text-xs text-slate-500 font-bold mb-1">動態總資產價值 (USD)</div>
                                     <div className="text-5xl font-mono tracking-tight font-black">${metrics.totalCapital.toLocaleString(undefined,{maximumFractionDigits:0})}</div>
                                     
-                                    <div className="mt-6 pt-5 border-t border-slate-100">
-                                        {/* 戰術指揮所：核心轉換中心 */}
-                                        <div className="bg-slate-800 p-4 rounded-xl text-white shadow-heavy mb-4 border border-slate-700">
-                                            <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-700">
-                                                <span className="text-xs font-black text-brand-400 flex items-center gap-1"><Icon name="Activity" size={14}/> 核心轉換中心</span>
-                                                <div className="flex gap-2">
-                                                    <span className="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-brand-100 truncate max-w-[120px]">{metrics.core.phase}</span>
-                                                    <button onClick={copyCommand} className="text-[10px] bg-brand-600 px-2 py-0.5 rounded text-white active:scale-95">複製指令</button>
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="grid grid-cols-1 gap-3">
-                                                <div className={`text-center text-sm py-1 font-black ${metrics.core.cCol}`}>{metrics.core.cAct}</div>
-                                                
-                                                {(metrics.core.tDiff !== 0 || metrics.core.sDiff !== 0 || metrics.core.qDiff !== 0) && (
-                                                    <div className="space-y-3 mt-1 pt-3 border-t border-slate-700">
-                                                        {metrics.core.qDiff !== 0 && (
-                                                            <div className="flex justify-between items-center">
-                                                                <span className="text-xs text-slate-400">大盤 QQQ</span>
-                                                                <span className={`font-mono text-sm ${metrics.core.qDiff > 0 ? 'text-fin-up' : 'text-fin-down'}`}>
-                                                                    {metrics.core.qDiff > 0 ? '買入' : '賣出'} ${Math.abs(Math.round(metrics.core.qDiff)).toLocaleString()}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                        {metrics.core.tDiff !== 0 && (
-                                                            <div className="flex justify-between items-center">
-                                                                <span className="text-xs text-slate-400">槓桿 TQQQ</span>
-                                                                <span className={`font-mono text-sm ${metrics.core.tDiff > 0 ? 'text-fin-up' : 'text-fin-down'}`}>
-                                                                    {metrics.core.tDiff > 0 ? '買入' : '賣出'} ${Math.abs(Math.round(metrics.core.tDiff)).toLocaleString()}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                        {metrics.core.sDiff !== 0 && (
-                                                            <div className="flex justify-between items-center">
-                                                                <span className="text-xs text-purple-400">動能 SPMO</span>
-                                                                <span className={`font-mono text-sm ${metrics.core.sDiff > 0 ? 'text-purple-400' : 'text-red-400'}`}>
-                                                                    {metrics.core.sDiff > 0 ? '買入' : '賣出'} ${Math.abs(Math.round(metrics.core.sDiff)).toLocaleString()}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                        {metrics.core.bDiff !== 0 && (
-                                                            <div className="flex justify-between items-center">
-                                                                <span className="text-xs text-slate-400">戰備 BOXX</span>
-                                                                <span className={`font-mono text-sm ${metrics.core.bDiff > 0 ? 'text-fin-warn' : 'text-fin-down'}`}>
-                                                                    {metrics.core.bDiff > 0 ? '買入' : '賣出'} ${Math.abs(Math.round(metrics.core.bDiff)).toLocaleString()}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* 衛星戰術指示 */}
-                                        <div className="text-xs font-black text-brand-600 mb-3 mt-4 flex items-center gap-1"><Icon name="Zap" size={16}/> 衛星作戰指令</div>
-                                        {metrics.satStats.map(s => s.underlying && (
-                                            <div key={s.id} className={`p-3 rounded-xl border mb-2 flex justify-between items-center ${s.alert ? 'bg-red-50 border-red-200' : s.gapVal > 50 ? 'bg-fin-up/10 border-fin-up/30' : s.gapVal < -50 ? 'bg-fin-down/10 border-fin-down/30' : 'bg-slate-50 border-slate-100'}`}>
-                                                <div>
-                                                    <div className="text-[10px] text-slate-500 mb-1">衛星 {s.underlying} <span className="text-slate-400 ml-1">({s.cPct.toFixed(1)}% / {s.tPct}%)</span></div>
-                                                    <div className="text-[10px] font-mono text-slate-400">{s.st}</div>
-                                                </div>
-                                                <div className="text-right flex flex-col items-end">
-                                                    <div className={`text-sm font-black ${s.alert ? 'text-red-500' : s.gapVal > 50 ? 'text-fin-up' : s.gapVal < -50 ? 'text-fin-down' : 'text-slate-400'}`}>
-                                                        {s.alert ? s.alert : s.gapVal > 50 ? `需補 $${Math.round(s.gapVal).toLocaleString()}` : s.gapVal < -50 ? `溢出 $${Math.abs(Math.round(s.gapVal)).toLocaleString()}` : '配比完美'}
-                                                    </div>
-                                                    <div className="text-[9px] text-slate-500 mt-1">{s.act}</div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    
                                     {/* 全系統配比監控面板 */}
                                     <div className="mt-5 pt-4 border-t border-slate-100">
                                         <div className="text-xs font-black text-slate-700 mb-3 flex items-center justify-between">
-                                            <span className="flex items-center gap-1"><Icon name="PieChart" size={14} className="text-brand-600"/> 系統目標 vs 實際配比監控</span>
-                                            <span className="text-[9px] text-slate-400 font-normal">差距</span>
+                                            <span className="flex items-center gap-1"><Icon name="PieChart" size={14} className="text-brand-600"/> 系統目標 vs 實際配比</span>
+                                            <span className="text-[9px] text-slate-400 font-normal">落差</span>
                                         </div>
                                         <div className="space-y-1.5">
                                             <AllocRow name="QQQ" actual={(metrics.cls.c.u/metrics.safeTotal*100)} target={metrics.tgt.q.p} color="text-slate-800" />
                                             <AllocRow name="TQQQ" actual={(metrics.cls.c.l/metrics.safeTotal*100)} target={metrics.tgt.t.p} color="text-brand-600" />
                                             <AllocRow name="SPMO" actual={(metrics.cls.c.sm/metrics.safeTotal*100)} target={metrics.tgt.sm.p} color="text-purple-600" />
-                                            <AllocRow name="戰備 (BOXX+現金)" actual={(metrics.cls.r.t/metrics.safeTotal*100)} target={metrics.tgt.r.p} color="text-fin-warn" />
+                                            <AllocRow name="戰備防禦 (BOXX+現)" actual={(metrics.cls.r.t/metrics.safeTotal*100)} target={metrics.tgt.r.p} color="text-fin-warn" />
                                             {metrics.satStats.map(s => s.underlying && (
                                                 <AllocRow key={s.id} name={`衛星 ${s.underlying}`} actual={s.cPct} target={s.tPct} color="text-slate-600" />
                                             ))}
@@ -981,6 +921,226 @@
                                     </div>
                                 </div>
 
+                                {/* Top 2: 戰術指揮所與本日指令 */}
+                                <div className="bg-slate-800 p-5 rounded-3xl text-white shadow-heavy border border-slate-700">
+                                    <div className="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
+                                        <span className="text-sm font-black text-brand-400 flex items-center gap-2"><Icon name="Zap" size={18}/> 本日操作指令</span>
+                                        <div className="flex gap-2">
+                                            <span className="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-brand-100 truncate max-w-[120px]">{metrics.core.phase}</span>
+                                            <button onClick={copyCommand} className="text-[10px] bg-brand-600 px-2 py-0.5 rounded text-white active:scale-95">複製</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="space-y-3">
+                                        <div className={`text-center text-sm py-1 font-black ${metrics.core.cCol}`}>{metrics.core.cAct}</div>
+                                        
+                                        {(metrics.core.tDiff !== 0 || metrics.core.sDiff !== 0 || metrics.core.qDiff !== 0 || metrics.core.bDiff !== 0) && (
+                                            <div className="space-y-3 mt-2 pt-3 border-t border-slate-700">
+                                                {metrics.core.qDiff !== 0 && (
+                                                    <div className="flex justify-between items-center bg-slate-900 p-2.5 rounded-lg border border-slate-700">
+                                                        <span className="text-xs text-slate-400">大盤 QQQ</span>
+                                                        <span className={`font-mono text-sm ${metrics.core.qDiff > 0 ? 'text-fin-up' : 'text-fin-down'}`}>
+                                                            {metrics.core.qDiff > 0 ? '買入' : '賣出'} ${Math.abs(Math.round(metrics.core.qDiff)).toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {metrics.core.tDiff !== 0 && (
+                                                    <div className="flex justify-between items-center bg-slate-900 p-2.5 rounded-lg border border-slate-700">
+                                                        <span className="text-xs text-brand-400">槓桿 TQQQ</span>
+                                                        <span className={`font-mono text-sm ${metrics.core.tDiff > 0 ? 'text-fin-up' : 'text-fin-down'}`}>
+                                                            {metrics.core.tDiff > 0 ? '買入' : '賣出'} ${Math.abs(Math.round(metrics.core.tDiff)).toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {metrics.core.sDiff !== 0 && (
+                                                    <div className="flex justify-between items-center bg-slate-900 p-2.5 rounded-lg border border-slate-700">
+                                                        <span className="text-xs text-purple-400">動能 SPMO</span>
+                                                        <span className={`font-mono text-sm ${metrics.core.sDiff > 0 ? 'text-purple-400' : 'text-red-400'}`}>
+                                                            {metrics.core.sDiff > 0 ? '買入' : '賣出'} ${Math.abs(Math.round(metrics.core.sDiff)).toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {metrics.core.bDiff !== 0 && (
+                                                    <div className="flex justify-between items-center bg-slate-900 p-2.5 rounded-lg border border-slate-700">
+                                                        <span className="text-xs text-fin-warn">戰備 BOXX</span>
+                                                        <span className={`font-mono text-sm ${metrics.core.bDiff > 0 ? 'text-fin-warn' : 'text-fin-down'}`}>
+                                                            {metrics.core.bDiff > 0 ? '買入' : '賣出'} ${Math.abs(Math.round(metrics.core.bDiff)).toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* 衛星戰術指示 */}
+                                        {metrics.satStats.some(s => Math.abs(s.gapVal) > 50) && (
+                                            <div className="mt-4 pt-3 border-t border-slate-700 space-y-2">
+                                                <div className="text-[10px] text-slate-500 mb-2 flex items-center gap-1">衛星作戰指令</div>
+                                                {metrics.satStats.map(s => s.underlying && Math.abs(s.gapVal) > 50 && (
+                                                    <div key={s.id} className="flex justify-between items-center bg-slate-900 p-2.5 rounded-lg border border-slate-700">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs text-slate-300">{s.underlying}</span>
+                                                            <span className={`text-[9px] ${s.alert ? 'text-red-400' : 'text-slate-500'}`}>{s.alert || s.act}</span>
+                                                        </div>
+                                                        <span className={`font-mono text-sm ${s.alert ? 'text-red-500' : s.gapVal > 50 ? 'text-fin-up' : 'text-fin-down'}`}>
+                                                            {!s.alert && (s.gapVal > 50 ? '買入' : '賣出')} ${Math.abs(Math.round(s.gapVal)).toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Top 3: 系統監控進度條 */}
+                                <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
+                                    <div className="text-xs font-black text-slate-700 mb-4 flex items-center gap-1"><Icon name="Activity" size={14} className="text-brand-600"/> 系統觸發雷達 (距目標)</div>
+                                    
+                                    {/* TQQQ 反彈進度 */}
+                                    <div className="mb-4">
+                                        <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+                                            <span>QQQ 波段反彈 (目標 +10% / +20% 卸載)</span>
+                                            <span className={metrics.core.cBounce >= 10 ? 'text-fin-up font-bold' : ''}>+{metrics.core.cBounce.toFixed(1)}%</span>
+                                        </div>
+                                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                            <div className="h-full bg-fin-up transition-all duration-500" style={{width:`${Math.min(100, (metrics.core.cBounce/20)*100)}%`}}></div>
+                                        </div>
+                                    </div>
+
+                                    {/* SPMO 狂熱期進度 */}
+                                    <div className="mb-4">
+                                        <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+                                            <span>SPMO 狂熱期啟動 (目標 QQQ ATH +{inputs.spmo_trigger_pct}%)</span>
+                                            <span className={metrics.core.cRise >= inputs.spmo_trigger_pct ? 'text-purple-600 font-bold' : ''}>{metrics.core.cRise >= 0 ? `+${metrics.core.cRise.toFixed(1)}%` : '未過高'}</span>
+                                        </div>
+                                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                            <div className="h-full bg-purple-500 transition-all duration-500" style={{width:`${Math.min(100, Math.max(0, metrics.core.cRise/inputs.spmo_trigger_pct)*100)}%`}}></div>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* QQQ 跌幅加碼進度 */}
+                                    <div>
+                                        <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+                                            <span>QQQ 回撤加碼階梯 (新高起算)</span>
+                                            <span className={metrics.core.cRise < 0 ? 'text-fin-down font-bold' : ''}>{metrics.core.cRise < 0 ? `-${metrics.core.cDD.toFixed(1)}%` : '創新高中'}</span>
+                                        </div>
+                                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                            <div className="h-full bg-fin-down transition-all duration-500" style={{width:`${Math.min(100, (metrics.core.cDD/35)*100)}%`}}></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Top 4: 資產數量更新 (預設展開) */}
+                                <CollapsibleCard title="資產數量與市值更新" icon="Package" isOpen={sections.holdings} onToggle={() => toggleSection('holdings')}>
+                                    <div className="space-y-4">
+                                        <div className="bg-slate-50 p-3 rounded-xl border focus-within:border-brand-400 transition-colors">
+                                            <div className="flex justify-between items-center mb-2 border-b border-slate-200 pb-2">
+                                                <span className="text-xs font-black text-slate-700">大盤核心 (QQQ)</span>
+                                                <button onClick={() => handleInput('core_1_type', inputs.core_1_type === 'option' ? 'stock' : 'option')} className="text-[10px] bg-white border px-2 py-0.5 rounded shadow-sm text-slate-500 active:scale-95">切換 {inputs.core_1_type === 'option' ? '現貨' : '選擇權'}</button>
+                                            </div>
+                                            {inputs.core_1_type === 'option' ? (
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="text-[9px] text-slate-500 block mb-1">選擇權總市值 $</label>
+                                                        <input type="number" inputMode="decimal" value={inputs.opt_p_c1} onChange={e=>handleInput('opt_p_c1',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-base outline-none bg-white p-2 rounded-lg border shadow-sm"/>
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[9px] text-slate-500 block mb-1">等效現貨股數 (總Delta)</label>
+                                                        <input type="number" inputMode="decimal" value={inputs.opt_d_c1} onChange={e=>handleInput('opt_d_c1',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-base outline-none bg-white p-2 rounded-lg border shadow-sm"/>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <label className="text-[9px] text-slate-500 block mb-1">QQQ 股數</label>
+                                                    <input type="number" inputMode="decimal" value={inputs.qty_core_1} onChange={e=>handleInput('qty_core_1',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-xl outline-none bg-white p-2 rounded-lg border shadow-sm"/>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="bg-slate-50 p-3 rounded-xl border focus-within:border-brand-400 transition-colors">
+                                            <div className="flex justify-between items-center mb-2 border-b border-slate-200 pb-2">
+                                                <span className="text-xs font-black text-slate-700">核心槓桿 (TQQQ)</span>
+                                                <button onClick={() => handleInput('core_2_type', inputs.core_2_type === 'option' ? 'stock' : 'option')} className="text-[10px] bg-white border px-2 py-0.5 rounded shadow-sm text-slate-500 active:scale-95">切換 {inputs.core_2_type === 'option' ? '現貨(TQQQ)' : '選擇權'}</button>
+                                            </div>
+                                            {inputs.core_2_type === 'option' ? (
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="text-[9px] text-slate-500 block mb-1">選擇權總市值 $</label>
+                                                        <input type="number" inputMode="decimal" value={inputs.opt_p_c2} onChange={e=>handleInput('opt_p_c2',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-base outline-none bg-white p-2 rounded-lg border shadow-sm"/>
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[9px] text-slate-500 block mb-1">等效現貨股數 (總Delta)</label>
+                                                        <input type="number" inputMode="decimal" value={inputs.opt_d_c2} onChange={e=>handleInput('opt_d_c2',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-base outline-none bg-white p-2 rounded-lg border shadow-sm"/>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <label className="text-[9px] text-slate-500 block mb-1">TQQQ 股數</label>
+                                                    <input type="number" inputMode="decimal" value={inputs.qty_core_2} onChange={e=>handleInput('qty_core_2',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-xl outline-none bg-white p-2 rounded-lg border shadow-sm"/>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="bg-purple-50 p-3 rounded-xl border border-purple-200 focus-within:border-purple-400 transition-colors">
+                                            <div className="text-xs font-black text-purple-700 mb-2 border-b border-purple-200/50 pb-2">動能配置 (SPMO)</div>
+                                            <div>
+                                                <label className="text-[9px] text-purple-500 block mb-1">SPMO 股數</label>
+                                                <input type="number" inputMode="decimal" value={inputs.qty_spmo} onChange={e=>handleInput('qty_spmo',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-xl outline-none bg-white p-2 rounded-lg border border-purple-100 shadow-sm text-purple-800"/>
+                                            </div>
+                                        </div>
+                                        
+                                        {getArr(inputs.satellites).map(s => (
+                                            <div key={s.id} className="bg-slate-50 p-3 rounded-xl border focus-within:border-brand-400 transition-colors">
+                                                <div className="text-xs font-black text-slate-700 mb-2 border-b border-slate-200 pb-2">{s.underlying || '衛星部位'} 家族</div>
+                                                <div className="grid grid-cols-2 gap-3 mb-3">
+                                                    <div>
+                                                        <div className="text-[9px] text-slate-500 mb-1">現股 股數</div>
+                                                        <input type="number" inputMode="decimal" value={s.qty_u} onChange={e=>updateArr('satellites', s.id, 'qty_u', e.target.value)} onBlur={()=>syncToCloud('satellites', inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono text-base bg-white p-2 rounded-lg border shadow-sm outline-none"/>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-[9px] text-brand-600 mb-1">2x槓桿 股數</div>
+                                                        <input type="number" inputMode="decimal" value={s.qty_l !== undefined ? s.qty_l : 0} onChange={e=>updateArr('satellites', s.id, 'qty_l', e.target.value)} onBlur={()=>syncToCloud('satellites', inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono text-base text-brand-700 bg-brand-50/50 p-2 rounded-lg border border-brand-200 shadow-sm outline-none"/>
+                                                    </div>
+                                                </div>
+                                                <div className="pt-3 border-t border-slate-200">
+                                                    <div className="text-[9px] text-brand-600 font-bold mb-2 flex items-center gap-1"><Icon name="Zap" size={12}/> 深度 Call 期權</div>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <label className="text-[8px] text-slate-500 block mb-1">總市值 $</label>
+                                                            <input type="number" inputMode="decimal" value={s.opt_p_c || 0} onChange={e=>updateArr('satellites', s.id, 'opt_p_c', e.target.value)} onBlur={()=>syncToCloud('satellites', inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-2 rounded-lg border shadow-sm"/>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[8px] text-slate-500 block mb-1">等效現貨股數</label>
+                                                            <input type="number" inputMode="decimal" value={s.opt_d_c !== undefined ? s.opt_d_c : 2} onChange={e=>updateArr('satellites', s.id, 'opt_d_c', e.target.value)} onBlur={()=>syncToCloud('satellites', inputs.satellites)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-2 rounded-lg border shadow-sm"/>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        
+                                        <div className="grid grid-cols-2 gap-3 bg-slate-800 p-4 rounded-xl border border-slate-700 text-white shadow-inner">
+                                            <div>
+                                                <div className="text-[9px] text-slate-400 mb-1">BOXX 股數</div>
+                                                <input type="number" inputMode="decimal" value={inputs.qty_boxx} onChange={e=>handleInput('qty_boxx',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-xl bg-slate-900 p-2 rounded-lg border border-slate-600 text-brand-100 outline-none focus:border-brand-500 transition-colors"/>
+                                            </div>
+                                            <div>
+                                                <div className="text-[9px] text-slate-400 mb-1">現金餘額 ($)</div>
+                                                <div className="flex items-center bg-slate-900 rounded-lg border border-slate-600 focus-within:border-brand-500 transition-colors">
+                                                    <button onClick={() => { const v = (getNum(inputs.cash_balance) * -1).toString(); handleInput('cash_balance', v); }} className="ml-1 text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 px-2 py-1.5 rounded-md active:scale-95 transition-colors">+/-</button>
+                                                    <input type="number" inputMode="decimal" value={inputs.cash_balance} onChange={e=>handleInput('cash_balance',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-xl bg-transparent p-2 text-brand-100 outline-none rounded-r-lg"/>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-3 bg-slate-100 p-3 rounded-xl border border-slate-200">
+                                            <span className="text-xs text-slate-500 font-bold whitespace-nowrap">存檔日期</span>
+                                            <input type="date" value={recordDate} onChange={e=>setRecordDate(e.target.value)} className="w-full bg-white p-2 rounded-lg border outline-none font-mono text-sm text-left"/>
+                                            {recordDate!==getTodayStr() && <button onClick={()=>setRecordDate(getTodayStr())} className="text-xs bg-brand-100 hover:bg-brand-200 text-brand-700 px-3 py-2 rounded-lg active:scale-95 transition-all font-bold whitespace-nowrap shadow-sm">今天</button>}
+                                        </div>
+                                        <button onClick={saveRecord} disabled={isSaving} className="w-full py-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-base font-black active:scale-95 flex justify-center gap-2 shadow-md transition-colors"><Icon name="Save" size={20}/> 儲存並更新戰報</button>
+                                    </div>
+                                </CollapsibleCard>
+
+                                {/* Top 5: 配置圖與統計 */}
                                 <CollapsibleCard title="資產配置與火力統計" icon="PieChart" isOpen={sections.allocation} onToggle={() => toggleSection('allocation')} rightElement={<div className="flex gap-1.5"><div className={`px-1.5 py-0.5 rounded border flex gap-1 shadow-sm ${metrics.growthLeverageRatio>1.8?'bg-orange-50 border-orange-200 text-orange-700':'bg-brand-50 border-brand-200 text-brand-700'}`}><Icon name="Zap" size={12} className={metrics.growthLeverageRatio>1.5?"animate-pulse":""}/><span className="text-[9px]">成長 {metrics.growthLeverageRatio.toFixed(2)}x</span></div></div>}>
                                     {(metrics.pieData || []).length > 0 ? (
                                         <>
@@ -988,14 +1148,15 @@
                                                 {hasCharts ? (
                                                     <ResponsiveContainer><PieChart><Pie data={metrics.pieData} innerRadius={60} outerRadius={90} paddingAngle={2} dataKey="value" stroke="none">{(metrics.pieData || []).map((e,i) => <Cell key={i} fill={e.fill}/>)}</Pie><Tooltip content={<CustomPieTooltip/>}/></PieChart></ResponsiveContainer>
                                                 ) : <div className="h-full flex items-center justify-center text-slate-400 text-xs border border-dashed rounded-xl bg-slate-50">圖表載入中，請確認網路連線...</div>}
-                                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none"><div className="text-xs text-slate-400">不含戰備</div><div className="text-sm text-slate-700">成長部位</div></div>
+                                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none"><div className="text-xs text-slate-400">不含戰備</div><div className="text-sm text-slate-700 font-black">成長部位</div></div>
                                             </div>
                                             
                                             <div className="space-y-4 mt-6">
-                                                <div className="bg-slate-50 p-4 rounded-2xl border shadow-sm mb-4">
+                                                <div className="text-[10px] text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Icon name="Shield" size={12}/> 資產分類火力統計</div>
+                                                <div className="bg-slate-50 p-4 rounded-2xl border shadow-sm">
                                                     <div className="flex justify-between mb-3 border-b pb-2">
                                                         <span className="text-xs font-black">1. 大盤核心</span>
-                                                        <span className="text-xs font-mono text-brand-600 bg-brand-50 px-2 py-0.5 rounded">總佔比 {metrics.cls.c.p.toFixed(1)}% / 目標 {(100 - metrics.tgt.r.p - metrics.tgt.s.p).toFixed(1)}%</span>
+                                                        <span className="text-xs font-mono text-brand-600 bg-brand-50 px-2 py-0.5 rounded">佔 {metrics.cls.c.p.toFixed(1)}% / 目標 {(100 - metrics.tgt.r.p - metrics.tgt.s.p).toFixed(1)}%</span>
                                                     </div>
                                                     <div className="space-y-2">
                                                         <div className="flex justify-between items-center text-sm">
@@ -1027,33 +1188,109 @@
                                                 <div className="bg-slate-50 p-4 rounded-2xl border shadow-sm transition-all mb-4">
                                                     <div className="flex justify-between mb-3 border-b pb-2 cursor-pointer group" onClick={() => setIsSatDetailsOpen(!isSatDetailsOpen)}>
                                                         <div className="flex gap-2 items-center">
-                                                            <span className="text-xs font-black group-hover:text-brand-600 transition-colors">2. 機動衛星</span>
+                                                            <span className="text-xs font-black group-hover:text-brand-600 transition-colors">2. 機動衛星家族</span>
                                                             <Icon name={isSatDetailsOpen?"ChevronUp":"ChevronDown"} size={14} className="text-slate-400"/>
                                                         </div>
-                                                        <span className="text-xs font-mono text-brand-600 bg-brand-50 px-2 py-0.5 rounded">總佔比 {metrics.cls.s.p.toFixed(1)}% / 目標 {metrics.tgt.s.p}%</span>
+                                                        <span className="text-xs font-mono text-brand-600 bg-brand-50 px-2 py-0.5 rounded">佔 {metrics.cls.s.p.toFixed(1)}% / 目標 {metrics.tgt.s.p}%</span>
                                                     </div>
                                                     
                                                     {isSatDetailsOpen && (
                                                         <div className="space-y-3 animate-in fade-in">
-                                                            {metrics.satStats.map(s => s.underlying && (
-                                                                <div key={s.id} className="flex justify-between items-center text-sm border-b border-slate-100 last:border-0 pb-2 last:pb-0">
-                                                                    <span className="text-slate-600 font-bold">{s.underlying}</span>
-                                                                    <div className="text-right flex flex-col items-end">
-                                                                        <div>
-                                                                            <span className={`font-mono font-black ${s.cPct > s.tPct ? 'text-fin-up' : s.cPct < s.tPct ? 'text-fin-down' : 'text-slate-800'}`}>
-                                                                                {s.cPct.toFixed(1)}%
-                                                                            </span>
-                                                                            <span className="text-[10px] text-slate-400 ml-2">/ 目標 {s.tPct.toFixed(1)}%</span>
+                                                            {metrics.satStats.map(s => { 
+                                                                const up = (s.vU/metrics.safeTotal)*100; 
+                                                                const lp = (s.vL/metrics.safeTotal)*100; 
+                                                                const cp = (s.vC/metrics.safeTotal)*100; 
+                                                                return s.underlying && (
+                                                                    <div key={s.id} className="bg-white p-3 rounded-xl border shadow-sm">
+                                                                        <div className="flex justify-between items-center mb-2 pb-1 border-b border-slate-100">
+                                                                            <span className="text-[10px] font-black text-slate-700">{s.underlying} 家族</span>
+                                                                            <span className="text-[10px] font-mono text-brand-500">目標 {s.tPct}% / 實際 {(up+lp+cp).toFixed(1)}%</span>
+                                                                        </div>
+                                                                        <div className="grid grid-cols-3 text-center divide-x">
+                                                                            <div className="flex flex-col px-1">
+                                                                                <span className="text-[9px] text-slate-400">現貨 1x</span>
+                                                                                <span className="text-xs font-mono text-slate-700">{up.toFixed(1)}%</span>
+                                                                            </div>
+                                                                            <div className="flex flex-col px-1">
+                                                                                <span className="text-[9px] text-brand-400">Call</span>
+                                                                                <span className="text-xs font-mono text-brand-500">{cp.toFixed(1)}%</span>
+                                                                            </div>
+                                                                            <div className="flex flex-col px-1">
+                                                                                <span className="text-[9px] text-slate-400">槓桿 2x</span>
+                                                                                <span className="text-xs font-mono text-brand-600">{lp.toFixed(1)}%</span>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
-                                                                </div>
-                                                            ))}
+                                                                );
+                                                            })}
                                                         </div>
                                                     )}
+                                                </div>
+
+                                                <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700 text-white mt-4">
+                                                    <div className="flex justify-between mb-3 border-b border-slate-600 pb-2">
+                                                        <span className="text-xs">3. 戰備儲備 (0x)</span>
+                                                        <span className={`text-xs font-mono px-2 py-0.5 rounded ${metrics.cls.r.p<10?'bg-red-500 text-white font-black animate-pulse':metrics.cls.r.p<metrics.tgt.r.p?'bg-fin-warn/20 text-fin-warn':'bg-fin-up/20 text-fin-up'}`}>佔 {metrics.cls.r.p.toFixed(1)}% / 目標 {metrics.tgt.r.p}%</span>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] text-slate-400">BOXX</span>
+                                                            <span className="text-sm font-mono text-brand-100">{((metrics.cls.r.b/metrics.totalCapital)*100).toFixed(1)}%</span>
+                                                        </div>
+                                                        <div className="flex flex-col text-right">
+                                                            <span className="text-[10px] text-slate-400">帳戶現金</span>
+                                                            <span className="text-sm font-mono text-brand-100">{((metrics.cls.r.c/metrics.totalCapital)*100).toFixed(1)}%</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </>
                                     ) : <div className="text-center text-sm text-slate-400 py-10 bg-slate-50 rounded-xl border border-dashed">無資產資料</div>}
+                                </CollapsibleCard>
+
+                                <CollapsibleCard title="核心轉換參數狀態" icon="BarChart2" isOpen={sections.core} onToggle={() => toggleSection('core')}>
+                                    <div className="flex justify-between text-[10px] bg-slate-50 p-2 rounded-lg border border-slate-100 mb-4">
+                                        <div>
+                                            <span className="text-slate-400 block mb-0.5">最新高點 (防破線)</span>
+                                            <span className="font-mono text-slate-700 text-sm font-black">${inputs.qqq_latest_high}</span>
+                                        </div>
+                                        <div className="text-center border-l border-r px-2 border-slate-200">
+                                            <span className="text-slate-400 block mb-0.5">波段低點 (防死貓)</span>
+                                            <span className="font-mono text-slate-700 text-sm font-black">${inputs.qqq_wave_low}</span>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-slate-400 block mb-0.5">買入均價 (鐵律防護)</span>
+                                            <span className="font-mono text-amber-600 text-sm font-black">${inputs.tqqq_avg_cost}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between items-end mb-4">
+                                        <div><div className="text-[10px] text-slate-500">上次波段高點 (Locked ATH)</div><div className="font-mono text-lg">${metrics.core.qAthLocked}</div></div>
+                                        <div className="text-right"><div className="text-[10px] text-slate-500">{metrics.core.cRise>=0?'距 Locked 突破':'距 Locked 回撤'}</div><div className={`font-mono text-2xl ${metrics.core.cRise>=0?'text-fin-up':'text-fin-down'}`}>{metrics.core.cRise>=0 ? `+${metrics.core.cRise.toFixed(1)}%` : `-${metrics.core.cDD.toFixed(1)}%`}</div></div>
+                                    </div>
+                                    <div className="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100">
+                                        <div className="flex justify-between text-xs mb-2"><span>槓桿目標: {metrics.core.tTqqqPct.toFixed(1)}%</span><span className="text-brand-600">實際: {(metrics.cls.c.l/metrics.safeTotal*100).toFixed(1)}%</span></div>
+                                        <div className="w-full bg-slate-200 h-2 rounded-full relative"><div className="absolute top-0 bottom-0 w-1 bg-slate-400" style={{left:`${Math.min(100, metrics.core.tTqqqPct)}%`}}></div><div className="h-full bg-brand-500 transition-all" style={{width:`${Math.min(100, (metrics.cls.c.l/metrics.safeTotal*100))}%`}}></div></div>
+                                    </div>
+                                    <div className="mt-4 grid grid-cols-2 gap-2">
+                                        <div>
+                                            <div className="text-[9px] text-fin-down flex gap-1 mb-1"><Icon name="TrendingDown" size={10}/>加碼階梯 (觸發後累積)</div>
+                                            {(metrics.core.dnL || []).map((t,i) => (
+                                                <div key={i} className={`flex flex-col p-1.5 rounded border text-[9px] mb-1 ${t.t?'bg-slate-100 opacity-60':'bg-white'} ${i===metrics.core.dnL.length-1?'border-b-2 border-b-slate-400':''}`}>
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <span className={t.t?'':'text-red-500'}>-{t.p}%</span>
+                                                        <span className="font-mono">${t.tr.toFixed(1)}</span>
+                                                    </div>
+                                                    <div className="text-[8px] text-slate-500 bg-slate-50 p-1 rounded text-center">
+                                                        TQQQ: <span className="text-brand-600 font-bold">{t.cumTqqq.toFixed(1)}%</span> | 槓桿: <span className="text-brand-600 font-bold">{t.coreLev.toFixed(2)}x</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div>
+                                            <div className="text-[9px] text-fin-up flex gap-1 mb-1"><Icon name="TrendingUp" size={10}/>收割階梯</div>
+                                            {(metrics.core.upL || []).map((t,i) => <div key={i} className={`flex justify-between p-1.5 rounded border text-[9px] mb-1 ${t.t?'bg-brand-50 border-brand-200 text-brand-600':'bg-white text-slate-400 opacity-60'}`}><span>+{t.p}%</span><span className="font-mono">${t.tr.toFixed(1)}</span></div>)}
+                                        </div>
+                                    </div>
                                 </CollapsibleCard>
 
                                 <CollapsibleCard title="壓力測試與底線模擬" icon="Shield" isOpen={sections.stress} onToggle={() => toggleSection('stress')}>
@@ -1082,169 +1319,12 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="text-[9px] text-slate-500 leading-relaxed bg-slate-50 p-3 rounded-lg border border-dashed">* 壓力測試邏輯：根據您目前的「實際工具配比」與「槓桿倍數」精密計算。軍火庫 (BOXX/現金) 視為避風港不計跌幅。此面板旨在協助鍛鍊極端行情下的心理韌性。</div>
-                                    </div>
-                                </CollapsibleCard>
-
-                                <CollapsibleCard title="核心轉換參數狀態" icon="BarChart2" isOpen={sections.core} onToggle={() => toggleSection('core')}>
-                                    <div className="flex justify-between text-[10px] bg-slate-50 p-2 rounded-lg border border-slate-100 mb-4">
-                                        <div>
-                                            <span className="text-slate-400 block mb-0.5">最新高點 (防破線)</span>
-                                            <span className="font-mono text-slate-700 text-sm font-black">${inputs.qqq_latest_high}</span>
-                                        </div>
-                                        <div className="text-center border-l border-r px-2 border-slate-200">
-                                            <span className="text-slate-400 block mb-0.5">波段低點 (防死貓)</span>
-                                            <span className="font-mono text-slate-700 text-sm font-black">${inputs.qqq_wave_low}</span>
-                                        </div>
-                                        <div className="text-right">
-                                            <span className="text-slate-400 block mb-0.5">買入均價 (鐵律防護)</span>
-                                            <span className="font-mono text-amber-600 text-sm font-black">${inputs.tqqq_avg_cost}</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-between items-end mb-4">
-                                        <div><div className="text-[10px] text-slate-500">上次波段高點 (Locked ATH)</div><div className="font-mono text-lg">${metrics.core.qAthLocked}</div></div>
-                                        <div className="text-right"><div className="text-[10px] text-slate-500">{metrics.core.cRise>=0?'距 Locked 突破':'距 Locked 回撤'}</div><div className={`font-mono text-2xl ${metrics.core.cRise>=0?'text-fin-up':'text-fin-down'}`}>{metrics.core.cRise>=0 ? `+${metrics.core.cRise.toFixed(1)}%` : `-${metrics.core.cDD.toFixed(1)}%`}</div></div>
-                                    </div>
-                                    <div className="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100">
-                                        <div className="flex justify-between text-xs mb-2"><span>槓桿目標: {metrics.core.tTqqqPct.toFixed(1)}%</span><span className="text-brand-600">實際: {(metrics.cls.c.l/metrics.safeTotal*100).toFixed(1)}%</span></div>
-                                        <div className="w-full bg-slate-200 h-2 rounded-full relative"><div className="absolute top-0 bottom-0 w-1 bg-slate-400" style={{left:`${Math.min(100, metrics.core.tTqqqPct)}%`}}></div><div className="h-full bg-brand-500 transition-all" style={{width:`${Math.min(100, (metrics.cls.c.l/metrics.safeTotal*100))}%`}}></div></div>
-                                        <div className="text-center text-[10px] mt-2 text-slate-500">{metrics.core.phase}</div>
-                                    </div>
-                                    <div className="mt-4 grid grid-cols-2 gap-2">
-                                        <div>
-                                            <div className="text-[9px] text-fin-down flex gap-1 mb-1"><Icon name="TrendingDown" size={10}/>加碼階梯 (觸發後累計預估)</div>
-                                            {(metrics.core.dnL || []).map((t,i) => (
-                                                <div key={i} className={`flex flex-col p-1.5 rounded border text-[9px] mb-1 ${t.t?'bg-slate-100 opacity-60':'bg-white'} ${i===metrics.core.dnL.length-1?'border-b-2 border-b-slate-400':''}`}>
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <span className={t.t?'':'text-red-500'}>-{t.p}%</span>
-                                                        <span className="font-mono">${t.tr.toFixed(1)}</span>
-                                                    </div>
-                                                    <div className="text-[8px] text-slate-500 bg-slate-50 p-1 rounded">
-                                                        累積 TQQQ: <span className="text-brand-600 font-bold">{t.cumTqqq.toFixed(1)}%</span> 
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <div>
-                                            <div className="text-[9px] text-fin-up flex gap-1 mb-1"><Icon name="TrendingUp" size={10}/>收割階梯</div>
-                                            {(metrics.core.upL || []).map((t,i) => <div key={i} className={`flex justify-between p-1.5 rounded border text-[9px] mb-1 ${t.t?'bg-brand-50 border-brand-200 text-brand-600':'bg-white text-slate-400 opacity-60'}`}><span>+{t.p}%</span><span className="font-mono">${t.tr.toFixed(1)}</span></div>)}
-                                        </div>
-                                    </div>
-                                </CollapsibleCard>
-
-                                <CollapsibleCard title="資產數量更新" icon="Package" isOpen={sections.holdings} onToggle={() => toggleSection('holdings')}>
-                                    <div className="space-y-4">
-                                        <div className="bg-slate-50 p-3 rounded-xl border focus-within:border-brand-400">
-                                            <div className="flex justify-between items-center mb-2">
-                                                <span className="text-xs font-black text-slate-700">大盤核心 (QQQ)</span>
-                                                <button onClick={() => handleInput('core_1_type', inputs.core_1_type === 'option' ? 'stock' : 'option')} className="text-[10px] bg-white border px-2 py-0.5 rounded shadow-sm text-slate-500 active:scale-95">切換 {inputs.core_1_type === 'option' ? '現貨' : '選擇權'}</button>
-                                            </div>
-                                            {inputs.core_1_type === 'option' ? (
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <div>
-                                                        <label className="text-[8px] text-slate-500 block mb-1">選擇權總市值 $</label>
-                                                        <input type="number" inputMode="decimal" value={inputs.opt_p_c1} onChange={e=>handleInput('opt_p_c1',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-2 rounded border shadow-sm"/>
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-[8px] text-slate-500 block mb-1">預估槓桿倍數 (如 2.5)</label>
-                                                        <input type="number" inputMode="decimal" value={inputs.opt_d_c1} onChange={e=>handleInput('opt_d_c1',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-2 rounded border shadow-sm"/>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div>
-                                                    <label className="text-[10px] text-slate-500 block mb-1">QQQ 股數</label>
-                                                    <input type="number" inputMode="decimal" value={inputs.qty_core_1} onChange={e=>handleInput('qty_core_1',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg outline-none bg-transparent border-b border-slate-200 pb-1"/>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="bg-slate-50 p-3 rounded-xl border focus-within:border-brand-400">
-                                            <div className="flex justify-between items-center mb-2">
-                                                <span className="text-xs font-black text-slate-700">核心槓桿 (TQQQ)</span>
-                                                <button onClick={() => handleInput('core_2_type', inputs.core_2_type === 'option' ? 'stock' : 'option')} className="text-[10px] bg-white border px-2 py-0.5 rounded shadow-sm text-slate-500 active:scale-95">切換 {inputs.core_2_type === 'option' ? '現貨' : '選擇權'}</button>
-                                            </div>
-                                            {inputs.core_2_type === 'option' ? (
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <div>
-                                                        <label className="text-[8px] text-slate-500 block mb-1">選擇權總市值 $</label>
-                                                        <input type="number" inputMode="decimal" value={inputs.opt_p_c2} onChange={e=>handleInput('opt_p_c2',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-2 rounded border shadow-sm"/>
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-[8px] text-slate-500 block mb-1">預估槓桿倍數 (如 3)</label>
-                                                        <input type="number" inputMode="decimal" value={inputs.opt_d_c2} onChange={e=>handleInput('opt_d_c2',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-2 rounded border shadow-sm"/>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div>
-                                                    <label className="text-[10px] text-slate-500 block mb-1">TQQQ 股數</label>
-                                                    <input type="number" inputMode="decimal" value={inputs.qty_core_2} onChange={e=>handleInput('qty_core_2',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg outline-none bg-transparent border-b border-slate-200 pb-1"/>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="bg-purple-50 p-3 rounded-xl border border-purple-100 focus-within:border-purple-400">
-                                            <div className="text-xs font-black text-purple-700 mb-2">動能配置 (SPMO)</div>
-                                            <div>
-                                                <label className="text-[10px] text-purple-500 block mb-1">SPMO 股數</label>
-                                                <input type="number" inputMode="decimal" value={inputs.qty_spmo} onChange={e=>handleInput('qty_spmo',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg outline-none bg-transparent border-b border-purple-200 pb-1 text-purple-800"/>
-                                            </div>
-                                        </div>
-                                        
-                                        {getArr(inputs.satellites).map(s => (
-                                            <div key={s.id} className="bg-slate-50 p-3 rounded-xl border focus-within:border-brand-400 transition-colors">
-                                                <div className="text-[10px] font-black text-slate-700 mb-2">{s.underlying || '衛星部位'}</div>
-                                                <div className="grid grid-cols-2 gap-3 mb-2">
-                                                    <div className="focus-within:border-brand-400 border border-transparent rounded">
-                                                        <div className="text-[10px] text-slate-500 mb-1">現股股數</div>
-                                                        <input type="number" inputMode="decimal" value={s.qty_u} onChange={e=>updateArr('satellites', s.id, 'qty_u', e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg bg-transparent outline-none border-b border-slate-200 pb-1"/>
-                                                    </div>
-                                                    <div className="focus-within:border-brand-400 border border-transparent rounded">
-                                                        <div className="text-[10px] text-brand-600 mb-1">2x槓桿 股數</div>
-                                                        <input type="number" inputMode="decimal" value={s.qty_l !== undefined ? s.qty_l : 0} onChange={e=>updateArr('satellites', s.id, 'qty_l', e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg text-brand-700 bg-transparent outline-none border-b border-brand-200 pb-1"/>
-                                                    </div>
-                                                </div>
-                                                <div className="pt-2 border-t border-slate-200">
-                                                    <div className="text-[10px] text-brand-600 font-bold mb-2 flex items-center gap-1"><Icon name="Zap" size={12}/> 深度 Call (LEAPS)</div>
-                                                    <div className="grid grid-cols-2 gap-2">
-                                                        <div>
-                                                            <label className="text-[8px] text-slate-500 block mb-1">總市值 $</label>
-                                                            <input type="number" inputMode="decimal" value={s.opt_p_c || 0} onChange={e=>updateArr('satellites', s.id, 'opt_p_c', e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-2 rounded border shadow-sm"/>
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-[8px] text-slate-500 block mb-1">預估槓桿倍數 (如 2)</label>
-                                                            <input type="number" inputMode="decimal" value={s.opt_d_c !== undefined ? s.opt_d_c : 2} onChange={e=>updateArr('satellites', s.id, 'opt_d_c', e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-2 rounded border shadow-sm"/>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        
-                                        <div className="grid grid-cols-2 gap-3 bg-slate-800 p-3 rounded-xl border border-slate-700 text-white">
-                                            <div className="focus-within:border-brand-400 border border-transparent rounded">
-                                                <div className="text-[10px] text-slate-400 mb-1">BOXX 股數</div>
-                                                <input type="number" inputMode="decimal" value={inputs.qty_boxx} onChange={e=>handleInput('qty_boxx',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg bg-transparent text-brand-100 outline-none border-b border-slate-600 pb-1"/>
-                                            </div>
-                                            <div className="focus-within:border-brand-400 border border-transparent rounded">
-                                                <div className="text-[10px] text-slate-400 mb-1">現金餘額 ($)</div>
-                                                <div className="flex items-center border-b border-slate-600 pb-1">
-                                                    <button onClick={() => handleInput('cash_balance', (getNum(inputs.cash_balance) * -1).toString())} className="mr-2 text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 px-1.5 py-0.5 rounded active:scale-95">+/-</button>
-                                                    <input type="number" inputMode="decimal" value={inputs.cash_balance} onChange={e=>handleInput('cash_balance',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-lg bg-transparent text-brand-100 outline-none"/>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border">
-                                            <span className="text-xs text-slate-500 w-16 text-center">存檔日</span>
-                                            <input type="date" value={recordDate} onChange={e=>setRecordDate(e.target.value)} className="w-full bg-transparent font-mono outline-none"/>
-                                            {recordDate!==getTodayStr() && <button onClick={()=>setRecordDate(getTodayStr())} className="text-[9px] bg-brand-100 text-brand-700 px-2 py-1 rounded active:scale-95 transition-all">今</button>}
-                                        </div>
-                                        <button onClick={saveRecord} disabled={isSaving} className="w-full py-4 rounded-xl bg-brand-600 text-white text-base active:scale-95 flex justify-center gap-2 shadow-sm"><Icon name="Save" size={18}/> 儲存當前紀錄</button>
+                                        <div className="text-[9px] text-slate-500 leading-relaxed bg-slate-50 p-3 rounded-lg border border-dashed">* 壓力測試邏輯：根據您目前的「實際工具配比」與「精確槓桿倍數」動態計算。軍火庫 (BOXX/現金) 視為避風港不計跌幅。此面板旨在協助鍛鍊極端行情下的心理韌性。</div>
                                     </div>
                                 </CollapsibleCard>
 
                                 <CollapsibleCard title="投資計畫書" icon="FileText" isOpen={sections.plan} onToggle={() => toggleSection('plan')} className="bg-slate-50">
-                                    <textarea value={inputs.planText} readOnly={isPlanLocked} onChange={e=>handleInput('planText',e.target.value)} onBlur={e=>syncToCloud('planText',e.target.value)} className={`w-full bg-transparent text-xs text-slate-700 outline-none resize-none h-[400px] ${isPlanLocked?'':'bg-white p-2 rounded border focus:border-brand-400'}`} placeholder="寫下您的專屬投資計畫與紀律..." />
-                                    <button onClick={(e) => {e.stopPropagation(); setIsPlanLocked(!isPlanLocked);}} className="absolute top-4 right-12 p-1.5 rounded bg-white border text-slate-400 hover:text-brand-600 active:scale-95"><Icon name={isPlanLocked?"Lock":"Unlock"} size={14}/></button>
+                                    <textarea value={inputs.planText} onChange={e=>handleInput('planText',e.target.value)} onBlur={e=>syncToCloud('planText',e.target.value)} className="w-full bg-white p-4 rounded-xl border border-slate-200 text-xs text-slate-700 outline-none resize-none h-[400px] focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20 transition-all leading-relaxed whitespace-pre-wrap text-left" placeholder="寫下您的專屬投資計畫與紀律..." />
                                 </CollapsibleCard>
                             </div>
                         )}
@@ -1257,33 +1337,32 @@
                                         <div className="flex justify-between items-center text-xs"><span className="text-brand-300 font-mono">{user.email}</span><button onClick={handleLogout} className="bg-slate-700 px-3 py-1.5 rounded active:scale-95">登出</button></div>
                                     ) : <button onClick={handleGoogleLogin} className="w-full bg-white text-slate-800 py-3 rounded-xl font-black active:scale-95">使用 Google 登入並同步</button>}
                                 </div>
+                                
+                                <div className="bg-white rounded-3xl p-5 shadow-sm border relative input-focus-ring group">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <div className="flex items-center gap-2 text-brand-600"><Icon name="Quote" size={16}/><span className="text-xs uppercase tracking-widest text-slate-500">投資座右銘</span></div>
+                                        <button onClick={() => setIsMottoLocked(!isMottoLocked)} className="text-slate-400 active:scale-95"><Icon name={isMottoLocked?"Lock":"Unlock"} size={16}/></button>
+                                    </div>
+                                    <textarea value={inputs.motto} readOnly={isMottoLocked} onChange={e => handleInput('motto', e.target.value)} onBlur={e => syncToCloud('motto', e.target.value)} className={`w-full bg-transparent text-base text-slate-700 outline-none text-center leading-relaxed transition-all ${isMottoLocked?'':'bg-slate-50 border-dashed border-slate-300 rounded-xl p-3 border'}`} rows="2" placeholder="輸入您的投資座右銘..." />
+                                </div>
 
                                 <div className="bg-white rounded-3xl p-6 border border-slate-200">
                                     <div className="flex justify-between mb-4 border-b pb-2"><h2 className="font-black flex items-center gap-2"><Icon name="Settings" size={18} className="text-slate-500"/>大盤與戰備參數</h2></div>
                                     <div className="space-y-3">
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <div className="bg-brand-50 p-2 rounded-lg border border-brand-200">
-                                                <label className="text-[9px] font-bold text-brand-700 block">平時 BOXX %</label>
-                                                <input type="number" inputMode="decimal" value={inputs.reserve_pct_normal} onChange={e=>handleInput('reserve_pct_normal', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-brand-700 outline-none"/>
-                                            </div>
-                                            <div className="bg-brand-50 p-2 rounded-lg border border-brand-200">
-                                                <label className="text-[9px] font-bold text-brand-700 block">創高 BOXX %</label>
-                                                <input type="number" inputMode="decimal" value={inputs.reserve_pct_ath} onChange={e=>handleInput('reserve_pct_ath', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-brand-700 outline-none"/>
-                                            </div>
-                                        </div>
-                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                        
+                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-left">
                                             <label className="text-[10px] font-bold text-slate-700 block mb-1">QQQ 上次波段高點 (Locked ATH)</label>
                                             <div className="text-[8px] text-slate-400 mb-2">📌 用途：計算回跌買入 TQQQ，以及創高收割的絕對基準。</div>
                                             <input type="number" inputMode="decimal" value={inputs.qqq_locked_ath} onChange={e=>handleInput('qqq_locked_ath', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-white p-2 rounded border font-mono outline-none"/>
                                         </div>
 
-                                        <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                                        <div className="bg-purple-50 p-3 rounded-lg border border-purple-200 text-left">
                                             <label className="text-[10px] font-bold text-purple-700 block mb-1">QQQ 最新高點 (Rolling High)</label>
                                             <div className="text-[8px] text-purple-500 mb-2">📌 用途：突破 ATH 進入狂熱期後，只要自此高點回撤 7%，SPMO 立即退場。</div>
                                             <input type="number" inputMode="decimal" value={inputs.qqq_latest_high} onChange={e=>handleInput('qqq_latest_high', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-white p-2 rounded border font-mono text-purple-700 outline-none"/>
                                         </div>
                                         
-                                        <div className="grid grid-cols-2 gap-2">
+                                        <div className="grid grid-cols-2 gap-2 text-left">
                                             <div className="bg-slate-50 p-2 rounded-lg border">
                                                 <label className="text-[9px] font-bold text-slate-500 block">QQQ 波段低點</label>
                                                 <div className="text-[7px] text-slate-400 mb-1 leading-tight">📌 反彈 +10% 起算點</div>
@@ -1296,15 +1375,37 @@
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-2">
+                                        <div className="grid grid-cols-2 gap-2 text-left">
                                             <div className="bg-amber-50 p-2 rounded-lg border border-amber-200 col-span-2">
                                                 <label className="text-[9px] font-bold text-amber-700 block">TQQQ 買入均價 (成本鐵律防護)</label>
                                                 <div className="text-[7px] text-amber-600/70 mb-1 leading-tight">📌 系統會鎖定低於此價位的 TQQQ 賣出指令，無條件續抱。</div>
                                                 <input type="number" inputMode="decimal" value={inputs.tqqq_avg_cost} onChange={e=>handleInput('tqqq_avg_cost', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-white p-2 rounded border border-amber-100 font-mono text-amber-700 outline-none"/>
                                             </div>
                                         </div>
+
+                                        <div className="grid grid-cols-2 gap-2 mt-2 text-left">
+                                            <div className="bg-brand-50 p-2 rounded-lg border border-brand-200">
+                                                <label className="text-[9px] font-bold text-brand-700 block">平時 BOXX %</label>
+                                                <input type="number" inputMode="decimal" value={inputs.reserve_pct_normal} onChange={e=>handleInput('reserve_pct_normal', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-brand-700 mt-1 outline-none"/>
+                                            </div>
+                                            <div className="bg-brand-50 p-2 rounded-lg border border-brand-200">
+                                                <label className="text-[9px] font-bold text-brand-700 block">創高 BOXX %</label>
+                                                <input type="number" inputMode="decimal" value={inputs.reserve_pct_ath} onChange={e=>handleInput('reserve_pct_ath', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-brand-700 mt-1 outline-none"/>
+                                            </div>
+                                        </div>
                                         
-                                        <div className="pt-4 border-t">
+                                        <div className="grid grid-cols-2 gap-2 mt-2 text-left">
+                                            <div className="bg-purple-50 p-2 rounded-lg border border-purple-200">
+                                                <label className="text-[9px] font-bold text-purple-700 block">SPMO 啟動 (+%)</label>
+                                                <input type="number" inputMode="decimal" value={inputs.spmo_trigger_pct} onChange={e=>handleInput('spmo_trigger_pct', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-purple-700 mt-1 outline-none"/>
+                                            </div>
+                                            <div className="bg-purple-50 p-2 rounded-lg border border-purple-200">
+                                                <label className="text-[9px] font-bold text-purple-700 block">SPMO 退出 (-%)</label>
+                                                <input type="number" inputMode="decimal" value={inputs.spmo_drop_pct} onChange={e=>handleInput('spmo_drop_pct', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-purple-700 mt-1 outline-none"/>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="pt-4 border-t text-left">
                                             <label className="text-[10px] text-brand-600 font-bold mb-2 block">下跌轉換階梯 & BOXX動用</label>
                                             {getArr(inputs.core_ladder).map((l,i) => (
                                                 <div key={l.id} className="flex gap-1 items-center mb-1">
@@ -1326,7 +1427,7 @@
                                             <button onClick={()=>addArr('core_ladder', {drop_pct:0, move_pct:0, use_boxx:0})} className="w-full py-2 mt-2 border-dashed border-2 rounded-lg text-xs text-slate-500 active:scale-95">+ 新增階梯</button>
                                         </div>
                                         
-                                        <div className="pt-4 border-t">
+                                        <div className="pt-4 border-t text-left">
                                             <label className="text-[10px] text-brand-600 font-bold mb-2 block">突破收割階梯 (TQQQ 目標保留%)</label>
                                             {getArr(inputs.core_up_ladder).map((l,i) => (
                                                 <div key={l.id} className="flex gap-2 items-center mb-1">
@@ -1347,7 +1448,7 @@
                                     </div>
                                 </div>
 
-                                <div className="bg-white rounded-3xl p-6 border border-slate-200">
+                                <div className="bg-white rounded-3xl p-6 border border-slate-200 text-left">
                                     <div className="flex justify-between mb-4 border-b pb-2"><h2 className="font-black flex items-center gap-2"><Icon name="Activity" size={18} className="text-fin-info"/>衛星標的設定</h2></div>
                                     <div className="space-y-4">
                                         {getArr(inputs.satellites).map(s => (
@@ -1355,8 +1456,8 @@
                                                 <button onClick={()=>removeArr('satellites', s.id)} className="absolute top-2 right-2 text-slate-400 hover:text-fin-down active:scale-95"><Icon name="Trash2" size={14}/></button>
                                                 
                                                 <div className="flex gap-2 mb-2 pr-6">
-                                                    <input value={s.underlying} onChange={e=>updateArr('satellites',s.id,'underlying',e.target.value.toUpperCase().trim())} className="w-24 bg-white text-xs p-1.5 rounded border font-black uppercase outline-none text-center" placeholder="正股"/>
-                                                    <input value={s.leveraged !== undefined ? s.leveraged : ''} onChange={e=>updateArr('satellites',s.id,'leveraged',e.target.value.toUpperCase().trim())} className="w-24 bg-brand-50 text-brand-700 text-xs p-1.5 rounded border border-brand-200 font-black uppercase outline-none text-center" placeholder="2x槓桿"/>
+                                                    <input value={s.underlying} onChange={e=>updateArr('satellites',s.id,'underlying',e.target.value.toUpperCase())} className="w-24 bg-white text-xs p-1.5 rounded border font-black uppercase outline-none text-center" placeholder="正股"/>
+                                                    <input value={s.leveraged !== undefined ? s.leveraged : ''} onChange={e=>updateArr('satellites',s.id,'leveraged',e.target.value.toUpperCase())} className="w-24 bg-brand-50 text-brand-700 text-xs p-1.5 rounded border border-brand-200 font-black uppercase outline-none text-center" placeholder="2x槓桿"/>
                                                 </div>
 
                                                 <div className="grid grid-cols-3 gap-1 mb-2 bg-white p-1 rounded border">
@@ -1383,8 +1484,8 @@
                                                         <input type="number" inputMode="decimal" value={s.ma10} onChange={e=>updateArr('satellites',s.id,'ma10',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/>
                                                     </div>
                                                     <div className="text-center border-l">
-                                                        <label className="text-[8px] text-fin-up">目標%</label>
-                                                        <input type="number" inputMode="decimal" value={s.target_pct} onChange={e=>updateArr('satellites',s.id,'target_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/>
+                                                        <label className="text-[8px] text-fin-up">停利%</label>
+                                                        <input type="number" inputMode="decimal" value={s.profit_pct} onChange={e=>updateArr('satellites',s.id,'profit_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/>
                                                     </div>
                                                     <div className="text-center border-l">
                                                         <label className="text-[8px] text-fin-down">補倉-%</label>

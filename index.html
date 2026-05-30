@@ -575,8 +575,8 @@
                 if (valSpmo > 0) pieData.push({ name: 'SPMO', value: valSpmo, exposure: valSpmo, fill: '#8b5cf6' });
 
                 const safeSatellites = getArr(inputs.satellites);
-                const safeLadder = getArr(inputs.core_ladder).sort((a,b) => getNum(a.drop_pct) - getNum(b.drop_pct));
-                const safeUpLadder = getArr(inputs.core_up_ladder).sort((a,b) => getNum(a.rise_pct) - getNum(b.rise_pct));
+                const safeLadder = [...getArr(inputs.core_ladder)].sort((a,b) => getNum(a.drop_pct) - getNum(b.drop_pct));
+                const safeUpLadder = [...getArr(inputs.core_up_ladder)].sort((a,b) => getNum(a.rise_pct) - getNum(b.rise_pct));
 
                 safeSatellites.forEach(s => { 
                     if (s) {

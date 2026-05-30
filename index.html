@@ -51,10 +51,12 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useCallback, memo, useRef } = React;
         
+        // --- 安全載入圖表套件防呆機制 ---
         const RechartsLib = window.Recharts || {};
         const { ComposedChart, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } = RechartsLib;
         const hasCharts = !!ComposedChart && !!PieChart; 
 
+        // --- 系統設定與 Firebase ---
         const FINNHUB_KEY = "d4q36b9r01qha6q0jclgd4q36b9r01qha6q0jcm0";
         const appId = 'alpha-horizon-2026-v1'; 
         const firebaseConfig = { apiKey: "AIzaSyDMR8Q20z9vnWtQlafDowRujzBexV0h_lI", authDomain: "lifestock-83480.firebaseapp.com", projectId: "lifestock-83480", storageBucket: "lifestock-83480.firebasestorage.app", messagingSenderId: "615080626396", appId: "1:615080626396:web:407135b548f3ed5b5c4c19" };
@@ -62,6 +64,7 @@
         const db = firebase.firestore(); 
         const auth = firebase.auth();
 
+        // --- 輔助與安全防護函數 ---
         const sanitize = (data) => JSON.parse(JSON.stringify(data, (k, v) => v === undefined ? null : v));
         const getNum = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
         const getTodayStr = () => { 
@@ -69,7 +72,8 @@
         };
         const getArr = (arr) => Array.isArray(arr) ? arr : (arr && typeof arr === 'object' ? Object.values(arr) : []);
 
-        const defPlan = `🧠 Alpha Horizon 波動循環動態槓桿系統\n【系統核心】平時 QQQ 複利，回撤動態加槓桿，反彈與創高分批收割，BOXX 鎖死防禦閉環。\n\n壹、 資金絕對配置 (封閉系統)\n• 核心母艦 (70%)：QQQ\n• 機動衛星 (20%)：TSLA (10%)、IBIT (10%)。平時持有 1x 現股。\n• 戰備儲備 (10%)：BOXX。平時基準為 10%，大盤創歷史新高時動態調升至 15%。\n\n貳、 核心母艦：動態槓桿與分批收割 (QQQ ⇄ TQQQ)\n1. 下跌加碼 (基準：QQQ 歷史高點 ATH)\n• -7%：15% QQQ ➜ TQQQ\n• -14%、-21%、-28%：各轉 15% QQQ ➜ TQQQ，並同步動用 25% 戰略 BOXX 買入 TQQQ。\n• -35%：最後 25% 戰略 BOXX 全開買入 TQQQ。\n(部位限制：最多轉 60% QQQ，強迫保留母艦底盤)\n\n2. 反彈降風險 (基準：波段低點反彈)\n• +10% 且 QQQ 日K線站上 20MA：15% TQQQ ➜ QQQ\n• +20% (延續多頭趨勢)：再 15% TQQQ ➜ QQQ\n\n3. 創高收割 (基準：突破 QQQ ATH)\n• ATH +7%：賣出剩餘 25% TQQQ ➜ QQQ。同步將 BOXX 儲備基準調升至 15%。\n• ATH +14%：剩餘全部 TQQQ ➜ SPMO，進入狂熱動能期。\n• SPMO 退出：當 QQQ 自「創高後最新高點」回撤 -7%，SPMO 全數退出回歸 QQQ。\n(成本保護鐵律：任何 TQQQ 換回 QQQ，賣價必須大於買入均價，否則無條件續抱。)\n\n參、 衛星系統：攻擊與防禦\n1. LEAPS 攻擊機制 (量化深跌啟動)\n• 觸發條件：標的「跌破 200MA」且「自前波高點回撤達 -20%」時，將現股換為 Deep ITM Call (餘款退回 BOXX)。\n• 退場三防線：獲利(+25%)結清；時間(<180天)強制平倉；結構(Delta<0.60)停損換現股。\n\n2. 現股補倉機制 (防禦)\n• 觸發條件：帳面每跌 -7%，動用戰術 BOXX 補回 10% 基準 (最多 3 次)。\n• 末日凍結：當 BOXX 水位低於 3%，強制凍結補倉，保留資金救母艦。\n\n肆、 資金閉環與系統鐵律\n• 第一順位優先補滿 BOXX (常態 10%，創高 15%)，第二順位擴張 QQQ。\n• 嚴禁憑「感覺」進出場；數字未到，原地臥倒。`;
+        // --- 預設值區塊 ---
+        const defPlan = `🧠 Alpha Horizon 波動循環動態槓桿系統\n【系統核心】平時 QQQ 複利，回撤動態加槓桿，反彈與創高分批收割，BOXX 鎖死防禦閉環。\n\n壹、 資金絕對配置 (封閉系統)\n• 核心母艦 (70%)：QQQ\n• 機動衛星 (20%)：TSLA (10%)、IBIT (10%)。平時持有 1x 現股。\n• 戰備儲備 (10%)：BOXX。平時基準為 10%，大盤創歷史新高時動態調升至 15%。\n\n貳、 核心母艦：動態槓桿與分批收割 (QQQ ⇄ TQQQ)\n1. 下跌加碼 (看最新高點回撤)\n• -7%：15% QQQ ➜ TQQQ\n• -14%、-21%、-28%：各轉 15% QQQ ➜ TQQQ，並同步動用 25% 戰略 BOXX 買入 TQQQ。\n• -35%：最後 25% 戰略 BOXX 全開買入 TQQQ。\n\n2. 反彈降風險 (看波段低點反彈)\n• +10% 且 QQQ 日K線站上 20MA：15% TQQQ ➜ QQQ\n• +20% (延續多頭趨勢)：再 15% TQQQ ➜ QQQ\n\n3. 創高收割 (看上次 Locked ATH 突破)\n• ATH +7%：賣出剩餘 25% TQQQ ➜ QQQ。同步將 BOXX 儲備基準調升至 15%。\n• ATH +14%：剩餘全部 TQQQ ➜ SPMO，進入狂熱動能期。\n• SPMO 退出：當 QQQ 自「最新高點」回撤 -7%，SPMO 全數退出回歸 QQQ。\n(成本保護鐵律：任何 TQQQ 換回 QQQ，賣價必須大於買入均價，否則無條件續抱。)\n\n參、 衛星系統：攻擊與防禦\n1. LEAPS 攻擊機制 (量化深跌啟動)\n• 觸發條件：標的「跌破 200MA」且「自前波高點回撤達 -20%」時，將現股換為 Deep ITM Call。\n• 退場三防線：獲利(+25%)結清；時間(<180天)強制平倉；結構(Delta<0.60)停損換現股。\n\n2. 現股補倉機制 (防禦)\n• 觸發條件：帳面每跌 -7%，動用戰術 BOXX 補回 10% 基準 (最多 3 次)。\n• 末日凍結：當 BOXX 水位低於 3%，強制凍結補倉，保留資金救母艦。\n\n肆、 資金閉環與系統鐵律\n• 第一順位優先補滿 BOXX (常態 10%，創高 15%)，第二順位擴張 QQQ。\n• 嚴禁憑「感覺」進出場；數字未到，原地臥倒。`;
         
         const defSats = [
             { id: '1', underlying: 'TSLA', leveraged: 'TSLL', qty_u: 0, qty_l: 0, opt_p_c: 0, opt_d_c: 2, ma200: 200, ma10: 190, peak_p: 300, avg_cost: 250, target_pct: 10, profit_pct: 25, loss_pct: 7, rescues: 0 }, 
@@ -108,6 +112,7 @@
             satellites: defSats 
         };
 
+        // --- UI 元件 ---
         const Icon = memo(({ name, size = 20, className = "" }) => {
             const i = { 
                 TrendingUp: <path d="m22 7-8.5 8.5-5-5L2 17M22 7h-6M22 7v6"/>, 
@@ -240,9 +245,6 @@
             const [isMottoLocked, setIsMottoLocked] = useState(true);
             const [isPlanLocked, setIsPlanLocked] = useState(true);
             const [isSatDetailsOpen, setIsSatDetailsOpen] = useState(false);
-            
-            const [simDropQ, setSimDropQ] = useState(20);
-            const [simDropS, setSimDropS] = useState(30);
             
             const [sections, setSections] = useState(() => { 
                 try { 
@@ -690,12 +692,14 @@
                     };
                 });
 
-                // ★★★ 核心轉換引擎：強制比對「理論配置」vs「實際持倉」 ★★★
+                // ★★★ 系統狀態診斷訊息 ★★★
+                let diagnosticMsg = "";
 
                 if (cRise >= 0) {
                     // SPMO 狂熱期退出機制 (看 Rolling High 回撤)
                     if (qLatestHigh > qAthLocked && cSpmoDrop >= 7) {
                         phase = "動能破線 (-7%)：SPMO 全數退場回歸 QQQ";
+                        diagnosticMsg = `⚠️ 已觸發 SPMO 動能破線退出機制 (自最新高點回撤達 -7%，目前 -${cSpmoDrop.toFixed(1)}%)，強制轉回 QQQ。`;
                         tSpmoPct = 0;
                         tTqqqPct = 0;
                     } 
@@ -704,24 +708,28 @@
                         let activeUp = null; 
                         safeUpLadder.forEach(s => { if (cRise >= getNum(s.rise_pct)) activeUp = s; });
                         
-                        // 修正：當觸發 SPMO 且 tTqqqPct 歸 0 時，此時的 SPMO 理論值應為「目前所有非 QQQ、非 BOXX 的超額資本」
-                        // 但更安全的寫法是，我們直接要求系統：TQQQ=0, SPMO=設定值
                         if (activeUp) { 
                             tTqqqPct = getNum(activeUp.target_pct); 
                             tSpmoPct = getNum(activeUp.spmo_pct) || 0;
                             
-                            // 若設定為轉入 SPMO，系統會將 TQQQ 目標歸零，並把錢轉給 SPMO
-                            phase = activeUp.target_pct === 0 && activeUp.spmo_pct === 0 
-                                ? "ATH 結清，全回 QQQ" 
-                                : activeUp.spmo_pct > 0 
-                                    ? `狂熱期啟動 (目標 SPMO ${tSpmoPct}%)` 
-                                    : `創高收割 (目標 TQQQ ${tTqqqPct}%)`; 
+                            if (activeUp.target_pct === 0 && activeUp.spmo_pct === 0) {
+                                phase = "ATH 結清，全回 QQQ";
+                                diagnosticMsg = `✅ 已超越收割階梯，槓桿全數結清回歸 QQQ。`;
+                            } else if (activeUp.spmo_pct > 0) {
+                                phase = `狂熱期啟動 (目標 SPMO ${tSpmoPct}%)`;
+                                diagnosticMsg = `🔥 狂熱期已啟動！SPMO 目標佔比：${tSpmoPct.toFixed(1)}%。`;
+                            } else {
+                                phase = `創高收割 (目標 TQQQ ${tTqqqPct}%)`;
+                                diagnosticMsg = `📈 創高收割中，保留 ${tTqqqPct.toFixed(1)}% TQQQ。 (距離下階段 SPMO 啟動還差 ${(14 - cRise).toFixed(1)}%)`;
+                            }
                         } else {
                             phase = `準備創高收割`;
+                            diagnosticMsg = `📈 突破 ATH，準備進入收割階梯。 (距離首階 +7% 還差 ${(7 - cRise).toFixed(1)}%)`;
                             tTqqqPct = valCore2 / safeT * 100; // 維持現有
                         }
                     }
                 } else {
+                    diagnosticMsg = `📉 目前處於水面下 (距 ATH -${cDD.toFixed(1)}%)，等待加碼或反彈。`;
                     safeLadder.forEach(l => { 
                         if (cDD >= getNum(l.drop_pct)) {
                             tgtTqqqFromQqqPct += getNum(l.move_pct);
@@ -737,12 +745,15 @@
                     if (cBounce >= 10 && cBounce < 20) {
                         if (pQQQ > q20ma && q20ma > 0) {
                             phase = "反彈 10% 收割確認 (站上20MA)";
+                            diagnosticMsg = `🟢 反彈達標且站上 20MA，執行首階降風險收割。`;
                             tTqqqPct = Math.max(0, tTqqqPct - 15);
                         } else {
                             phase = "防死貓反彈 (未過 20MA，暫不卸載)";
+                            diagnosticMsg = `⚠️ 反彈達 10%，但未站上 20MA，防死貓機制啟動，暫不卸載槓桿。`;
                         }
                     } else if (cBounce >= 20) {
                         phase = "反彈 20% 趨勢確立收割";
+                        diagnosticMsg = `🟢 反彈達 20% 趨勢確立，執行次階降風險收割。`;
                         tTqqqPct = Math.max(0, tTqqqPct - 30);
                     }
                 }
@@ -842,35 +853,12 @@
                         sm: { p: tSpmoPct }
                     },
                     core: { 
-                        pQQQ, pTQQQ, qAthLocked, qLatestHigh, cDD, cRise, tTqqqPct, tSpmoPct, phase, cAct, cCol, tDiff, sDiff, qDiff, bDiff, cBounce,
+                        pQQQ, pTQQQ, qAthLocked, qLatestHigh, cDD, cRise, tTqqqPct, tSpmoPct, phase, cAct, cCol, tDiff, sDiff, qDiff, bDiff, cBounce, diagnosticMsg,
                         dnL: mappedDnLadder, 
                         upL: safeUpLadder.map(s => ({ p: getNum(s.rise_pct), tp: getNum(s.target_pct), sp: getNum(s.spmo_pct), tr: qAthLocked*(1+getNum(s.rise_pct)/100), t: cRise>=getNum(s.rise_pct) })) 
                     }
                 };
             }, [prices, inputs, records]);
-
-            const c1Lev = inputs.core_1_type === 'option' ? getNum(inputs.opt_d_c1) : 1;
-            const simC1 = metrics.cls.c.u * Math.max(0, 1 - (simDropQ * c1Lev / 100));
-            const c2Lev = inputs.core_2_type === 'option' ? getNum(inputs.opt_d_c2) : 3; 
-            const simC2 = metrics.cls.c.l * Math.max(0, 1 - (simDropQ * c2Lev / 100));
-            const simSpmo = metrics.cls.c.sm * Math.max(0, 1 - (simDropQ * 1 / 100));
-
-            let simSatU = 0, simSatL = 0, simSatC = 0;
-            getArr(inputs.satellites).forEach(s => {
-                const uP = prices[s.underlying] || 0;
-                const lP = prices[s.leveraged] || 0;
-                const vU = uP * getNum(s.qty_u);
-                const vL = lP * getNum(s.qty_l);
-                const vC = getNum(s.opt_p_c);
-                const optLev = getNum(s.opt_d_c) || 2;
-                simSatU += vU * Math.max(0, 1 - (simDropS * 1 / 100));
-                simSatL += vL * Math.max(0, 1 - (simDropS * 2 / 100)); 
-                simSatC += vC * Math.max(0, 1 - (simDropS * optLev / 100)); 
-            });
-
-            const simTotal = simC1 + simC2 + simSpmo + simSatU + simSatL + simSatC + metrics.cls.r.t;
-            const simLoss = metrics.totalCapital - simTotal;
-            const simLossPct = metrics.totalCapital > 0 ? (simLoss / metrics.totalCapital) * 100 : 0;
 
             return (
                 <div className="pb-32 min-h-screen transition-colors font-bold select-none bg-slate-50 text-slate-800">
@@ -903,6 +891,43 @@
                                     <div className="text-xs text-slate-500 font-bold mb-1">動態總資產價值 (USD)</div>
                                     <div className="text-5xl font-mono tracking-tight font-black">${metrics.totalCapital.toLocaleString(undefined,{maximumFractionDigits:0})}</div>
                                     
+                                    {/* 觀測儀表板 */}
+                                    <div className="mt-6 bg-slate-900 text-white p-4 rounded-xl shadow-inner font-mono relative overflow-hidden">
+                                        <div className="absolute -right-4 -top-4 opacity-10"><Icon name="Activity" size={80}/></div>
+                                        <div className="flex justify-between items-end border-b border-slate-700 pb-3 mb-3 relative z-10">
+                                            <span className="text-xs text-brand-400 font-bold">當前 QQQ 報價</span>
+                                            <span className="text-2xl font-black">${metrics.core.pQQQ.toFixed(2)}</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2 text-center relative z-10">
+                                            <div className="bg-slate-800 p-2 rounded-lg border border-slate-700">
+                                                <div className="text-slate-400 text-[9px] mb-1">上次波段高點(ATH)</div>
+                                                <div className="font-bold text-sm">${metrics.core.qAthLocked}</div>
+                                                <div className={`text-[10px] mt-1 ${metrics.core.cRise >= 0 ? "text-fin-up" : "text-slate-500"}`}>
+                                                    突破: {metrics.core.cRise >= 0 ? `+${metrics.core.cRise.toFixed(1)}%` : '未過高'}
+                                                </div>
+                                            </div>
+                                            <div className="bg-slate-800 p-2 rounded-lg border border-slate-700">
+                                                <div className="text-slate-400 text-[9px] mb-1">本次最新高點</div>
+                                                <div className="font-bold text-sm">${metrics.core.qLatestHigh}</div>
+                                                <div className={`text-[10px] mt-1 text-fin-down`}>
+                                                    回撤: -{metrics.core.cDD.toFixed(1)}%
+                                                </div>
+                                            </div>
+                                            <div className="bg-slate-800 p-2 rounded-lg border border-slate-700">
+                                                <div className="text-slate-400 text-[9px] mb-1">波段反彈低點</div>
+                                                <div className="font-bold text-sm">${metrics.core.qWaveLow}</div>
+                                                <div className={`text-[10px] mt-1 text-fin-up`}>
+                                                    反彈: +{metrics.core.cBounce.toFixed(1)}%
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {/* 系統決策診斷 */}
+                                        <div className="mt-3 pt-3 border-t border-slate-700 text-[10px] text-slate-300 relative z-10 flex flex-col gap-1 text-left">
+                                            <span className="text-brand-300 font-bold">💡 系統狀態診斷：</span>
+                                            <span>{metrics.core.diagnosticMsg}</span>
+                                        </div>
+                                    </div>
+
                                     {/* 系統監控進度條 (System Trigger Radar) */}
                                     <div className="mt-6 pt-5 border-t border-slate-100">
                                         <div className="text-xs font-black text-slate-700 mb-4 flex items-center gap-1"><Icon name="Activity" size={14} className="text-brand-600"/> 系統觸發雷達 (距目標)</div>
@@ -910,7 +935,7 @@
                                         {/* TQQQ 反彈進度 */}
                                         <div className="mb-4">
                                             <div className="flex justify-between text-[10px] text-slate-500 mb-1">
-                                                <span>QQQ 波段反彈 (看波段低點：目標 +10% / +20%)</span>
+                                                <span>🟢 QQQ 波段反彈 (看波段低點：目標 +10% / +20%)</span>
                                                 <span className={metrics.core.cBounce >= 10 ? 'text-fin-up font-bold' : ''}>+{metrics.core.cBounce.toFixed(1)}%</span>
                                             </div>
                                             <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
@@ -921,7 +946,7 @@
                                         {/* SPMO 狂熱期進度 */}
                                         <div className="mb-4">
                                             <div className="flex justify-between text-[10px] text-slate-500 mb-1">
-                                                <span>SPMO 狂熱期啟動 (看上次高點：目標 +14%)</span>
+                                                <span>🟣 SPMO 狂熱期啟動 (看上次高點：目標 +14%)</span>
                                                 <span className={metrics.core.cRise >= 14 ? 'text-purple-600 font-bold' : ''}>{metrics.core.cRise >= 0 ? `+${metrics.core.cRise.toFixed(1)}%` : '未過高'}</span>
                                             </div>
                                             <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
@@ -932,7 +957,7 @@
                                         {/* QQQ 跌幅加碼進度 */}
                                         <div>
                                             <div className="flex justify-between text-[10px] text-slate-500 mb-1">
-                                                <span>QQQ 回撤加碼階梯 (看最新高點：目標 -35%)</span>
+                                                <span>🔴 QQQ 回撤加碼階梯 (看最新高點：目標 -35%)</span>
                                                 <span className={metrics.core.cRise < 0 ? 'text-fin-down font-bold' : ''}>{metrics.core.cRise < 0 ? `-${metrics.core.cDD.toFixed(1)}%` : '創新高中'}</span>
                                             </div>
                                             <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
@@ -1077,10 +1102,7 @@
                                 </CollapsibleCard>
 
                                 <CollapsibleCard title="投資計畫書" icon="FileText" isOpen={sections.plan} onToggle={() => toggleSection('plan')} className="bg-slate-50">
-                                    <textarea value={inputs.planText} readOnly={isPlanLocked} onChange={e=>handleInput('planText',e.target.value)} onBlur={e=>syncToCloud('planText',e.target.value)} className={`w-full bg-transparent text-xs text-slate-700 outline-none resize-none h-[400px] ${isPlanLocked?'':'bg-white p-2 rounded border focus:border-brand-400'} transition-all leading-relaxed whitespace-pre-wrap text-left`} placeholder="寫下您的專屬投資計畫與紀律..." />
-                                    <button onClick={(e) => {e.stopPropagation(); setIsPlanLocked(!isPlanLocked);}} className="absolute top-4 right-12 p-1.5 rounded bg-white border text-slate-400 hover:text-brand-600 active:scale-95">
-                                        <Icon name={isPlanLocked?"Lock":"Unlock"} size={14}/>
-                                    </button>
+                                    <textarea value={inputs.planText} onChange={e=>handleInput('planText',e.target.value)} onBlur={e=>syncToCloud('planText',e.target.value)} className="w-full bg-white p-4 rounded-xl border border-slate-200 text-xs text-slate-700 outline-none resize-none h-[400px] focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20 transition-all leading-relaxed whitespace-pre-wrap text-left" placeholder="寫下您的專屬投資計畫與紀律..." />
                                 </CollapsibleCard>
                             </div>
                         )}
@@ -1208,7 +1230,6 @@
                                                 
                                                 <div className="flex gap-2 mb-2 pr-6">
                                                     <input value={s.underlying} onChange={e=>updateArr('satellites',s.id,'underlying',e.target.value.toUpperCase().trim())} className="w-24 bg-white text-xs p-1.5 rounded border font-black uppercase outline-none text-center" placeholder="正股"/>
-                                                    <input value={s.leveraged !== undefined ? s.leveraged : ''} onChange={e=>updateArr('satellites',s.id,'leveraged',e.target.value.toUpperCase().trim())} className="w-24 bg-brand-50 text-brand-700 text-xs p-1.5 rounded border border-brand-200 font-black uppercase outline-none text-center" placeholder="2x槓桿"/>
                                                 </div>
 
                                                 <div className="grid grid-cols-3 gap-1 mb-2 bg-white p-1 rounded border">
@@ -1235,8 +1256,8 @@
                                                         <input type="number" inputMode="decimal" value={s.ma10} onChange={e=>updateArr('satellites',s.id,'ma10',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/>
                                                     </div>
                                                     <div className="text-center border-l">
-                                                        <label className="text-[8px] text-fin-up">目標%</label>
-                                                        <input type="number" inputMode="decimal" value={s.target_pct} onChange={e=>updateArr('satellites',s.id,'target_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/>
+                                                        <label className="text-[8px] text-fin-up">停利%</label>
+                                                        <input type="number" inputMode="decimal" value={s.profit_pct} onChange={e=>updateArr('satellites',s.id,'profit_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/>
                                                     </div>
                                                     <div className="text-center border-l">
                                                         <label className="text-[8px] text-fin-down">補倉-%</label>

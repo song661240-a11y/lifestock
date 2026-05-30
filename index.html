@@ -39,14 +39,15 @@
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap');
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #f1f5f9; color: #1e293b; }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
-        input, select, textarea { font-size: 14px !important; line-height: 1.4 !important; padding: 8px 4px !important; width: 100%; background: transparent; border: none; outline: none; text-align: center; }
+        input, select, textarea { font-size: 14px !important; line-height: 1.4 !important; padding: 8px 4px !important; width: 100%; background: transparent; border: none; outline: none; }
+        input, select { text-align: center; }
         input[type=number] { -moz-appearance: textfield; }
         .loading-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; gap: 1rem; color: white; }
         ::-webkit-scrollbar { width: 0px; background: transparent; }
         .input-focus-ring:focus-within { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); border-color: #3b82f6; }
     </style>
 </head>
-<body class="text-left font-bold text-slate-800 selection:bg-brand-500 selection:text-white">
+<body class="text-left font-bold text-slate-800">
     <div id="root"></div>
     <script type="text/babel">
         const { useState, useEffect, useMemo, useCallback, memo, useRef } = React;
@@ -91,7 +92,7 @@
             motto: '數字未到，原地臥倒；數字一到，扣下扳機。', 
             planText: defPlan, 
             qqq_ath: 0, 
-            qqq_new_peak: 0, // 新增：用於追蹤創新高後的最高點，作為 SPMO 退場基準
+            qqq_new_peak: 0,
             qqq_20ma: 0, 
             qty_boxx: 0, 
             cash_balance: 0, 
@@ -99,11 +100,11 @@
             reserve_pct_ath: 15, 
             core_1_type: 'stock', qty_core_1: 0, opt_p_c1: 0, opt_d_c1: 2,
             core_2_type: 'stock', qty_core_2: 0, opt_p_c2: 0, opt_d_c2: 3,
-            qty_spmo: 0, spmo_avg_cost: 0, // 新增 SPMO 狀態
+            qty_spmo: 0, spmo_avg_cost: 0,
             tqqq_avg_cost: 0, 
             tqqq_low: 0,
-            spmo_trigger_pct: 14, // 狂熱期觸發基準 (ATH + 14%)
-            spmo_exit_drop_pct: 7, // 動能退場基準 (New Peak - 7%)
+            spmo_trigger_pct: 14,
+            spmo_exit_drop_pct: 7,
             core_ladder: defLad, 
             core_up_ladder: defUpLad, 
             satellites: defSats 
@@ -257,10 +258,9 @@
 
             const [inputs, setInputs] = useState(() => { 
                 try { 
-                    const b = localStorage.getItem('ah_local_backup_2026'); // 繼承舊快取名稱確保資料不漏
+                    const b = localStorage.getItem('ah_local_backup_2026'); 
                     if (b) {
                         const parsed = JSON.parse(b);
-                        // 確保新參數存在
                         if (parsed.qty_spmo === undefined) parsed.qty_spmo = 0;
                         if (parsed.qqq_new_peak === undefined) parsed.qqq_new_peak = parsed.qqq_ath || 0;
                         if (parsed.spmo_trigger_pct === undefined) parsed.spmo_trigger_pct = 14;
@@ -326,7 +326,6 @@
 
             const getFirebaseRefs = () => {
                 if (!user) return null;
-                // 為了無縫接軌，依舊連線原來的 appId
                 return { 
                     confRef: db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('config').doc('current'), 
                     recsRef: db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('trading_records') 
@@ -371,7 +370,7 @@
             }, [user]);
 
             const symbolsString = useMemo(() => {
-                let syms = ['QQQ', 'TQQQ', 'BOXX', 'SPMO']; // 加入 SPMO
+                let syms = ['QQQ', 'TQQQ', 'BOXX', 'SPMO'];
                 getArr(inputs.satellites).forEach(s => { 
                     if(s && s.underlying) syms.push(s.underlying.trim().toUpperCase()); 
                 });
@@ -503,7 +502,7 @@
                 
                 const valCore1 = c1.val; 
                 const valCore2 = c2.val; 
-                const valSPMO = getV('qty_spmo') * pSPMO; // SPMO 現股市值
+                const valSPMO = getV('qty_spmo') * pSPMO;
                 const vBOXX = pBOXX * getV('qty_boxx'); 
                 const cash = getV('cash_balance');
                 
@@ -520,7 +519,7 @@
                 const pieData = [];
                 if (valCore1 > 0) pieData.push({ name: inputs.core_1_type==='option'?'QQQ Call':'QQQ', value: valCore1, exposure: c1.exp, fill: '#1e293b' });
                 if (valCore2 > 0) pieData.push({ name: inputs.core_2_type==='option'?'Leveraged Call':'TQQQ', value: valCore2, exposure: c2.exp, fill: '#64748b' });
-                if (valSPMO > 0) pieData.push({ name: 'SPMO', value: valSPMO, exposure: valSPMO, fill: '#8b5cf6' }); // 紫色代表動能
+                if (valSPMO > 0) pieData.push({ name: 'SPMO', value: valSPMO, exposure: valSPMO, fill: '#8b5cf6' });
 
                 const safeSatellites = getArr(inputs.satellites);
                 const safeLadder = getArr(inputs.core_ladder).sort((a,b) => getNum(a.drop_pct) - getNum(b.drop_pct));
@@ -630,22 +629,13 @@
                 let phase = "正常巡航";
                 let tqqqFromBoxxPct = 0;
 
-                const spmoTriggerPct = getV('spmo_trigger_pct'); // default 14
-                const spmoExitDropPct = getV('spmo_exit_drop_pct'); // default 7
+                const spmoTriggerPct = getV('spmo_trigger_pct') || 14;
+                const spmoExitDropPct = getV('spmo_exit_drop_pct') || 7;
 
-                // 核心四大狀態判定：
-                // 1. 狂熱期 (Frenzy): cRise >= 14% -> All TQQQ to SPMO, BOXX to 15%
-                // 2. 動能退場 (SPMO Exit): cDropFromPeak >= 7% -> SPMO to QQQ
-                // 3. 創高收割 (Harvest): 0 <= cRise < 14% -> Scale out TQQQ
-                // 4. 下跌加碼 (Drawdown): cRise < 0 -> Scale in TQQQ
-
-                // 先決定目標佔比
                 if (cRise >= spmoTriggerPct) {
                     phase = `狂熱期 (突破 ATH+${spmoTriggerPct}%)：啟動動能 SPMO`;
                     tgtRPct = getV('reserve_pct_ath');
                     tgtTqqqPct = 0;
-                    // 目標 SPMO 等於它現在的佔比，加上所有應該轉過來的 TQQQ
-                    // 根據白皮書，剩餘全部 TQQQ -> SPMO
                     const currentTqqqPct = (valCore2 / safeT) * 100;
                     const currentSpmoPct = (valSPMO / safeT) * 100;
                     tgtSpmoPct = currentTqqqPct + currentSpmoPct;
@@ -653,7 +643,7 @@
                     phase = `動能破線 (回撤 -${spmoExitDropPct}%)：SPMO 全數退場`;
                     tgtRPct = getV('reserve_pct_normal');
                     tgtTqqqPct = 0;
-                    tgtSpmoPct = 0; // 全回 QQQ
+                    tgtSpmoPct = 0;
                 } else if (cRise >= 0) {
                     tgtRPct = getV('reserve_pct_ath');
                     let activeUp = null; 
@@ -665,9 +655,8 @@
                         phase = `突破基準，準備收割`;
                         tgtTqqqPct = (valCore2 / safeT) * 100; 
                     }
-                    tgtSpmoPct = (valSPMO / safeT) * 100; // 保持不動
+                    tgtSpmoPct = (valSPMO / safeT) * 100;
                 } else {
-                    // 下跌加碼階段
                     tgtRPct = getV('reserve_pct_normal');
                     let tqqqFromQqq = 0;
                     safeLadder.forEach(l => { 
@@ -676,11 +665,10 @@
                             tqqqFromBoxxPct += (getNum(l.use_boxx)/100) * (getV('reserve_pct_normal') / 2);
                         }
                     });
-                    tqqqFromQqq = Math.min(tqqqFromQqq, 60); // QQQ 轉出極限
+                    tqqqFromQqq = Math.min(tqqqFromQqq, 60); 
                     tgtTqqqPct = tqqqFromQqq + tqqqFromBoxxPct;
                     phase = `回撤加碼中 (目標槓桿 ${tgtTqqqPct.toFixed(1)}%)`;
 
-                    // 反彈降風險 (雙重確認)
                     if (tBounce >= 10 && tBounce < 20) {
                         if (pQQQ > q20ma && q20ma > 0) {
                             phase = "反彈 10% 收割確認 (站上20MA)";
@@ -692,14 +680,12 @@
                         phase = "反彈 20% 趨勢確立收割";
                         tgtTqqqPct = Math.max(0, tgtTqqqPct - 30);
                     }
-                    tgtSpmoPct = (valSPMO / safeT) * 100; // 保持不動，除非手動賣出
+                    tgtSpmoPct = (valSPMO / safeT) * 100; 
                 }
 
-                // 計算資金缺口 (以金額計)
                 const tgtTqqqVal = tCap * (tgtTqqqPct / 100);
                 const tgtSpmoVal = tCap * (tgtSpmoPct / 100);
                 
-                // 動態調整 BOXX 目標：如果我們把戰略 BOXX 拿去買 TQQQ 了，那此時的 BOXX 目標水位就應該下降
                 let activeBoxxTargetPct = tgtRPct;
                 if (cRise < 0) activeBoxxTargetPct = Math.max(0, tgtRPct - tqqqFromBoxxPct);
                 const tgtBoxxVal = tCap * (activeBoxxTargetPct / 100);
@@ -708,7 +694,6 @@
                 let diffSPMO = tgtSpmoVal - valSPMO;
                 let diffBOXX = tgtBoxxVal - vBOXX;  
                 
-                // QQQ 負責吃掉剩下的空間
                 const currentCorePool = valCore1 + valCore2 + valSPMO + vBOXX;
                 const tgtQqqVal = currentCorePool - tgtTqqqVal - tgtSpmoVal - tgtBoxxVal;
                 let diffQQQ = tgtQqqVal - valCore1;
@@ -720,13 +705,10 @@
                     cAct = `偵測到策略觸發，請依下方數字執行轉換`; 
                     cCol = "text-brand-600";
                     
-                    // 成本保護鐵律 (如果需要賣出 TQQQ，且低於成本，則擋下賣出動作)
                     if (diffTQQQ < 0 && cRise < 0 && getV('tqqq_avg_cost') > 0 && pTQQQ < getV('tqqq_avg_cost') && inputs.core_2_type !== 'option') { 
                         cAct = `低於成本保護中，TQQQ 鐵律防禦不賣出`; 
                         cCol = "text-fin-warn"; 
-                        diffTQQQ = 0; // 取消這筆賣出
-                        // 重新分配資金 (不賣 TQQQ 了，所以 QQQ 和 BOXX 的缺口要重算)
-                        // 簡化處理：不重算，直接顯示不賣
+                        diffTQQQ = 0; 
                     }
                 }
 
@@ -734,11 +716,10 @@
                     phase = "空手巡航，無高風險槓桿/動能部位"; 
                 }
 
-                // 容錯 $50 濾掉雜訊
                 if (Math.abs(diffTQQQ) < 50) diffTQQQ = 0;
                 if (Math.abs(diffSPMO) < 50) diffSPMO = 0;
                 if (Math.abs(diffBOXX) < 50) diffBOXX = 0;
-                if (Math.abs(diffQQQ) < 50) diffQQQ = 0;
+                if (Math.abs(diffQQQ) < 50) qDiff = 0;
 
                 let pEq = 0;
                 let mdd = 0;
@@ -746,11 +727,10 @@
                 const gData = safeRecords.sort((a,b) => new Date(a.date) - new Date(b.date)).map(r => { 
                     if(r && r.total_equity > pEq) pEq = r.total_equity; 
                     const dd = pEq > 0 ? ((r?.total_equity || 0) - pEq) / pEq * 100 : 0;
-                    if (dd < mdd) mdd = dd; // 捕捉最低點 (負數)
+                    if (dd < mdd) mdd = dd; 
                     return { date: r?.date, equity: r?.total_equity, dd: dd }; 
                 });
 
-                // 動態加碼階梯的備註計算
                 const baseCorePct = 100 - getV('reserve_pct_normal') - satSumPct; 
                 let rQ = 0, rB = 0;
                 const mappedDnLadder = safeLadder.map(s => {
@@ -768,7 +748,7 @@
                 return { 
                     totalCapital: tCap, safeTotal: safeT, satStats: mappedSatStats, graphData: gData, pieData, historicalPeak: pEq, mdd, growthLeverageRatio: gLev, totalLeverageRatio: tLev,
                     cls: { c: valCore1, l: valCore2, m: valSPMO, s: vSatU + vSatC, b: vBOXX },
-                    tgt: { r: activeBoxxTargetPct },
+                    tgt: { r: { p: activeBoxxTargetPct } },
                     cmd: { q: diffQQQ, t: diffTQQQ, s: diffSPMO, b: diffBOXX },
                     core: { pQQQ, pTQQQ, qAth, qNewPeak, cDD, cRise, cDropFromPeak, tgtTqqqPct, phase, cAct, cCol, tBounce, dnL: mappedDnLadder, upL: safeUpLadder.map(s => ({ p: getNum(s.rise_pct), tp: getNum(s.target_pct), tr: qAth*(1+getNum(s.rise_pct)/100), t: cRise>=getNum(s.rise_pct) })) }
                 };
@@ -778,7 +758,7 @@
             const simC1 = metrics.cls.c * Math.max(0, 1 - (simDropQ * c1Lev / 100));
             const c2Lev = inputs.core_2_type === 'option' ? getNum(inputs.opt_d_c2) : 3; 
             const simC2 = metrics.cls.l * Math.max(0, 1 - (simDropQ * c2Lev / 100));
-            const simM = metrics.cls.m * Math.max(0, 1 - (simDropQ * 1 / 100)); // SPMO as 1x
+            const simM = metrics.cls.m * Math.max(0, 1 - (simDropQ * 1 / 100)); 
 
             let simSatU = 0, simSatC = 0;
             getArr(inputs.satellites).forEach(s => {
@@ -793,12 +773,6 @@
             const simTotal = simC1 + simC2 + simM + simSatU + simSatC + metrics.cls.b + getNum(inputs.cash_balance);
             const simLoss = metrics.totalCapital - simTotal;
             const simLossPct = metrics.totalCapital > 0 ? (simLoss / metrics.totalCapital) * 100 : 0;
-
-            const handleCopyCommand = () => {
-                const text = `【Alpha Horizon 執行日誌】 ${new Date().toLocaleDateString()}\n狀態：${metrics.core.phase}\n------------------------\n${metrics.core.cAct}\n\n大盤 QQQ：${metrics.cmd.q > 0 ? '買入' : metrics.cmd.q < 0 ? '賣出' : '不動'} $${Math.abs(Math.round(metrics.cmd.q)).toLocaleString()}\n${inputs.core_2_type==='option'?'期權 Call':'槓桿 TQQQ'}：${metrics.cmd.t > 0 ? '買入' : metrics.cmd.t < 0 ? '賣出' : '不動'} $${Math.abs(Math.round(metrics.cmd.t)).toLocaleString()}\n動能 SPMO：${metrics.cmd.s > 0 ? '買入' : metrics.cmd.s < 0 ? '賣出' : '不動'} $${Math.abs(Math.round(metrics.cmd.s)).toLocaleString()}\n戰備 BOXX：${metrics.cmd.b > 0 ? '買入 (補水)' : metrics.cmd.b < 0 ? '賣出 (動用)' : '不動'} $${Math.abs(Math.round(metrics.cmd.b)).toLocaleString()}`;
-                navigator.clipboard.writeText(text);
-                showToast("指令已複製");
-            };
 
             return (
                 <div className="pb-32 min-h-screen transition-colors font-bold select-none bg-slate-50 text-slate-800">
@@ -843,7 +817,7 @@
                                         )}
                                         
                                         <div className="bg-slate-800 p-4 rounded-xl text-white shadow-heavy mb-4 border border-slate-700 relative">
-                                            <button onClick={handleCopyCommand} className="absolute top-3 right-3 text-slate-400 hover:text-white active:scale-95"><Icon name="Save" size={16}/></button>
+                                            <button onClick={handleCopyCommand} className="absolute top-3 right-3 text-slate-400 hover:text-white active:scale-95"><Icon name="Copy" size={16}/></button>
                                             <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-700 pr-6">
                                                 <span className="text-xs font-black text-brand-400 flex items-center gap-1"><Icon name="Activity" size={14}/> 核心轉換中心</span>
                                                 <span className="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-brand-100 truncate max-w-[150px]">{metrics.core.phase}</span>
@@ -1160,7 +1134,7 @@
                                 </CollapsibleCard>
 
                                 <CollapsibleCard title="投資計畫書" icon="FileText" isOpen={sections.plan} onToggle={() => toggleSection('plan')} className="bg-slate-50">
-                                    <textarea value={inputs.planText} onChange={e=>handleInput('planText',e.target.value)} className="w-full bg-white p-4 rounded-xl border border-slate-200 text-xs text-slate-700 outline-none resize-none h-[400px] focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20 transition-all leading-relaxed" placeholder="寫下您的專屬投資計畫與紀律..." />
+                                    <textarea value={inputs.planText} onChange={e=>handleInput('planText',e.target.value)} onBlur={e=>syncToCloud('planText',e.target.value)} className="w-full bg-white p-4 rounded-xl border border-slate-200 text-xs text-slate-700 outline-none resize-none h-[400px] focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20 transition-all leading-relaxed" placeholder="寫下您的專屬投資計畫與紀律..." />
                                 </CollapsibleCard>
                             </div>
                         )}
@@ -1198,12 +1172,6 @@
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2">
-                                            <div className="bg-purple-50 p-2 rounded-lg border border-purple-200">
-                                                <label className="text-[9px] font-bold text-purple-700 block">QQQ 最新高點 (SPMO 退場基準)</label>
-                                                <input type="number" inputMode="decimal" value={inputs.qqq_new_peak} onChange={e=>handleInput('qqq_new_peak', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-purple-700 outline-none"/>
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2 pt-2 border-t">
                                             <div className="bg-slate-50 p-2 rounded-lg border border-slate-200">
                                                 <label className="text-[9px] font-bold text-slate-500 block">TQQQ 波段低點 (反彈起算)</label>
                                                 <input type="number" inputMode="decimal" value={inputs.tqqq_low} onChange={e=>handleInput('tqqq_low', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-slate-700 outline-none"/>
@@ -1213,14 +1181,14 @@
                                                 <input type="number" inputMode="decimal" value={inputs.tqqq_avg_cost} onChange={e=>handleInput('tqqq_avg_cost', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-amber-700 outline-none"/>
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-2 pt-2 border-t">
-                                            <div className="bg-white border rounded p-1.5">
-                                                <label className="text-[9px] text-fin-up block">收割閥值 +%</label>
-                                                <input type="number" inputMode="decimal" value={inputs.core_profit_pct} onChange={e=>handleInput('core_profit_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-center outline-none"/>
+                                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200">
+                                            <div className="bg-purple-50 p-2 rounded-lg border border-purple-200">
+                                                <label className="text-[9px] font-bold text-purple-700 block">SPMO 狂熱觸發 (+%)</label>
+                                                <input type="number" inputMode="decimal" value={inputs.spmo_trigger_pct} onChange={e=>handleInput('spmo_trigger_pct', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-purple-700 outline-none"/>
                                             </div>
-                                            <div className="bg-white border rounded p-1.5">
-                                                <label className="text-[9px] text-fin-down block">加碼閥值 -%</label>
-                                                <input type="number" inputMode="decimal" value={inputs.core_loss_pct} onChange={e=>handleInput('core_loss_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-center outline-none"/>
+                                            <div className="bg-slate-100 p-2 rounded-lg border border-slate-200">
+                                                <label className="text-[9px] font-bold text-slate-600 block">SPMO 退場回撤 (-%)</label>
+                                                <input type="number" inputMode="decimal" value={inputs.spmo_exit_drop_pct} onChange={e=>handleInput('spmo_exit_drop_pct', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono text-slate-700 outline-none"/>
                                             </div>
                                         </div>
                                         
@@ -1263,17 +1231,6 @@
                                                 </div>
                                             ))}
                                             <button onClick={()=>addArr('core_up_ladder', {rise_pct:0, target_pct:0})} className="w-full py-2 mt-2 border-dashed border-2 rounded-lg text-xs text-slate-500 active:scale-95">+ 新增階梯</button>
-                                            
-                                            <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-2">
-                                                <div className="bg-purple-50 p-2 rounded border border-purple-200">
-                                                    <label className="text-[9px] font-bold text-purple-700 block">SPMO 狂熱觸發 (+%)</label>
-                                                    <input type="number" inputMode="decimal" value={inputs.spmo_trigger_pct} onChange={e=>handleInput('spmo_trigger_pct', e.target.value)} className="w-full bg-transparent font-mono text-purple-700"/>
-                                                </div>
-                                                <div className="bg-slate-100 p-2 rounded border border-slate-200">
-                                                    <label className="text-[9px] font-bold text-slate-600 block">SPMO 退場回撤 (-%)</label>
-                                                    <input type="number" inputMode="decimal" value={inputs.spmo_exit_drop_pct} onChange={e=>handleInput('spmo_exit_drop_pct', e.target.value)} className="w-full bg-transparent font-mono text-slate-700"/>
-                                                </div>
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1284,117 +1241,21 @@
                                         {getArr(inputs.satellites).map(s => (
                                             <div key={s.id} className="bg-slate-50 p-3 rounded-xl border relative">
                                                 <button onClick={()=>removeArr('satellites', s.id)} className="absolute top-2 right-2 text-slate-400 hover:text-fin-down active:scale-95"><Icon name="Trash2" size={14}/></button>
-                                                
-                                                <div className="flex gap-2 mb-2 pr-6">
-                                                    <input value={s.underlying} onChange={e=>updateArr('satellites',s.id,'underlying',e.target.value.toUpperCase())} className="w-24 bg-white text-xs p-1.5 rounded border font-black uppercase outline-none" placeholder="正股"/>
-                                                </div>
-
+                                                <input value={s.underlying} onChange={e=>updateArr('satellites',s.id,'underlying',e.target.value.toUpperCase())} className="w-24 bg-white text-xs p-1.5 rounded border font-black uppercase mb-2 outline-none"/>
                                                 <div className="grid grid-cols-3 gap-1 mb-2 bg-white p-1 rounded border">
-                                                    <div className="text-center">
-                                                        <label className="text-[8px] text-slate-400">前高</label>
-                                                        <input type="number" inputMode="decimal" value={s.peak_p} onChange={e=>updateArr('satellites',s.id,'peak_p',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/>
-                                                    </div>
-                                                    <div className="text-center border-l">
-                                                        <label className="text-[8px] text-slate-400">建倉均價</label>
-                                                        <input type="number" inputMode="decimal" value={s.avg_cost} onChange={e=>updateArr('satellites',s.id,'avg_cost',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/>
-                                                    </div>
-                                                    <div className="text-center border-l">
-                                                        <label className="text-[8px] text-slate-400">補倉次</label>
-                                                        <input type="number" inputMode="decimal" value={s.rescues} onChange={e=>updateArr('satellites',s.id,'rescues',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/>
-                                                    </div>
+                                                    <div className="text-center"><label className="text-[8px] text-slate-400">前高</label><input type="number" inputMode="decimal" value={s.peak_p} onChange={e=>updateArr('satellites',s.id,'peak_p',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/></div>
+                                                    <div className="text-center border-l"><label className="text-[8px] text-slate-400">建倉均價</label><input type="number" inputMode="decimal" value={s.avg_cost} onChange={e=>updateArr('satellites',s.id,'avg_cost',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/></div>
+                                                    <div className="text-center border-l"><label className="text-[8px] text-slate-400">補倉次</label><input type="number" inputMode="decimal" value={s.rescues} onChange={e=>updateArr('satellites',s.id,'rescues',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/></div>
                                                 </div>
                                                 <div className="grid grid-cols-4 gap-1 bg-white p-1 rounded border">
-                                                    <div className="text-center">
-                                                        <label className="text-[8px] text-slate-400">200MA</label>
-                                                        <input type="number" inputMode="decimal" value={s.ma200} onChange={e=>updateArr('satellites',s.id,'ma200',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/>
-                                                    </div>
-                                                    <div className="text-center border-l">
-                                                        <label className="text-[8px] text-fin-info">10MA</label>
-                                                        <input type="number" inputMode="decimal" value={s.ma10} onChange={e=>updateArr('satellites',s.id,'ma10',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/>
-                                                    </div>
-                                                    <div className="text-center border-l">
-                                                        <label className="text-[8px] text-fin-up">停利%</label>
-                                                        <input type="number" inputMode="decimal" value={s.profit_pct} onChange={e=>updateArr('satellites',s.id,'profit_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/>
-                                                    </div>
-                                                    <div className="text-center border-l">
-                                                        <label className="text-[8px] text-fin-down">補倉-%</label>
-                                                        <input type="number" inputMode="decimal" value={s.loss_pct} onChange={e=>updateArr('satellites',s.id,'loss_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/>
-                                                    </div>
+                                                    <div className="text-center"><label className="text-[8px] text-slate-400">200MA</label><input type="number" inputMode="decimal" value={s.ma200} onChange={e=>updateArr('satellites',s.id,'ma200',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/></div>
+                                                    <div className="text-center border-l"><label className="text-[8px] text-fin-info">10MA</label><input type="number" inputMode="decimal" value={s.ma10} onChange={e=>updateArr('satellites',s.id,'ma10',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/></div>
+                                                    <div className="text-center border-l"><label className="text-[8px] text-fin-up">停利%</label><input type="number" inputMode="decimal" value={s.profit_pct} onChange={e=>updateArr('satellites',s.id,'profit_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/></div>
+                                                    <div className="text-center border-l"><label className="text-[8px] text-fin-down">補倉-%</label><input type="number" inputMode="decimal" value={s.loss_pct} onChange={e=>updateArr('satellites',s.id,'loss_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[10px] bg-transparent outline-none"/></div>
                                                 </div>
                                             </div>
                                         ))}
-                                        <button onClick={()=>addArr('satellites', { underlying:'', leveraged:'', type_u:'stock', qty_u:0, opt_p_c:0, opt_d_c:0.9, ma200:0, ma10:0, peak_p:0, avg_cost:0, target_pct:10, profit_pct:25, loss_pct:7, rescues:0 })} className="w-full py-3 border-dashed border-2 rounded-xl text-slate-500 text-sm active:scale-95">+ 新增衛星</button>
                                     </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {view === 'history' && (
-                            <div className="space-y-6 animate-in fade-in">
-                                {hasCharts && metrics.graphData && metrics.graphData.length > 0 && (
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200">
-                                            <div className="text-[10px] text-slate-400 mb-1 font-bold">歷史最高資產 (ATH)</div>
-                                            <div className="text-lg font-mono font-black text-slate-800">
-                                                ${metrics.historicalPeak.toLocaleString(undefined,{maximumFractionDigits:0})}
-                                            </div>
-                                        </div>
-                                        <div className="bg-white rounded-3xl p-4 shadow-sm border border-red-100 bg-red-50/30">
-                                            <div className="text-[10px] text-red-400 mb-1 font-bold">最大回撤 (MDD)</div>
-                                            <div className="text-lg font-mono font-black text-fin-down">
-                                                {metrics.mdd.toFixed(1)}%
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="bg-white rounded-3xl p-5 shadow-sm border h-[300px]">
-                                    <div className="text-xs font-black text-slate-700 mb-2 flex items-center gap-1"><Icon name="TrendingUp" size={14} className="text-brand-600"/> 資產歷史走勢</div>
-                                    {hasCharts && metrics.graphData && metrics.graphData.length > 0 ? (
-                                        <ResponsiveContainer width="100%" height="85%">
-                                            <ComposedChart data={metrics.graphData} margin={{top:5,right:0,left:-20,bottom:0}}>
-                                                <defs>
-                                                    <linearGradient id="cEq" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/><stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/></linearGradient>
-                                                    <linearGradient id="cDD" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ef4444" stopOpacity={0.15}/><stop offset="95%" stopColor="#ef4444" stopOpacity={0}/></linearGradient>
-                                                </defs>
-                                                <XAxis dataKey="date" tickFormatter={v=>new Date(v).toLocaleDateString(undefined,{month:'numeric',day:'numeric'})} tick={{fontSize:10, fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
-                                                <YAxis yAxisId="left" tickFormatter={v=>`${(v/1000).toFixed(0)}k`} tick={{fontSize:10, fill:'#64748b'}} axisLine={false} tickLine={false}/>
-                                                <YAxis yAxisId="right" orientation="right" tickFormatter={v=>`${v.toFixed(0)}%`} tick={{fontSize:10, fill:'#ef4444'}} domain={['auto', 0]} axisLine={false} tickLine={false}/>
-                                                <Tooltip content={<CustomTooltip/>} cursor={{ stroke:'#cbd5e1', strokeDasharray:'3 3' }}/>
-                                                <Area yAxisId="left" type="stepAfter" dataKey="equity" stroke="#3b82f6" strokeWidth={2} fill="url(#cEq)" name="總資產"/>
-                                                <Area yAxisId="right" type="monotone" dataKey="dd" stroke="none" fill="url(#cDD)" name="大盤跌幅"/>
-                                            </ComposedChart>
-                                        </ResponsiveContainer>
-                                    ) : <div className="h-full flex items-center justify-center text-slate-400 text-xs border border-dashed rounded-xl">尚無歷史戰報</div>}
-                                </div>
-                                <div className="bg-white rounded-3xl shadow-sm border p-4">
-                                    <h3 className="text-sm font-black mb-3 border-b pb-2 flex items-center gap-1"><Icon name="FileText" size={14}/> 歷史紀錄</h3>
-                                    {!getArr(records).length ? (
-                                        <div className="text-center text-xs text-slate-400 py-6">尚無紀錄</div>
-                                    ) : (
-                                        <div className="space-y-3 max-h-[500px] overflow-y-auto">
-                                            {[...getArr(records)].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(r => (
-                                                <div key={r.id} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                                    <div className="flex justify-between items-center border-b pb-2 mb-2">
-                                                        <span className="text-[10px] font-mono bg-white px-2 py-0.5 rounded border">{new Date(r.date).toLocaleDateString()}</span>
-                                                        <div className="flex items-center gap-3">
-                                                            <span className="text-brand-600 font-mono font-black">${(r.total_equity||0).toLocaleString()}</span>
-                                                            <div className="flex gap-1">
-                                                                <button onClick={()=>setModal({type:'EDIT_RECORD', data:r, temp:{}})} className="text-slate-400 hover:text-brand-600 p-1"><Icon name="Edit2" size={14}/></button>
-                                                                <button onClick={()=>setModal({type:'DELETE_RECORD', data:r})} className="text-slate-400 hover:text-fin-down p-1"><Icon name="Trash2" size={14}/></button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="grid grid-cols-4 gap-1 text-center font-mono text-[9px]">
-                                                        <div className="bg-white p-1 rounded border"><div className="text-[8px] text-slate-400">QQQ</div>{r.inputs?.qty_core_1||0}</div>
-                                                        <div className="bg-white p-1 rounded border"><div className="text-[8px] text-slate-400">TQQQ</div>{r.inputs?.qty_core_2||0}</div>
-                                                        <div className="bg-slate-800 text-brand-100 p-1 rounded border border-slate-700"><div className="text-[8px] text-slate-400">BOXX</div>{r.inputs?.qty_boxx||0}</div>
-                                                        <div className="bg-white p-1 rounded border"><div className="text-[8px] text-slate-400">現金</div>{Math.round(r.inputs?.cash_balance||0)}</div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         )}
@@ -1412,7 +1273,6 @@
                 </div>
             );
         };
-
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>

@@ -90,7 +90,6 @@
         // --- 預設值區塊 ---
         const defPlan = `🧠 Alpha Horizon 波動循環動態槓桿系統\n【系統核心】平時 QQQ 複利，回撤動態加槓桿，反彈與創高分批收割，BOXX 鎖死防禦閉環。\n\n壹、 資金絕對配置 (封閉系統)\n• 核心母艦 (70%)：QQQ\n• 機動衛星 (20%)：TSLA (10%)、IBIT (10%)。平時持有 1x 現股。\n• 戰備儲備 (10%)：BOXX。平時基準為 10%，大盤創歷史新高時動態調升至 15%。\n\n貳、 核心母艦：動態槓桿與分批收割 (QQQ ⇄ TQQQ)\n1. 下跌加碼 (看最新高點回撤)\n• -7%：15% QQQ ➜ TQQQ\n• -14%、-21%、-28%：各轉 15% QQQ ➜ TQQQ，並同步動用 25% 戰略 BOXX 買入 TQQQ。\n• -35%：最後 25% 戰略 BOXX 全開買入 TQQQ。\n\n2. 反彈降風險 (看波段低點反彈)\n• +10% 且 QQQ 日K線站上 20MA：15% TQQQ ➜ QQQ\n• +20% (延續多頭趨勢)：再 15% TQQQ ➜ QQQ\n\n3. 創高收割 (看上次 Locked ATH 突破)\n• ATH +7%：賣出剩餘 25% TQQQ ➜ QQQ。同步將 BOXX 儲備基準調升至 15%。\n• ATH +14%：剩餘全部 TQQQ ➜ SPMO，進入狂熱動能期。\n• SPMO 退出：當 QQQ 自「最新高點」回撤 -7%，SPMO 全數退出回歸 QQQ。\n(成本保護鐵律：任何 TQQQ 換回 QQQ，賣價必須大於買入均價，否則無條件續抱。)\n\n參、 衛星系統：攻擊與防禦\n1. LEAPS 攻擊機制 (量化深跌啟動)\n• 觸發條件：標的「跌破 200MA」且「自前波高點回撤達 -20%」時，將現股換為 Deep ITM Call。\n• 退場三防線：獲利(+25%)結清；時間(<180天)強制平倉；結構(Delta<0.60)停損換現股。\n\n2. 現股補倉機制 (防禦)\n• 觸發條件：帳面每跌 -7%，動用戰術 BOXX 補回 10% 基準 (最多 3 次)。\n• 末日凍結：當 BOXX 水位低於 3%，強制凍結補倉，保留資金救母艦。\n\n肆、 資金閉環與系統鐵律\n• 第一順位優先補滿 BOXX (常態 10%，創高 15%)，第二順位擴張 QQQ。\n• 嚴禁憑「感覺」進出場；數字未到，原地臥倒。`;
         
-        // 優化: 移除了沒用的 ma10, 新增了 rolls 參數
         const defSats = [
             { id: '1', underlying: 'TSLA', leveraged: 'TSLL', qty_u: 0, qty_l: 0, opt_p_c: 0, opt_d_c: 2, ma200: 200, peak_p: 300, avg_cost: 250, target_pct: 10, profit_pct: 25, loss_pct: 7, rescues: 0, rolls: 0 }, 
             { id: '2', underlying: 'IBIT', leveraged: 'BITU', qty_u: 0, qty_l: 0, opt_p_c: 0, opt_d_c: 2, ma200: 35, peak_p: 45, avg_cost: 35, target_pct: 10, profit_pct: 25, loss_pct: 7, rescues: 0, rolls: 0 }
@@ -243,7 +242,6 @@
             const [sections, setSections] = useState(() => { 
                 try { 
                     const s = JSON.parse(localStorage.getItem('ah_std_sections_2026')); 
-                    // 新增 satMonitor 控制衛星雷達收合
                     return s || { plan: false, core: true, satellite: true, holdings: true, allocation: true, stress: true, satMonitor: true }; 
                 } catch(e) { 
                     return { plan: false, core: true, satellite: true, holdings: true, allocation: true, stress: true, satMonitor: true }; 
@@ -297,7 +295,6 @@
                             }
                         }
                         
-                        // 清理舊有的 ma10 並補上 rolls
                         if (parsed.satellites) {
                             parsed.satellites = parsed.satellites.map(s => {
                                 const newSat = { ...s, rolls: s.rolls || 0 };
@@ -576,9 +573,7 @@
                     const tVal = tCap * (tPct / 100); 
                     const dPct = getNum(s.ma200) > 0 ? ((uP - getNum(s.ma200)) / getNum(s.ma200)) * 100 : 0;
                     
-                    // 新增 peakDD, 讓前台可以抓出實際回撤百分比
                     const peakDD = getNum(s.peak_p) > 0 ? ((getNum(s.peak_p) - uP) / getNum(s.peak_p)) * 100 : 0;
-                    
                     const costDD = getNum(s.avg_cost) > 0 ? ((getNum(s.avg_cost) - uP) / getNum(s.avg_cost)) * 100 : 0;
                     
                     let st = "未定", col = "text-slate-500", act = "觀察中";
@@ -814,6 +809,18 @@
                                     <div className="text-xs text-slate-500 font-bold mb-1">動態總資產價值 (USD)</div>
                                     <div className="text-5xl font-mono tracking-tight font-black">${metrics.totalCapital.toLocaleString(undefined,{maximumFractionDigits:0})}</div>
                                     
+                                    {/* 補回：槓桿比例顯示 */}
+                                    <div className="flex gap-2 mt-4">
+                                        <div className="flex-1 bg-slate-50 border border-slate-100 rounded-lg p-2 text-center">
+                                            <div className="text-[9px] text-slate-400 mb-0.5">總系統槓桿</div>
+                                            <div className="font-mono text-sm font-black text-slate-700">{metrics.totalLeverageRatio.toFixed(2)}x</div>
+                                        </div>
+                                        <div className="flex-1 bg-brand-50 border border-brand-100 rounded-lg p-2 text-center">
+                                            <div className="text-[9px] text-brand-500 mb-0.5">成長部位槓桿</div>
+                                            <div className="font-mono text-sm font-black text-brand-700">{metrics.growthLeverageRatio.toFixed(2)}x</div>
+                                        </div>
+                                    </div>
+
                                     <div className="mt-6 bg-slate-900 text-white p-4 rounded-xl shadow-inner font-mono relative overflow-hidden">
                                         <div className="absolute -right-4 -top-4 opacity-10"><Icon name="Activity" size={80}/></div>
                                         <div className="flex justify-between items-end border-b border-slate-700 pb-3 mb-3 relative z-10">
@@ -850,13 +857,12 @@
                                     </div>
                                 </div>
 
-                                {/* 新增：衛星標的即時監控面板 (可收合) */}
                                 <CollapsibleCard title="衛星標的即時監控" icon="Activity" isOpen={sections.satMonitor} onToggle={() => toggleSection('satMonitor')}>
                                     <div className="space-y-4">
                                         {metrics.satStats.map(s => {
                                             if (!s.underlying) return null;
                                             
-                                            // 判定 LEAPS 條件：必須輸入 200MA，且現價 < 200MA，且從前高回撤超過 20%
+                                            // 判定 LEAPS 條件
                                             const isLeapsTriggered = s.uP > 0 && s.ma200 > 0 && s.uP < s.ma200 && s.peakDD >= 20;
                                             
                                             return (
@@ -1058,6 +1064,35 @@
                                                 </div>
                                             </div>
                                         </div>
+                                        
+                                        {/* 補回：衛星部位持股調整輸入框 */}
+                                        {metrics.satStats.some(s => s.underlying) && (
+                                            <div className="pt-4 mt-4 border-t border-slate-200">
+                                                <div className="text-xs font-black text-slate-700 mb-3">機動衛星持股更新</div>
+                                                <div className="space-y-3">
+                                                    {getArr(inputs.satellites).map(s => s.underlying && (
+                                                        <div key={s.id} className="bg-slate-50 p-3 rounded-xl border border-slate-200 focus-within:border-brand-400 transition-colors">
+                                                            <div className="text-[10px] font-black text-slate-600 mb-2">{s.underlying} 衛星群</div>
+                                                            <div className="grid grid-cols-3 gap-2">
+                                                                <div>
+                                                                    <label className="text-[8px] text-slate-500 block mb-1">現股股數</label>
+                                                                    <input type="number" inputMode="decimal" value={s.qty_u} onChange={e=>updateArr('satellites',s.id,'qty_u',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-1.5 rounded-lg border shadow-sm text-center"/>
+                                                                </div>
+                                                                <div>
+                                                                    <label className="text-[8px] text-slate-500 block mb-1">{s.leveraged||'槓桿'} 股數</label>
+                                                                    <input type="number" inputMode="decimal" value={s.qty_l} onChange={e=>updateArr('satellites',s.id,'qty_l',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-1.5 rounded-lg border shadow-sm text-center"/>
+                                                                </div>
+                                                                <div>
+                                                                    <label className="text-[8px] text-slate-500 block mb-1">Call現值($)</label>
+                                                                    <input type="number" inputMode="decimal" value={s.opt_p_c} onChange={e=>updateArr('satellites',s.id,'opt_p_c',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-sm outline-none bg-white p-1.5 rounded-lg border shadow-sm text-center"/>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
                                     </div>
                                 </CollapsibleCard>
 
@@ -1192,7 +1227,6 @@
                                                     <input value={s.underlying} onChange={e=>updateArr('satellites',s.id,'underlying',e.target.value.toUpperCase().trim())} className="w-24 bg-white text-xs p-1.5 rounded border font-black uppercase outline-none text-center" placeholder="正股"/>
                                                 </div>
 
-                                                {/* 修改: 新增 rolls 欄位, 變成四欄 */}
                                                 <div className="grid grid-cols-4 gap-1 mb-2 bg-white p-1 rounded border">
                                                     <div className="text-center flex flex-col items-center">
                                                         <label className="text-[8px] text-slate-400">前高</label>
@@ -1212,7 +1246,6 @@
                                                     </div>
                                                 </div>
 
-                                                {/* 修改: 拔除 10ma, 變回三欄 */}
                                                 <div className="grid grid-cols-3 gap-1 bg-white p-1 rounded border">
                                                     <div className="text-center flex flex-col items-center">
                                                         <label className="text-[8px] text-slate-400">200MA</label>

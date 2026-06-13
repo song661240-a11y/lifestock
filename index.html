@@ -73,10 +73,9 @@
         const { ComposedChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } = RechartsLib;
         const hasCharts = !!ComposedChart; 
 
-        // --- 系統設定與 Firebase ---
+        // --- 核心修復：強制改回原本的存檔 ID，讓您的雲端存檔可以順利載入 ---
         const FINNHUB_KEY = "d4q36b9r01qha6q0jclgd4q36b9r01qha6q0jcm0";
-        // 🚨 修正：確保使用 Pro 版的資料庫路徑，讓您的舊資料可以讀出來
-        const appId = 'alpha-horizon-2026-pro'; 
+        const appId = 'alpha-horizon-2026-v1'; // 絕對不能改這個字串，這是您雲端金庫的鑰匙！
         const firebaseConfig = { apiKey: "AIzaSyDMR8Q20z9vnWtQlafDowRujzBexV0h_lI", authDomain: "lifestock-83480.firebaseapp.com", projectId: "lifestock-83480", storageBucket: "lifestock-83480.firebasestorage.app", messagingSenderId: "615080626396", appId: "1:615080626396:web:407135b548f3ed5b5c4c19" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore(); 
@@ -98,7 +97,6 @@
             { id: '2', underlying: 'IBIT', leveraged: 'BITU', qty_u: 0, qty_l: 0, opt_p_c: 0, opt_d_c: 2, ma200: 35, peak_p: 45, avg_cost: 35, target_pct: 5, profit_pct: 25, loss_pct: 14, rescues: 0, rolls: 0 }
         ];
         
-        // 新的 6 階加碼
         const defLad = [
             { id: 'l1', drop_pct: 7, move_pct: 10, use_boxx: 0 }, 
             { id: 'l2', drop_pct: 14, move_pct: 10, use_boxx: 0 }, 
@@ -108,7 +106,6 @@
             { id: 'l6', drop_pct: 42, move_pct: 0, use_boxx: 25 }
         ];
         
-        // 狂熱階梯 (+15%, +25%)
         const defUpLad = [
             { id: 'u1', rise_pct: 15, target_pct: 0, spmo_pct: 50 }, 
             { id: 'u2', rise_pct: 25, target_pct: 0, spmo_pct: 100 }
@@ -251,10 +248,10 @@
             
             const [isMottoLocked, setIsMottoLocked] = useState(true);
             
-            // 🚨 修正：確保 localStorage 存取名稱一致
+            // 核心修復：使用回原本的暫存檔 key
             const [sections, setSections] = useState(() => { 
                 try { 
-                    const s = JSON.parse(localStorage.getItem('ah_std_sections_pro')); 
+                    const s = JSON.parse(localStorage.getItem('ah_std_sections_2026')); 
                     return s || { plan: false, core: true, satellite: true, holdings: true, allocation: true, stress: true, satMonitor: true }; 
                 } catch(e) { 
                     return { plan: false, core: true, satellite: true, holdings: true, allocation: true, stress: true, satMonitor: true }; 
@@ -262,7 +259,7 @@
             });
             const toggleSection = (k) => setSections(p => { 
                 const n = {...p, [k]: !p[k]}; 
-                localStorage.setItem('ah_std_sections_pro', JSON.stringify(n)); 
+                localStorage.setItem('ah_std_sections_2026', JSON.stringify(n)); 
                 return n; 
             });
 
@@ -288,13 +285,12 @@
                 };
             }, []);
 
-            // 🚨 修正：確保 localStorage 存取名稱一致
+            // 核心修復：使用回原本的備份 key
             const [inputs, setInputs] = useState(() => { 
                 try { 
-                    const b = localStorage.getItem('ah_local_backup_pro'); 
+                    const b = localStorage.getItem('ah_local_backup_2026'); 
                     if (b) {
                         const parsed = JSON.parse(b);
-                        // 防呆填補
                         if (parsed.reserve_pct !== undefined && parsed.reserve_pct_normal === undefined) parsed.reserve_pct_normal = parsed.reserve_pct;
                         if (parsed.spmo_peak_price === undefined) parsed.spmo_peak_price = 0;
                         if (parsed.first_bounce_date === undefined) parsed.first_bounce_date = '';
@@ -309,7 +305,7 @@
             });
 
             useEffect(() => { 
-                localStorage.setItem('ah_local_backup_pro', JSON.stringify(inputs)); 
+                localStorage.setItem('ah_local_backup_2026', JSON.stringify(inputs)); 
             }, [inputs]);
 
             useEffect(() => { 
@@ -338,7 +334,7 @@
                         } catch (e) { 
                             if (e.code === 'auth/credential-already-in-use') { 
                                 await auth.signInWithCredential(e.credential); 
-                                showToast("已載入現有雲端資料。"); 
+                                showToast("已載入您的雲端資料！"); 
                             } else { throw e; }
                         }
                     } else { 
@@ -836,7 +832,7 @@
                                             <Icon name="ShieldAlert" size={24}/>
                                             <div className="text-xs">
                                                 <div className="font-black">熊市超級熔斷已開啟</div>
-                                                <div className="text-[10px] opacity-80">已停止 TQQQ 下跌加碼，保護戰備現金。</div>
+                                                <div className="text-[10px] opacity-80">已停止 TQQQ 加碼，保護戰備現金。</div>
                                             </div>
                                         </div>
                                     )}
@@ -1117,7 +1113,6 @@
                                             </div>
                                         </div>
 
-                                        {/* 保留衛星數量與現值輸入 */}
                                         <div className="pt-3 border-t border-slate-100">
                                             <div className="text-xs font-black text-slate-700 mb-3 flex items-center gap-1"><Icon name="Activity" size={14} className="text-slate-400"/> 衛星配置數量與現值</div>
                                             {getArr(inputs.satellites).map(s => s.underlying && (
@@ -1213,11 +1208,10 @@
                                             </div>
                                         </div>
 
-                                        {/* 新增：首次反彈日 */}
                                         <div className="bg-brand-50 p-3 rounded-lg border border-brand-200 text-left flex justify-between items-center">
                                             <div>
                                                 <label className="text-[10px] font-bold text-brand-700 block mb-1">首次反彈卸除日期</label>
-                                                <div className="text-[8px] text-brand-600/70 leading-tight">📌 180天時間防線：超時未過高，強制退回QQQ。</div>
+                                                <div className="text-[8px] text-brand-600/70 leading-tight">📌 180天防線：超時未過高，強制退回QQQ。</div>
                                             </div>
                                             <div className="flex gap-1 items-center">
                                                 <input type="date" value={inputs.first_bounce_date} onChange={e=>handleInput('first_bounce_date', e.target.value)} className="bg-white p-1.5 rounded border border-brand-200 font-mono text-[10px] outline-none"/>
@@ -1277,7 +1271,6 @@
                                                     <Icon name="ChevronDown" size={14} className="-rotate-90 text-slate-300"/>
                                                     <div className="flex-[1.5] flex gap-1">
                                                         <div className="flex-1 bg-fin-up/10 border border-fin-up/20 rounded flex items-center px-1 hidden">
-                                                            {/* 隱藏 target_pct 因為現在只轉 SPMO */}
                                                             <input type="number" inputMode="decimal" value={l.target_pct} onChange={e=>updateArr('core_up_ladder', l.id, 'target_pct', e.target.value)} onFocus={e=>e.target.select()} className="w-full"/>
                                                         </div>
                                                         <div className="flex-1 bg-purple-50 border border-purple-200 rounded flex items-center px-1">

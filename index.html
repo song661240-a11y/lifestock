@@ -26,10 +26,9 @@
         }
     </script>
     
-    <!-- 手機相容性修復：加入 ResizeObserver 補丁與標準 React/Babel 庫 -->
-    <script src="https://unpkg.com/resize-observer-polyfill@1.5.1/dist/ResizeObserver.global.js"></script>
-    <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    <!-- 確保 React 與 Babel 在任何手機環境都能穩定載入 -->
+    <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
     <script src="https://unpkg.com/recharts@2.1.12/umd/Recharts.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -40,7 +39,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap');
-        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #f1f5f9; color: #1e293b; }
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #f1f5f9; color: #1e293b; margin: 0; }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
         
         input, select, textarea { width: 100%; background: transparent; border: none; outline: none; }
@@ -55,26 +54,45 @@
     </style>
 </head>
 <body class="text-left font-bold text-slate-800">
-    <div id="root"></div>
+    
+    <!-- 防白畫面緩衝區：若 React 被阻擋，至少會顯示此訊息讓您知道原因 -->
+    <div id="root">
+        <div style="height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #f1f5f9; color: #64748b; font-family: sans-serif; padding: 20px; text-align: center;">
+            <div style="width: 40px; height: 40px; border: 4px solid #cbd5e1; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
+            <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+            <h2 style="color: #1e293b; font-weight: bold; margin-bottom: 8px;">系統啟動中...</h2>
+            <p style="font-size: 12px; line-height: 1.6;">若長時間停留在這畫面，表示您的瀏覽器安全層級過高。<br/>請嘗試關閉 Chrome 的「無痕模式」或「阻擋第三方 Cookie」設定。</p>
+        </div>
+    </div>
+
     <script type="text/babel">
         const { useState, useEffect, useMemo, useCallback, memo, useRef } = React;
         const { ComposedChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } = window.Recharts || {};
-        const hasCharts = !!ComposedChart; 
+        const hasCharts = !!window.Recharts && !!ComposedChart;
 
-        // 確保存檔路徑是原本的 v1，讓雲端資料順利讀出
+        // --- 防彈機制：使用 Try/Catch 包覆 Firebase 初始化，防止 Chrome 阻擋引發全局崩潰 ---
         const FINNHUB_KEY = "d4q36b9r01qha6q0jclgd4q36b9r01qha6q0jcm0";
         const appId = 'alpha-horizon-2026-v1'; 
         const firebaseConfig = { apiKey: "AIzaSyDMR8Q20z9vnWtQlafDowRujzBexV0h_lI", authDomain: "lifestock-83480.firebaseapp.com", projectId: "lifestock-83480", storageBucket: "lifestock-83480.firebasestorage.app", messagingSenderId: "615080626396", appId: "1:615080626396:web:407135b548f3ed5b5c4c19" };
-        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore(); 
-        const auth = firebase.auth();
+        
+        let db = null;
+        let auth = null;
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            db = firebase.firestore(); 
+            auth = firebase.auth();
+        } catch (error) {
+            console.warn("Firebase 初始化失敗 (瀏覽器安全設定阻擋):", error);
+        }
 
         const sanitize = (data) => JSON.parse(JSON.stringify(data, (k, v) => v === undefined ? null : v));
         const getNum = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
         const getTodayStr = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().split('T')[0]; };
         const getArr = (arr) => Array.isArray(arr) ? arr : (arr && typeof arr === 'object' ? Object.values(arr) : []);
 
-        const ICONS_MAP = { 
+        const ICONS_MAP = {
             TrendingUp: <path d="m22 7-8.5 8.5-5-5L2 17M22 7h-6M22 7v6"/>, 
             TrendingDown: <path d="m22 17-8.5-8.5-5 5L2 5M22 17h-6M22 17v-6"/>, 
             Settings: <path d="M12.22 2h-.44a2 2 0 0 0-2 2a2 2 0 0 1-2 2a2 2 0 0 1 2-2a2 2 0 0 1 2-2a2 2 0 0 0-2-2zM9 12a3 3 0 1 1 6 0a3 3 0 0 1-6 0z"/>, 
@@ -99,6 +117,78 @@
             Zap: <path d="M13 2 L3 14 L12 14 L11 22 L21 10 L12 10 L13 2 Z" />, 
             Package: <g><path d="M16.5 9.4 7.5 4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></g>,
             ShieldAlert: <g><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></g>
+        };
+
+        const Icon = memo(({ name, size = 20, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {ICONS_MAP[name] || <circle cx="12" cy="12" r="10" />}
+            </svg>
+        ));
+
+        const AllocRow = memo(({ name, actual, target, color }) => {
+            const diff = actual - target;
+            return (
+                <div className="flex justify-between items-center text-[10px] p-2 bg-slate-50 rounded-lg border border-slate-100 mb-1">
+                    <span className={`font-black ${color}`}>{name}</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-slate-500 w-[60px] text-right">目標 {target.toFixed(1)}%</span>
+                        <span className="font-mono font-black w-[45px] text-right">{actual.toFixed(1)}%</span>
+                        <span className={`w-[45px] text-right font-mono ${diff > 0.1 ? 'text-fin-up' : diff < -0.1 ? 'text-fin-down' : 'text-slate-300'}`}>
+                            {Math.abs(diff) < 0.1 ? '-' : (diff > 0 ? '+' : '') + diff.toFixed(1) + '%'}
+                        </span>
+                    </div>
+                </div>
+            );
+        });
+
+        const CollapsibleCard = ({ title, icon, isOpen, onToggle, children, rightElement, className="bg-white" }) => (
+            <div className={`${className} rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6`}>
+                <div className="p-5 flex justify-between items-center cursor-pointer bg-slate-50/80 border-b border-slate-100 hover:bg-slate-100/50 transition-colors" onClick={onToggle}>
+                    <div className="flex gap-3 items-center text-sm font-black text-slate-800">
+                        <Icon name={icon} className="text-brand-600" /> {title}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {rightElement}
+                        <Icon name={isOpen ? "ChevronUp" : "ChevronDown"} className="text-slate-400" />
+                    </div>
+                </div>
+                {isOpen && <div className="p-5 sm:p-6 animate-in fade-in">{children}</div>}
+            </div>
+        );
+
+        const Modal = ({ isOpen, onClose, title, icon, children }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center animate-in fade-in p-4">
+                    <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-4">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-black flex items-center gap-2 text-slate-800">
+                                <Icon name={icon} className="text-brand-600"/>{title}
+                            </h3>
+                            <button onClick={onClose} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 active:scale-95">
+                                <Icon name="X" size={16}/>
+                            </button>
+                        </div>
+                        <div className="space-y-4">{children}</div>
+                    </div>
+                </div>
+            );
+        };
+
+        const CustomTooltip = ({ active, payload, label }) => {
+            if (active && payload && payload.length) {
+                return (
+                    <div className="bg-slate-800 p-4 rounded-2xl shadow-xl text-sm font-black text-white">
+                        <p className="mb-2 text-slate-400">{new Date(label).toLocaleDateString()}</p>
+                        {payload.map((p, i) => (
+                            <p key={i} style={{color: p.color || p.fill}} className="mb-1">
+                                {p.name}: {p.name.includes('跌幅') ? p.value.toFixed(1) + '%' : '$' + p.value.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                            </p>
+                        ))}
+                    </div>
+                );
+            }
+            return null;
         };
 
         const defPlan = `🧠 Alpha Horizon Pro (2026 最終定案版)\n\n【策略目標】以 QQQ 為核心長期複利，大跌 TQQQ 動態加碼，牛市後期 SPMO 動能切換。\n【核心精神】不猜高低點，以「長期存活、避免重傷」為最高目標。\n\n壹、 資金絕對配置\n• 核心母艦 (75%)：QQQ\n• 機動衛星 (10%)：TSLA (5%)、IBIT (5%)\n• 戰備儲備 (15%)：BOXX\n\n貳、 核心母艦：下跌加碼 (看最新高點回撤)\n• -7%、-14%、-21%、-28%：各轉 10% QQQ ➜ TQQQ\n• -35%、-42%：各動用 25% BOXX ➜ TQQQ\n\n參、 核心母艦：反彈與狂熱收割\n1. 反彈降風險 (看波段低點)\n• +10%：賣出帳面 25% TQQQ ➜ QQQ\n• +20%：再賣出帳面 25% TQQQ ➜ QQQ\n(剩餘 50% 鎖定做為牛市切換資金。若首彈 180 天未創高，強制全回 QQQ)\n\n2. 狂熱模式 (看上次 Locked ATH)\n• ATH +15%：剩餘 TQQQ 的 50% ➜ SPMO\n• ATH +25%：剩餘 TQQQ 全數 ➜ SPMO\n\n3. SPMO 退場\n• SPMO 自身最高價回撤 -10%：無條件全數轉回 QQQ。\n\n肆、 衛星系統與防線\n• 衛星補倉：單一標的自均價跌 -14% 時，用 BOXX 補回 5% 權重 (最多 3 次)。\n• 末日防禦：BOXX < 5%，停止所有補倉。\n• 熊市熔斷：跌破 200MA+下彎 60 天，手動開啟熔斷，停止加碼 TQQQ。`;
@@ -282,78 +372,6 @@
             };
         };
 
-        const Icon = memo(({ name, size = 20, className = "" }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                {ICONS_MAP[name] || <circle cx="12" cy="12" r="10" />}
-            </svg>
-        ));
-
-        const AllocRow = memo(({ name, actual, target, color }) => {
-            const diff = actual - target;
-            return (
-                <div className="flex justify-between items-center text-[10px] p-2 bg-slate-50 rounded-lg border border-slate-100 mb-1">
-                    <span className={`font-black ${color}`}>{name}</span>
-                    <div className="flex items-center gap-2">
-                        <span className="text-slate-500 w-[60px] text-right">目標 {target.toFixed(1)}%</span>
-                        <span className="font-mono font-black w-[45px] text-right">{actual.toFixed(1)}%</span>
-                        <span className={`w-[45px] text-right font-mono ${diff > 0.1 ? 'text-fin-up' : diff < -0.1 ? 'text-fin-down' : 'text-slate-300'}`}>
-                            {Math.abs(diff) < 0.1 ? '-' : (diff > 0 ? '+' : '') + diff.toFixed(1) + '%'}
-                        </span>
-                    </div>
-                </div>
-            );
-        });
-
-        const CollapsibleCard = ({ title, icon, isOpen, onToggle, children, rightElement, className="bg-white" }) => (
-            <div className={`${className} rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6`}>
-                <div className="p-5 flex justify-between items-center cursor-pointer bg-slate-50/80 border-b border-slate-100 hover:bg-slate-100/50 transition-colors" onClick={onToggle}>
-                    <div className="flex gap-3 items-center text-sm font-black text-slate-800">
-                        <Icon name={icon} className="text-brand-600" /> {title}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {rightElement}
-                        <Icon name={isOpen ? "ChevronUp" : "ChevronDown"} className="text-slate-400" />
-                    </div>
-                </div>
-                {isOpen && <div className="p-5 sm:p-6 animate-in fade-in">{children}</div>}
-            </div>
-        );
-
-        const Modal = ({ isOpen, onClose, title, icon, children }) => {
-            if (!isOpen) return null;
-            return (
-                <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center animate-in fade-in p-4">
-                    <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-4">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-black flex items-center gap-2 text-slate-800">
-                                <Icon name={icon} className="text-brand-600"/>{title}
-                            </h3>
-                            <button onClick={onClose} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 active:scale-95">
-                                <Icon name="X" size={16}/>
-                            </button>
-                        </div>
-                        <div className="space-y-4">{children}</div>
-                    </div>
-                </div>
-            );
-        };
-
-        const CustomTooltip = ({ active, payload, label }) => {
-            if (active && payload && payload.length) {
-                return (
-                    <div className="bg-slate-800 p-4 rounded-2xl shadow-xl text-sm font-black text-white">
-                        <p className="mb-2 text-slate-400">{new Date(label).toLocaleDateString()}</p>
-                        {payload.map((p, i) => (
-                            <p key={i} style={{color: p.color || p.fill}} className="mb-1">
-                                {p.name}: {p.name.includes('跌幅') ? p.value.toFixed(1) + '%' : '$' + p.value.toLocaleString(undefined, {maximumFractionDigits: 0})}
-                            </p>
-                        ))}
-                    </div>
-                );
-            }
-            return null;
-        };
-
         const App = () => {
             const [user, setUser] = useState(null);
             const [view, setView] = useState('dashboard');
@@ -365,10 +383,13 @@
             const [authError, setAuthError] = useState(null);
             const [isMottoLocked, setIsMottoLocked] = useState(true);
             
-            // 核心修復：加入 try-catch 防止手機瀏覽器阻擋 localStorage 導致白畫面
             const [sections, setSections] = useState(() => { 
-                try { return JSON.parse(localStorage.getItem('ah_std_sections_2026')) || { plan: false, core: true, satellite: true, holdings: true, allocation: true, stress: true, satMonitor: true }; } 
-                catch(e) { return { plan: false, core: true, satellite: true, holdings: true, allocation: true, stress: true, satMonitor: true }; } 
+                try { 
+                    const s = JSON.parse(localStorage.getItem('ah_std_sections_2026')); 
+                    return s || { plan: false, core: true, satellite: true, holdings: true, allocation: true, stress: true, satMonitor: true }; 
+                } catch(e) { 
+                    return { plan: false, core: true, satellite: true, holdings: true, allocation: true, stress: true, satMonitor: true }; 
+                } 
             });
             const toggleSection = (k) => setSections(p => { 
                 const n = {...p, [k]: !p[k]}; 
@@ -403,18 +424,19 @@
                 } catch(e) { return defInputs; } 
             });
 
-            // 核心修復：加入 try-catch 防止手機存檔時當機
             useEffect(() => { 
                 try { localStorage.setItem('ah_local_backup_2026', JSON.stringify(inputs)); } catch(e) {}
             }, [inputs]);
 
             useEffect(() => { 
-                const initAuth = async () => { try { if (!auth.currentUser) await auth.signInAnonymously(); setAuthError(null); } catch(e) { setAuthError("Firebase 連線異常，請確認控制台已開啟匿名登入。"); } }; 
+                if (!auth) { setAuthError("系統受限於瀏覽器安全設定，以單機模式運行。"); return; }
+                const initAuth = async () => { try { if (!auth.currentUser) await auth.signInAnonymously(); setAuthError(null); } catch(e) { setAuthError("Firebase 連線異常，可能是因為隱私設定阻擋。"); } }; 
                 const unsub = auth.onAuthStateChanged(usr => { if(usr) setUser(usr); else initAuth(); }); 
                 return () => unsub();
             }, []);
 
             const handleGoogleLogin = async () => {
+                if (!auth) return showToast("資料庫連線中斷，無法登入");
                 try {
                     const provider = new firebase.auth.GoogleAuthProvider();
                     if (auth.currentUser && auth.currentUser.isAnonymous) {
@@ -425,10 +447,10 @@
                 } catch (e) { setAuthError(e.message); }
             };
 
-            const handleLogout = async () => { await auth.signOut(); showToast("已登出帳號，切換為訪客模式。"); setView('dashboard'); };
+            const handleLogout = async () => { if(auth) await auth.signOut(); showToast("已登出帳號，切換為訪客模式。"); setView('dashboard'); };
 
             const getFirebaseRefs = () => {
-                if (!user) return null;
+                if (!user || !db) return null;
                 return { confRef: db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('config').doc('current'), recsRef: db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('trading_records') };
             };
             
@@ -505,9 +527,8 @@
             const copyCommand = () => {
                 const text = `【Alpha Horizon 操作指令】\n日期: ${getTodayStr()}\n狀態: ${metrics.core.phase}\n---\n需動作:\nQQQ: ${metrics.core.qDiff > 0 ? '買入' : '賣出'} $${Math.abs(Math.round(metrics.core.qDiff))}\nTQQQ: ${metrics.core.tDiff > 0 ? '買入' : '賣出'} $${Math.abs(Math.round(metrics.core.tDiff))}\nSPMO: ${metrics.core.sDiff > 0 ? '買入' : '賣出'} $${Math.abs(Math.round(metrics.core.sDiff))}\nBOXX: ${metrics.core.bDiff > 0 ? '買入' : '賣出'} $${Math.abs(Math.round(metrics.core.bDiff))}`;
                 try {
-                    if (navigator.clipboard) { 
-                        navigator.clipboard.writeText(text); showToast("✅ 指令已複製到剪貼簿"); 
-                    } else {
+                    if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text); showToast("✅ 指令已複製到剪貼簿"); } 
+                    else {
                         const textArea = document.createElement("textarea"); textArea.value = text; textArea.style.position = "absolute"; textArea.style.left = "-999999px";
                         document.body.prepend(textArea); textArea.select(); document.execCommand('copy'); textArea.remove(); showToast("✅ 指令已複製到剪貼簿");
                     }
@@ -519,7 +540,7 @@
             return (
                 <div className="pb-32 min-h-screen transition-colors font-bold select-none bg-slate-50 text-slate-800">
                     {message && <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[60] bg-white border border-brand-200 px-6 py-3 rounded-full shadow-lg text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-4"><Icon name="CheckCircle" className="text-fin-up"/>{message}</div>}
-                    {authError && <div className="fixed top-4 inset-x-4 z-[70] bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow-lg flex gap-3 animate-in slide-in-from-top-4"><Icon name="AlertCircle" className="text-red-500"/><div className="flex-1"><h4 className="text-red-800 text-sm">提示</h4><p className="text-red-600 text-xs">{authError}</p><button onClick={handleLogout} className="mt-2 text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg active:scale-95 transition-all">緊急登出</button></div><button onClick={() => setAuthError(null)} className="text-red-400 p-1 self-start"><Icon name="X" size={16}/></button></div>}
+                    {authError && <div className="fixed top-4 inset-x-4 z-[70] bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow-lg flex gap-3 animate-in slide-in-from-top-4"><Icon name="AlertCircle" className="text-red-500"/><div className="flex-1"><h4 className="text-red-800 text-sm">提示</h4><p className="text-red-600 text-xs">{authError}</p><button onClick={handleLogout} className="mt-2 text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg active:scale-95 transition-all">關閉提示</button></div><button onClick={() => setAuthError(null)} className="text-red-400 p-1 self-start"><Icon name="X" size={16}/></button></div>}
                     {isSwitching && !authError && <div className="loading-overlay"><div className="w-10 h-10 border-4 border-slate-600 border-t-white rounded-full animate-spin"/><div className="text-sm">同步中...</div></div>}
 
                     {modal.type === 'DELETE_RECORD' && <Modal title="刪除紀錄" icon="Trash2" isOpen={true} onClose={() => setModal({type:null})}><p className="text-sm text-slate-600 mb-4">確定刪除此紀錄？</p><button onClick={deleteRecord} className="w-full bg-fin-down text-white py-4 rounded-xl active:scale-95">刪除</button></Modal>}
@@ -572,7 +593,6 @@
                                         </div>
                                     )}
 
-                                    {/* 視覺化部位水位配置圖 */}
                                     {(() => {
                                         const satColors = ['#10b981', '#06b6d4', '#ec4899', '#f43f5e', '#059669'];
                                         const targetData = [
@@ -739,6 +759,7 @@
 
                                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
                                     <div className="text-xs font-black text-slate-700 mb-4 flex items-center gap-1"><Icon name="Activity" size={14} className="text-brand-600"/> 大盤系統觸發雷達 (距目標)</div>
+                                    
                                     <div className="mb-4">
                                         <div className="flex justify-between text-[10px] text-slate-500 mb-1">
                                             <span>🟢 QQQ 波段反彈 (看波段低點：卸除 25% / 50%)</span>
@@ -748,6 +769,7 @@
                                             <div className="h-full bg-fin-up transition-all duration-500" style={{width:`${Math.min(100, ((metrics.core.cBounce||0)/20)*100)}%`}}></div>
                                         </div>
                                     </div>
+
                                     <div className="mb-4">
                                         <div className="flex justify-between text-[10px] text-slate-500 mb-1">
                                             <span>🟣 SPMO 狂熱期啟動 (看上次高點：+15% / +25%)</span>
@@ -757,6 +779,7 @@
                                             <div className="h-full bg-purple-500 transition-all duration-500" style={{width:`${Math.min(100, Math.max(0, (metrics.core.cRise||0)/25)*100)}%`}}></div>
                                         </div>
                                     </div>
+                                    
                                     <div>
                                         <div className="flex justify-between text-[10px] text-slate-500 mb-1">
                                             <span>🔴 QQQ 回撤加碼階梯 (看最新高點：目標 -42%)</span>
@@ -1193,7 +1216,11 @@
             );
         };
 
-        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+        const rootElement = document.getElementById('root');
+        if (rootElement) {
+            const root = ReactDOM.createRoot(rootElement);
+            root.render(<App />);
+        }
     </script>
 </body>
 </html>

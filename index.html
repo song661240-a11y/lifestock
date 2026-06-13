@@ -384,23 +384,36 @@
                 const cBounce = qWaveLow > 0 ? ((pQQQ - qWaveLow) / qWaveLow) * 100 : null;
                 const cSpmoDrop = (spmoPeak > 0 && pSPMO < spmoPeak) ? ((spmoPeak - pSPMO) / spmoPeak) * 100 : 0;
                 
-                const tgtRPct = (cRise !== null && cRise >= 15) ? getV('reserve_pct_ath') : getV('reserve_pct_normal');
+                // ===== 絕對目標 % 計算核心 (V_Final 防負數緩衝溢位版) =====
+                
+                // 1. 判斷是否觸發狂熱突破 (取得 activeUp)
+                let activeUp = null;
+                if (cRise !== null && cRise >= 0) {
+                    safeUpLadder.forEach(s => { if (cRise >= getNum(s.rise_pct)) activeUp = s; });
+                }
+
+                const tgtRPct = activeUp ? getV('reserve_pct_ath') : getV('reserve_pct_normal');
                 let tgtTqqqFromQqqPct = 0; let tgtTqqqFromBoxxPct = 0; let tTqqqPct = 0; let tSpmoPct = 0;
                 let phase = "標準動能配置 (Base Allocation)"; let diagnosticMsg = "✅ 系統穩定運作中，等待觸發條件。";
 
-                if (cDD !== null) {
+                // 2. 預設保留現有 SPMO (若非突破期或強制退場)
+                tSpmoPct = (valSpmo / safeT) * 100;
+
+                // 3. 計算下跌階梯
+                if (cDD !== null && !activeUp) {
                     safeLadder.forEach(l => { 
                         if (cDD >= getNum(l.drop_pct)) {
                             tgtTqqqFromQqqPct += getNum(l.move_pct); tgtTqqqFromBoxxPct += (getNum(l.use_boxx)/100) * (getV('reserve_pct_normal') / 2);
                         }
                     });
                 }
-                
-                tgtTqqqFromQqqPct = Math.min(tgtTqqqFromQqqPct, 40); tTqqqPct = tgtTqqqFromQqqPct + tgtTqqqFromBoxxPct;
+                tgtTqqqFromQqqPct = Math.min(tgtTqqqFromQqqPct, 40); 
+                tTqqqPct = tgtTqqqFromQqqPct + tgtTqqqFromBoxxPct;
                 
                 let active_core_tqqq = tgtTqqqFromQqqPct; let active_boxx_tqqq = tgtTqqqFromBoxxPct;
                 let totalBounceSellPct = 0; let highestBounceLevel = 0;
 
+                // 4. 計算反彈階梯
                 if (cBounce !== null && cBounce > 0) {
                     safeBounceLadder.forEach(l => {
                         if (cBounce >= getNum(l.bounce_pct)) {
@@ -410,10 +423,11 @@
                 }
                 totalBounceSellPct = Math.min(totalBounceSellPct, 100);
 
+                // 5. 狀態與動作派發
                 if (isBearMeltdown) {
                     const currentTqqqPct = (valCore2 / safeT) * 100; tTqqqPct = Math.min(tTqqqPct, currentTqqqPct);
                     phase = "❄️ 熊市超級熔斷 (Meltdown)"; diagnosticMsg = "❄️ 已開啟熊市熔斷。停止所有 TQQQ 下跌加碼，保護 BOXX 戰備資金。";
-                } else if (totalBounceSellPct > 0) {
+                } else if (totalBounceSellPct > 0 && !activeUp) {
                     const retainRatio = (100 - totalBounceSellPct) / 100;
                     active_core_tqqq *= retainRatio; active_boxx_tqqq *= retainRatio; tTqqqPct = active_core_tqqq + active_boxx_tqqq;
                     if (totalBounceSellPct >= 100) {
@@ -421,48 +435,49 @@
                     } else {
                         phase = `反彈卸除 (賣出 ${totalBounceSellPct}%)`; diagnosticMsg = `🟢 反彈達 ${highestBounceLevel}%。系統執行降風險指令：請賣出帳面 ${totalBounceSellPct}% 的 TQQQ 轉回 QQQ。`;
                     }
-                } else if (cDD !== null && cDD >= 7) {
+                } else if (cDD !== null && cDD >= 7 && !activeUp) {
                     if (cSpmoDrop >= 7) {
                         phase = "相對強弱防禦 (RS Defense)"; diagnosticMsg = `🚨 QQQ 跌破 -7%，且 SPMO 動能崩潰 (跌幅 ≥ 7%)。RS 汰弱留強：賣出全數 SPMO 退回 QQQ！並同步執行 TQQQ 加碼。`; tSpmoPct = 0;
-                    } else if (cDD >= 7) {
+                    } else {
                         phase = `回撤加碼中 (目標槓桿 ${tTqqqPct.toFixed(1)}%)`; diagnosticMsg = `📉 距最新高點 -${cDD.toFixed(1)}%。請依據下方指令賣出對應金額的 QQQ 與 BOXX，買入 TQQQ。`;
                     }
                 }
 
-                if (cRise !== null && cRise >= 0) {
-                    let activeUp = null;
-                    safeUpLadder.forEach(s => { if (cRise >= getNum(s.rise_pct)) activeUp = s; });
-                    if (activeUp) {
-                        tTqqqPct = getNum(activeUp.target_pct); tSpmoPct = getNum(activeUp.spmo_pct) || 0;
-                        if (activeUp.spmo_pct > 0) {
-                            if (activeUp.spmo_pct >= 100) {
-                                phase = `狂熱模式全開 (100% 轉 SPMO)`; diagnosticMsg = `🚀 突破 ${activeUp.rise_pct}%！全數核心火種轉入 SPMO，進入絕對動能期！`;
-                                tSpmoPct = 75; tTqqqPct = 0;
-                            } else {
-                                phase = `狂熱模式啟動 (轉 ${activeUp.spmo_pct}% SPMO)`; diagnosticMsg = `🔥 突破 ${activeUp.rise_pct}%！請將指定比例資金轉入動能 ETF (SPMO)。`;
-                                tSpmoPct = 75 * (activeUp.spmo_pct / 100);
-                            }
-                        } else {
-                            phase = `創高收割 (目標 TQQQ ${tTqqqPct}%)`; diagnosticMsg = `📈 創高收割中，保留 ${tTqqqPct.toFixed(1)}% TQQQ。`;
-                        }
+                // 計算精確總合比例
+                let activeBoxxTargetPct = Math.max(0, tgtRPct - active_boxx_tqqq);
+                let coreTotalTargetPct = Math.max(0, 100 - activeBoxxTargetPct - satSumPct);
+
+                if (activeUp) {
+                    tTqqqPct = getNum(activeUp.target_pct);
+                    tSpmoPct = coreTotalTargetPct * (getNum(activeUp.spmo_pct) / 100);
+                    if (activeUp.spmo_pct >= 100) {
+                        phase = `狂熱模式全開 (100% 轉 SPMO)`; diagnosticMsg = `🚀 突破 ${activeUp.rise_pct}%！全數核心火種轉入 SPMO，進入絕對動能期！`;
                     } else {
-                        phase = `突破確認中 (Breakout Confirmation)`; diagnosticMsg = `📈 突破 ATH 達 +${cRise.toFixed(1)}%。維持目前槓桿部位，等待狂熱期訊號。`; tTqqqPct = (valCore2 / safeT) * 100;
+                        phase = `狂熱模式啟動 (轉 ${activeUp.spmo_pct}% SPMO)`; diagnosticMsg = `🔥 突破 ${activeUp.rise_pct}%！請將指定比例資金轉入動能 ETF (SPMO)。`;
                     }
+                } else if (cRise !== null && cRise >= 0 && cRise < 15 && !isBearMeltdown) {
+                    phase = `突破確認中 (Breakout Confirmation)`; diagnosticMsg = `📈 突破 ATH 達 +${cRise.toFixed(1)}%。維持目前槓桿部位，等待狂熱期訊號。`; tTqqqPct = (valCore2 / safeT) * 100;
                 }
 
+                // 6. SPMO 絕對防線覆寫
                 if (cSpmoDrop >= 10 && tSpmoPct > 0) {
                     phase = "🩸 SPMO 動能破線 (-10%)"; diagnosticMsg = `🚨 SPMO 觸發 -10% 退場防線。強制全數平倉 SPMO，將資金轉回 QQQ！`; tSpmoPct = 0;
                 }
 
-                const tTqqqVal = tCap * (tTqqqPct / 100); const tSpmoVal = tCap * (tSpmoPct / 100);
-                let activeBoxxTargetPct = tgtRPct;
-                if (cRise === null || cRise < 15) { activeBoxxTargetPct = Math.max(0, tgtRPct - tgtTqqqFromBoxxPct); }
-                const tgtBoxxVal = tCap * (activeBoxxTargetPct / 100);
+                // 7. QQQ 的比例只由「核心總量扣除 TQQQ 與 SPMO」而來，保底為 0
+                const tgtQqqPct = Math.max(0, coreTotalTargetPct - tTqqqPct - tSpmoPct);
 
-                let tDiff = tTqqqVal - valCore2; let sDiff = tSpmoVal - valSpmo; let bDiff = tgtBoxxVal - vBOXX;  
-                const currentCorePool = valCore1 + valCore2 + valSpmo + vBOXX; const tgtQqqVal = currentCorePool - tTqqqVal - tSpmoVal - tgtBoxxVal; let qDiff = tgtQqqVal - valCore1;
+                // 8. 以總資產 (tCap) 計算所有人的絕對目標金額，防溢位發生
+                const tTqqqVal = tCap * (tTqqqPct / 100); 
+                const tSpmoVal = tCap * (tSpmoPct / 100);
+                const tgtBoxxVal = tCap * (activeBoxxTargetPct / 100);
+                const tgtQqqVal = tCap * (tgtQqqPct / 100);
+
+                let tDiff = tTqqqVal - valCore2; 
+                let sDiff = tSpmoVal - valSpmo; 
+                let bDiff = tgtBoxxVal - vBOXX;  
+                let qDiff = tgtQqqVal - valCore1;
                 
-                const tgtQqqPct = Math.max(0, 100 - tgtRPct - satSumPct - tTqqqPct - tSpmoPct);
                 let cAct = "維持現有配置"; let cCol = "text-slate-600"; 
                 
                 if (tDiff > 50 || sDiff > 50) { 
@@ -471,9 +486,8 @@
                     cAct = sDiff < -50 ? `動能破線：賣出 SPMO 退回 QQQ` : `收割指令觸發：賣出 TQQQ`; cCol = sDiff < -50 ? "text-red-500" : "text-fin-up"; 
                 }
 
-                if (valCore2 <= 0 && tTqqqVal <= 0 && sDiff === 0) {
-                    phase = (cRise !== null && cRise >= 25 && tSpmoPct > 0) ? phase : "無槓桿配置 (Unleveraged)"; 
-                    cAct = (cRise !== null && cRise >= 25 && sDiff > 0) ? cAct : "各項資產配置已達標"; cCol = (cRise !== null && cRise >= 25 && sDiff > 0) ? cCol : "text-slate-500"; 
+                if (valCore2 <= 0 && tTqqqVal <= 0 && sDiff === 0 && !activeUp) {
+                    cAct = "各項資產配置已達標"; cCol = "text-slate-500"; 
                 }
 
                 if (Math.abs(tDiff) < 50) tDiff = 0; if (Math.abs(sDiff) < 50) sDiff = 0; if (Math.abs(bDiff) < 50) bDiff = 0; if (Math.abs(qDiff) < 50) qDiff = 0;
@@ -637,7 +651,6 @@
                                         </div>
                                     </div>
                                     
-                                    {/* QQQ 假想模擬器 */}
                                     <div className="mt-3 pt-3 border-t border-slate-700 relative z-10 flex flex-col gap-2">
                                         <div className="flex items-center gap-2 bg-slate-800 rounded-lg p-2 border border-slate-600 focus-within:border-brand-400 transition-colors">
                                             <Icon name="Activity" size={14} className="text-slate-400"/>
@@ -652,7 +665,6 @@
                                     </div>
                                 </div>
 
-                                {/* SPMO 退場雷達 */}
                                 {inputs.spmo_peak_price > 0 && (
                                     <div className="bg-purple-900 text-white p-4 rounded-3xl shadow-heavy border border-purple-800 font-mono relative overflow-hidden">
                                         <div className="flex justify-between items-end border-b border-purple-800 pb-3 mb-3">
@@ -716,7 +728,7 @@
                                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
                                     <div className="text-xs font-black text-slate-700 mb-4 flex items-center gap-1"><Icon name="Activity" size={14} className="text-brand-600"/> 大盤系統觸發雷達 (距目標)</div>
                                     <RadarBar title="🟢 QQQ 波段反彈" target="波段低點：依設定比例卸除 TQQQ" valText={metrics.core.cBounce !== null ? `+${metrics.core.cBounce.toFixed(1)}%` : '--'} valNum={metrics.core.cBounce||0} maxNum={metrics.core.maxBounceTarget||30} textCls="text-fin-up" bgCls="bg-fin-up" />
-                                    <RadarBar title="🟣 SPMO 狂熱期啟動" target="上次高點：+15% / +25%" valText={metrics.core.cRise !== null ? (metrics.core.cRise >= 0 ? `+${metrics.core.cRise.toFixed(1)}%` : '未過高') : '--'} valNum={metrics.core.cRise||0} maxNum={25} textCls="text-purple-600" bgCls="bg-purple-500" />
+                                    <RadarBar title="🟣 SPMO 狂熱期啟動" target="上次高點：設定比例" valText={metrics.core.cRise !== null ? (metrics.core.cRise >= 0 ? `+${metrics.core.cRise.toFixed(1)}%` : '未過高') : '--'} valNum={metrics.core.cRise||0} maxNum={25} textCls="text-purple-600" bgCls="bg-purple-500" />
                                     <RadarBar title="🔴 QQQ 回撤加碼階梯" target="最新高點：目標 -42%" valText={(metrics.core.cRise === null || metrics.core.cRise < 0) ? (metrics.core.cDD !== null ? `-${metrics.core.cDD.toFixed(1)}%` : '--') : '創新高中'} valNum={metrics.core.cDD||0} maxNum={42} textCls="text-fin-down" bgCls="bg-fin-down" />
                                 </div>
 
@@ -809,7 +821,7 @@
                                     <div className="flex justify-between mb-4 border-b pb-2"><h2 className="font-black flex items-center gap-2"><Icon name="Settings" size={18} className="text-slate-500"/>大盤與戰備參數</h2></div>
                                     <div className="space-y-3">
                                         
-                                        <SettingGroup label="QQQ 上次波段高點 (Locked ATH)" hint="計算狂熱收割。突破 +15%/+25% 時，" hintAction="賣出 TQQQ ➜ 轉買 SPMO" isPurple={false}>
+                                        <SettingGroup label="QQQ 上次波段高點 (Locked ATH)" hint="計算狂熱收割。依設定比例之突破，" hintAction="賣出 TQQQ ➜ 轉買 SPMO" isPurple={false}>
                                             <input type="number" inputMode="decimal" value={inputs.qqq_locked_ath} onChange={e=>handleInput('qqq_locked_ath', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-white p-2 rounded border font-mono outline-none text-center"/>
                                         </SettingGroup>
 

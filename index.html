@@ -358,7 +358,14 @@
                 const getP = (t) => Number(prices[String(t || "").trim().toUpperCase()] || 0);
                 const getV = (k) => getNum(inputs[k]);
                 
-                const pQQQ = getP('QQQ'); const pTQQQ = getP('TQQQ'); const pSPMO = getP('SPMO'); const pBOXX = getP('BOXX') || 100; 
+                const baseQQQ = getP('QQQ');
+                const simPrice = parseFloat(inputs.sim_qqq_price);
+                const hasSim = !isNaN(simPrice) && simPrice > 0;
+                
+                // Simulation Override logic for core engine testing
+                const pQQQ = hasSim ? simPrice : baseQQQ; 
+                
+                const pTQQQ = getP('TQQQ'); const pSPMO = getP('SPMO'); const pBOXX = getP('BOXX') || 100; 
                 const valCore1 = getV('qty_core_1') * pQQQ; const expCore1 = valCore1 * 1;
                 const valCore2 = getV('qty_core_2') * pTQQQ; const expCore2 = valCore2 * 3;
                 const valSpmo = getV('qty_spmo') * pSPMO;
@@ -407,12 +414,12 @@
                         st = "報價異常"; col = "text-slate-400"; act = "等待 API 報價，暫停再平衡";
                     } else if (vU > 0 || vLev > 0) {
                         if (cPct >= limitPct && !isMomentumLost) { 
-                            st = `獲利奔跑中 (${Number(cPct || 0).toFixed(1)}%)`; col = "text-brand-500"; 
-                            act = `權重達 ${Number(cPct || 0).toFixed(1)}% (上限 ${limitPct}%)，但 5MA 尚未跌破 10MA，讓獲利奔跑。`; 
+                            st = `🚀 獲利奔跑中 (${Number(cPct || 0).toFixed(1)}%)`; col = "text-brand-500"; 
+                            act = `權重達 ${Number(cPct || 0).toFixed(1)}% (上限 ${limitPct}%)，但 5MA 尚未跌破 10MA，動能延續中。`; 
                             gapVal = 0; 
                         } else if (cPct >= limitPct && isMomentumLost) { 
-                            st = `過載收割 (${Number(cPct || 0).toFixed(1)}%)`; col = "text-fin-up"; 
-                            act = `權重超限且 5MA 跌破 10MA，執行再平衡壓縮回 ${s.target_pct}%。`; 
+                            st = `🚨 過載收割 (${Number(cPct || 0).toFixed(1)}%)`; col = "text-fin-up"; 
+                            act = `權重超限且動能轉弱 (5MA 跌破 10MA)，執行再平衡壓縮回 ${s.target_pct}%。`; 
                             gapVal = tVal - cV; 
                         } else if (isBoxxFrozen && costDD >= getNum(s.loss_pct)) {
                             st = "極端凍結"; col = "text-red-600 font-black"; act = "BOXX < 5%，停止補倉操作，優先保全母艦。"; alert = "極端風險凍結";
@@ -439,8 +446,7 @@
                 const qAthLocked = getV('qqq_locked_ath'); const qLatestHigh = getV('qqq_latest_high'); const qWaveLow = getV('qqq_wave_low');
                 const spmoLatestHigh = getV('spmo_latest_high'); const isBearMeltdown = inputs.is_bear_meltdown;
 
-                const simPrice = parseFloat(inputs.sim_qqq_price); const hasSim = !isNaN(simPrice) && simPrice > 0;
-                const simVsCurrent = hasSim && pQQQ > 0 ? ((simPrice - pQQQ) / pQQQ) * 100 : null; const simVsAth = hasSim && qAthLocked > 0 ? ((simPrice - qAthLocked) / qAthLocked) * 100 : null;
+                const simVsCurrent = hasSim && baseQQQ > 0 ? ((simPrice - baseQQQ) / baseQQQ) * 100 : null; const simVsAth = hasSim && qAthLocked > 0 ? ((simPrice - qAthLocked) / qAthLocked) * 100 : null;
 
                 // API Error Safety Check
                 const cDD = (qLatestHigh > 0 && pQQQ > 0 && pQQQ < qLatestHigh) ? ((qLatestHigh - pQQQ) / qLatestHigh) * 100 : null;
@@ -498,7 +504,7 @@
                     }
                 } else if (cDD !== null && cDD >= 7 && !activeUp) {
                     if (rsTriggered) {
-                        phase = "相對強弱汰換 (RS Replacement)"; diagnosticMsg = `🚨 QQQ 回撤達 -7%，且 SPMO 跌幅 (${Number(cSpmoDrop||0).toFixed(1)}%) ≥ QQQ。啟動相對強弱汰換：請賣出全數 SPMO 退回 QQQ，並將指定比例轉為 TQQQ。`;
+                        phase = "啟動相對強弱汰換 (RS Replacement)"; diagnosticMsg = `🚨 QQQ 回撤達 -7%，且 SPMO 跌幅 (${Number(cSpmoDrop||0).toFixed(1)}%) ≥ QQQ。動能崩潰：請賣出全數 SPMO 退回 QQQ，並將指定比例轉為 TQQQ。`;
                     } else {
                         phase = `回撤加碼中 (目標槓桿 ${Number(tTqqqPct || 0).toFixed(1)}%)`; 
                         const coreSource = valSpmo > 0 ? "SPMO" : "QQQ";
@@ -515,6 +521,11 @@
                     phase = `狂熱模式全開 (Mania Mode)`; diagnosticMsg = `🚀 突破 ATH +${activeUp.rise_pct}%！請將全數核心資產轉換為 SPMO，集中壓注高動能板塊！`;
                 } else if (cRise !== null && cRise >= 0) {
                     phase = `突破確認中 (Breakout Confirmation)`; diagnosticMsg = `📈 突破 ATH 達 +${Number(cRise || 0).toFixed(1)}%。維持既定資產配置，等待狂熱期啟動訊號。`; tTqqqPct = (valCore2 / safeT) * 100;
+                }
+
+                let daysSinceBounce = 0; if (inputs.first_bounce_date) daysSinceBounce = (new Date() - new Date(inputs.first_bounce_date)) / (1000 * 60 * 60 * 24);
+                if (daysSinceBounce >= 180 && (cRise === null || cRise < 15)) {
+                    phase = "⏳ 時間停損觸發 (Time-based Stop)"; diagnosticMsg = `⚠️ 超過 180 天未創高。觸發時間停損，請將所有 TQQQ 賣出轉換回 QQQ。`; tTqqqPct = 0;
                 }
 
                 tSpmoPct = Math.min(tSpmoPct, coreTotalTargetPct);
@@ -552,10 +563,10 @@
 
                 return { 
                     totalCapital: tCap, safeTotal: safeT, satStats: mappedSatStats, graphData: gData, historicalPeak: pEq, mdd: mdd, growthLeverageRatio: gLev, totalLeverageRatio: tLev, 
-                    simPrice, hasSim, simVsCurrent, simVsAth,
+                    simPrice, hasSim, simVsCurrent, simVsAth, pBOXX,
                     cls: { c: { u: valCore1, l: valCore2, sm: valSpmo, t: tCore, p: (tCore/safeT)*100 }, s: { u: vSatU, l: vSatL, t: (vSatU+vSatL), p: ((vSatU+vSatL)/safeT)*100 }, r: { b: vBOXX, c: cash, t: tRes, p: (tRes/safeT)*100 } },
                     tgt: { r: { p: tgtRPct }, s: { p: satSumPct }, q: { p: tgtQqqPct }, t: { p: tTqqqPct }, sm: { p: tSpmoPct } },
-                    core: { pQQQ, pTQQQ, qAthLocked, qLatestHigh, qWaveLow, cDD, cRise, tTqqqPct, tSpmoPct, phase, cAct, cCol, tDiff, sDiff, qDiff, bDiff, cBounce, diagnosticMsg, spmoLatestHigh, cSpmoDrop, maxBounceTarget }
+                    core: { pQQQ, pTQQQ, pSPMO, qAthLocked, qLatestHigh, qWaveLow, cDD, cRise, tTqqqPct, tSpmoPct, phase, cAct, cCol, tDiff, sDiff, qDiff, bDiff, cBounce, diagnosticMsg, spmoLatestHigh, cSpmoDrop, maxBounceTarget }
                 };
             }, [prices, inputs, records]);
 
@@ -1068,7 +1079,7 @@
                                                         <input type="number" inputMode="decimal" value={s.target_pct} onChange={e=>updateArr('satellites',s.id,'target_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[11px] bg-transparent outline-none text-center min-w-0"/>
                                                     </div>
                                                     <div className="text-center border-l flex flex-col items-center">
-                                                        <label className="text-[8px] text-fin-up">收割上限%</label>
+                                                        <label className="text-[8px] text-fin-up">上限%</label>
                                                         <input type="number" inputMode="decimal" value={s.limit_pct} onChange={e=>updateArr('satellites',s.id,'limit_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[11px] bg-transparent outline-none text-center min-w-0"/>
                                                     </div>
                                                     <div className="text-center border-l flex flex-col items-center">
@@ -1179,4 +1190,4 @@
         ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><App /></ErrorBoundary>);
     </script>
 </body>
-    </html>
+</html>

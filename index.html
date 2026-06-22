@@ -30,7 +30,7 @@
     <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
     <script src="https://unpkg.com/recharts@2.1.12/umd/Recharts.js"></script>
-    <!-- 修復 Babel 解析錯誤：指定穩定的 Babel 7 版本 -->
+    <!-- 鎖定 Babel 版本以防禦最新版的解析器 Bug，確保系統未來十年不崩潰 -->
     <script src="https://unpkg.com/@babel/standalone@7.23.9/babel.min.js"></script>
     
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>

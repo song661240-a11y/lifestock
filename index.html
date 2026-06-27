@@ -30,8 +30,7 @@
     <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
     <script src="https://unpkg.com/recharts@2.1.12/umd/Recharts.js"></script>
-    <!-- 鎖定 Babel 版本以防禦最新版的解析器 Bug，確保系統未來十年不崩潰 -->
-    <script src="https://unpkg.com/@babel/standalone@7.23.9/babel.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -75,6 +74,7 @@
         const getNum = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
         const getTodayStr = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().split('T')[0]; };
         const getArr = (arr) => Array.isArray(arr) ? arr : (arr && typeof arr === 'object' ? Object.values(arr) : []);
+        const round2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
 
         class ErrorBoundary extends React.Component {
             constructor(props) { super(props); this.state = { hasError: false }; }
@@ -183,11 +183,94 @@
             return null;
         };
 
-        const defPlan = `🧠 Alpha Horizon Pro (2026 順勢再平衡進化版)\n— 系統化十年期資產累積策略 —\n\n■ 一、策略目標與核心精神\n策略目標：以 QQQ 為唯一價格訊號源，結合相對強弱（RS）汰弱留強機制、TQQQ 階梯網格與 SPMO 動能切換，極大化長期資產增長。\n核心精神：單一訊號源（僅看 QQQ 線圖）、不預測市場、不猜測高低點。以長期存活、維持核心部位穩定為最高原則。\n\n■ 二、資產絕對配置\n核心部位 (75%)：常態持有 QQQ（狂熱期全數轉換為 SPMO）。\n衛星部位 (10%)：TSLA (5%)、IBIT (5%)，採純現股或槓桿選擇權操作，透過絕對權重與均線動能進行動態再平衡。\n現金儲備 (15%)：BOXX，專用於空頭深度加碼與衛星部位補倉。\n\n■ 三、狀態切換：狂熱動能模式\n訊號基準：QQQ 最近 52 週最高收盤價。\n觸發條件：當 QQQ 突破 52 週高點達 +15% 時。\n執行動作：將帳上所有核心部位（100% 的 QQQ），包含若此時帳上仍持有任何未結清的 TQQQ，一併全數轉換為 SPMO。\n目的：在牛市末端捨棄大盤與槓桿，將全數資金集中壓注於高動能板塊，獲取末段超額報酬，並統一資產狀態。\n\n■ 四、下跌加碼系統（RS 防禦版）\n訊號基準：QQQ 最新滾動高點。\n觸發條件與動作：\nQQQ 回撤 -7%\n若持有 SPMO：比較兩者跌幅。\n[情境 A：SPMO 較強] 若 SPMO 跌幅 < QQQ 跌幅。執行：保留 SPMO。將 15% SPMO → TQQQ。\n[情境 B：SPMO 較弱] 若 SPMO 跌幅 ≥ QQQ 跌幅。執行：全部 SPMO → QQQ。將 15% QQQ → TQQQ。\n若未持有 SPMO：執行：將 15% QQQ → TQQQ。\nQQQ 回撤 -14%：動用 BOXX 25% 資金買入 TQQQ。\nQQQ 回撤 -21%：將 15% 核心部位（QQQ 或 SPMO）→ TQQQ。\nQQQ 回撤 -28%：再將 15% 核心部位（QQQ 或 SPMO）→ TQQQ。\nQQQ 回撤 -35%：動用 BOXX 25% 資金買入 TQQQ。\nQQQ 回撤 -42%：將最後 15% 核心部位（QQQ 或 SPMO）→ TQQQ。\n執行完成後：強制保留 15% 核心現股底倉。\n\n■ 五、反彈卸除模式\n訊號基準：本輪 QQQ 回撤之最低點。\n觸發條件與動作：\nQQQ 反彈 +10%：賣出帳上 33% 之 TQQQ，直接買入 QQQ。\nQQQ 反彈 +20%：再賣出帳上 33% 之 TQQQ，直接買入 QQQ。\nQQQ 反彈 +30%：賣出最後剩餘之所有 TQQQ，全數買入 QQQ。\n目的：無視反彈期的板塊輪動，將底部承接的 TQQQ 獲利純淨地全數轉換回 QQQ，讓系統回復至最安穩的 QQQ 狀態，等待下一次的突破創高切換。\n\n■ 六、超級熊市熔斷機制\n觸發條件（需同時滿足）：QQQ 跌破 200 日均線、且 200 日均線開始下彎、且狀態持續超過 60 個交易日。\n執行動作：立即停止所有新增之 TQQQ 加碼動作，鎖定保留 BOXX 剩餘現金。待 QQQ 重新站回 200 日均線後，始恢復正常加碼運作。\n\n■ 七、衛星系統：動態再平衡與順勢獲利規則\n下跌補倉條件：自「持有均價」下跌達 -14% 時。\n執行動作：使用 BOXX 資金精準買入，補回原始 5% 權重。單一標的最多連續補倉 3 次。\n上漲順勢條件：權重膨脹至設定上限 (10%) 時，啟動均線濾網。\n[動能延續] 若 5MA > 10MA：維持持股，讓獲利奔跑。\n[動能轉弱] 若 5MA < 10MA：強制賣出超額部位，精準壓縮回 5%。\n\n■ 八、資金閉環與極端風險控管\n極端風險底線：當 BOXX 總水位低於 5% 時，立即停止所有衛星部位操作（包含補倉），現金絕對優先保留予核心系統因應極端風險。\n資金閉環：所有系統操作之獲利，優先將 BOXX 儲備補滿至 15% 絕對水位；確認 BOXX 滿額後，剩餘利潤全數買入 QQQ，擴充核心部位基數。\n\n■ 九、執行鐵律\n嚴格禁止：猜測市場方向、預測高低點、因新聞或總體經濟數據改變策略。\n單一真理：全系統之進退場、狀態切換、資產再平衡，100% 僅依賴絕對百分比與均線價格變化執行，徹底屏除所有主觀情緒與人為干預。`;
+        const defPlan = `🧠 Alpha Horizon Pro（2026 相對強弱進化版）
+— 系統化十年期資產累積策略 —
+
+■ 一、策略目標與核心精神
+策略目標：以 QQQ 為唯一價格訊號源，結合相對強弱（RS）汰弱留強機制、TQQQ 階梯網格與 SPMO 動能切換，極大化長期資產增長。
+核心精神：單一訊號源（僅看 QQQ 線圖）、不預測市場、不猜測高低點。以長期存活、維持核心部位穩定為最高原則。
+
+■ 二、資產絕對配置
+核心部位 (75%)：常態持有 QQQ（狂熱期全數轉換為 SPMO）。
+衛星部位 (10%)：TSLA (5%)、IBIT (5%)，採純現股長期持有，並透過絕對權重與短期均線進行動態再平衡。
+現金儲備 (15%)：BOXX，專用於空頭深度加碼與衛星部位補倉。
+
+■ 三、狀態切換：狂熱動能模式
+訊號基準：QQQ 最近 52 週最高收盤價。
+觸發條件：當 QQQ 突破 52 週高點達 +15% 時。
+執行動作：將帳上所有核心部位（100% 的 QQQ），包含若此時帳上仍持有任何未結清的 TQQQ，一併全數轉換為 SPMO。
+目的：在牛市末端捨棄大盤與槓桿，將全數資金集中壓注於高動能板塊，獲取末段超額報酬，並統一資產狀態。
+狂熱追蹤停損（Override Rule）：一旦已進入 SPMO 狂熱模式，若 QQQ 自「本輪最新高點」回撤達設定門檻（預設 -7%），無視 Locked ATH 仍是否高於突破區，優先解除狂熱模式，將 SPMO 退回 QQQ，避免創高後回跌仍被 ATH 訊號鎖住。
+
+■ 四、下跌加碼系統（RS 防禦版）
+訊號基準：QQQ 最新滾動高點。
+觸發條件與動作：
+QQQ 回撤 -7%
+若持有 SPMO：比較兩者跌幅。
+[情境 A：SPMO 較強] 若 SPMO 跌幅 < QQQ 跌幅。
+執行：保留 SPMO。將 15% SPMO → TQQQ。
+[情境 B：SPMO 較弱] 若 SPMO 跌幅 ≥ QQQ 跌幅。
+執行：全部 SPMO → QQQ。將 15% QQQ → TQQQ。
+若未持有 SPMO：
+執行：將 15% QQQ → TQQQ。
+QQQ 回撤 -14%
+執行：動用 BOXX 25% 資金買入 TQQQ。
+QQQ 回撤 -21%
+執行：將 15% 核心部位（QQQ 或 SPMO）→ TQQQ。
+QQQ 回撤 -28%
+執行：再將 15% 核心部位（QQQ 或 SPMO）→ TQQQ。
+QQQ 回撤 -35%
+執行：動用 BOXX 25% 資金買入 TQQQ。
+QQQ 回撤 -42%
+執行：將最後 15% 核心部位（QQQ 或 SPMO）→ TQQQ。
+執行完成後：強制保留 15% 核心現股底倉。
+
+■ 五、反彈卸除模式
+訊號基準：本輪 QQQ 回撤之最低點。
+觸發條件與動作：
+QQQ 反彈 +10%：賣出帳上 33% 之 TQQQ，直接買入 QQQ。
+QQQ 反彈 +20%：再賣出帳上 33% 之 TQQQ，直接買入 QQQ。
+QQQ 反彈 +30%：賣出最後剩餘之所有 TQQQ，全數買入 QQQ。
+目的：無視反彈期的板塊輪動，將底部承接的 TQQQ 獲利純淨地全數轉換回 QQQ，讓系統回復至最安穩的 QQQ 狀態，等待下一次的突破創高切換。
+
+■ 六、超級熊市熔斷機制
+觸發條件（需同時滿足）：QQQ 跌破 200 日均線、且 200 日均線開始下彎、且狀態持續超過 60 個交易日。
+執行動作：立即停止所有新增之 TQQQ 加碼動作，鎖定保留 BOXX 剩餘現金。待 QQQ 重新站回 200 日均線後，始恢復正常加碼運作。
+
+■ 七、衛星系統：動態再平衡與補倉規則（獲利奔跑機制）
+下跌補倉條件：TSLA 或 IBIT 自「持有均價」下跌達 -14% 時。
+執行動作：使用 BOXX 資金精準買入，將該標的權重補回原始的 5% 配置。單一標的最多連續補倉 3 次。
+上漲收割條件：需同時滿足以下兩項指標，確保讓獲利充分奔跑：
+權重達標：因價格大幅上漲，導致 TSLA 或 IBIT 單一標的佔總資產權重膨脹達 10%（或以上）。
+動能反轉：該標的之 5 日均線 (5MA) 向下交叉跌破 10 日均線 (10MA)。
+執行動作：當上述兩條件同時滿足時，強制賣出超額部分，將該標的權重精準壓縮回原始的 5%。實現之利潤嚴格遵照「資金閉環」規則分配。
+
+■ 八、資金閉環與極端風險控管
+極端風險底線：當 BOXX 總水位低於 5% 時，立即停止所有衛星部位操作（包含補倉），現金絕對優先保留予核心系統因應極端風險。
+資金閉環：所有系統操作之獲利（包含 TQQQ 反彈結清、衛星部位再平衡收割、轉換差額等），優先將 BOXX 儲備補滿至 15% 絕對水位；確認 BOXX 滿額後，剩餘利潤全數買入 QQQ，擴充核心部位基數。
+
+■ 九、核心-only 模式
+若決定暫停個股衛星，可於參數設定開啟「只做核心部位」。開啟後，系統會保留原有 TSLA / IBIT 設定資料，但衛星目標占比歸零、不納入總資產與指令、不在主控台與參數區顯示。
+
+■ 十、自動追蹤與狀態機
+系統採 BASE / MANIA / COOLDOWN 三段狀態機，避免突破、回撤、反彈與狂熱訊號互相打架。
+
+高點與低點定義：
+1. 最新 52 週高點：取 QQQ 最近約 370 天日線「收盤價」最高值，只作為建立突破基準使用，不直接下單。
+2. Locked ATH：狂熱突破基準。平時等於最新 52 週高點；一旦 QQQ 突破該基準，系統會鎖住此數字，不再跟著新高上移，用來判斷 +15% 是否啟動 SPMO。
+3. 本輪最新高點：本輪循環中 QQQ 即時報價走過的最高價，用來計算 QQQ 回撤 -7%、-14%、-21% 等 TQQQ 加碼階梯，也用來計算狂熱追蹤停損。
+4. 本輪反彈低點：QQQ 從本輪最新高點回撤達第一階 -7% 後，才開始記錄本輪最低價，用來判斷反彈 +10%、+20%、+30% 時分批卸除 TQQQ。
+5. SPMO 波段高點：只在實際持有 SPMO 時追蹤，用於 RS 汰弱留強。若 SPMO 跌幅 ≥ QQQ 跌幅，判定 SPMO 動能弱化，退回 QQQ。
+
+若已進入 SPMO 狂熱模式，且 QQQ 自本輪最新高點回撤達設定之追蹤停損門檻，系統會強制解除狂熱模式並進入 COOLDOWN；在 QQQ 重新突破本輪狂熱高點前，不再因仍高於 Locked ATH 而重複買回 SPMO。
+
+■ 十一、執行鐵律
+嚴格禁止：猜測市場方向、預測高低點、因新聞或總體經濟數據改變策略。
+單一真理：全系統之進退場、狀態切換、資產再平衡，100% 僅依賴絕對百分比與均線價格變化執行，徹底屏除所有主觀情緒與人為干預。`;
         
         const defSats = [
-            { id: '1', underlying: 'TSLA', qty_u: 0, lev_val: 0, lev_ratio: 2, avg_cost: 250, target_pct: 5, limit_pct: 10, loss_pct: 14, rescues: 0, ma5: 0, ma10: 0 }, 
-            { id: '2', underlying: 'IBIT', qty_u: 0, lev_val: 0, lev_ratio: 2, avg_cost: 35, target_pct: 5, limit_pct: 10, loss_pct: 14, rescues: 0, ma5: 0, ma10: 0 }
+            { id: '1', underlying: 'TSLA', qty_u: 0, avg_cost: 250, target_pct: 5, limit_pct: 10, loss_pct: 14, rescues: 0, ma5: 0, ma10: 0 }, 
+            { id: '2', underlying: 'IBIT', qty_u: 0, avg_cost: 35, target_pct: 5, limit_pct: 10, loss_pct: 14, rescues: 0, ma5: 0, ma10: 0 }
         ];
         
         const defLad = [ { id: 'l1', drop_pct: 7, move_pct: 15, use_boxx: 0 }, { id: 'l2', drop_pct: 14, move_pct: 0, use_boxx: 25 }, { id: 'l3', drop_pct: 21, move_pct: 15, use_boxx: 0 }, { id: 'l4', drop_pct: 28, move_pct: 15, use_boxx: 0 }, { id: 'l5', drop_pct: 35, move_pct: 0, use_boxx: 25 }, { id: 'l6', drop_pct: 42, move_pct: 15, use_boxx: 0 } ];
@@ -195,6 +278,7 @@
         const defUpLad = [ { id: 'u1', rise_pct: 15, target_pct: 0, spmo_pct: 100 } ];
         
         const defInputs = { 
+            strategy_version: '2026-rs-core-auto-v4',
             motto: '嚴守紀律，摒除主觀判斷；依據量化指標，執行絕對配置。', 
             planText: defPlan, 
             qqq_locked_ath: 0, 
@@ -202,6 +286,15 @@
             qqq_wave_low: 0, 
             first_bounce_date: '',
             spmo_latest_high: 0,
+            mania_trailing_stop_pct: 7,
+            auto_high_tracking: true,
+            qqq_breakout_active: false,
+            qqq_breakout_lock_price: 0,
+            mania_cooldown_until_high: 0,
+            qqq_history_high_52w: 0,
+            qqq_history_sync_date: '',
+            auto_tracking_state: 'BASE',
+            satellites_enabled: true,
             is_bear_meltdown: false, 
             qty_boxx: 0, 
             cash_balance: 0, 
@@ -222,6 +315,8 @@
             const [view, setView] = useState('dashboard');
             const [prices, setPrices] = useState({});
             const [loadingPrices, setLoadingPrices] = useState(false);
+            const [isSyncingHistory, setIsSyncingHistory] = useState(false);
+            const historySyncRef = useRef(false);
             const [isSaving, setIsSaving] = useState(false);
             const [isSwitching, setIsSwitching] = useState(false);
             const [message, setMessage] = useState(null);
@@ -252,16 +347,26 @@
                     const b = localStorage.getItem('ah_local_backup_2026'); 
                     if (b) {
                         const parsed = JSON.parse(b);
+                        if (parsed.strategy_version !== '2026-rs-core-auto-v4') { parsed.planText = defPlan; parsed.strategy_version = '2026-rs-core-auto-v4'; }
                         if (parsed.reserve_pct !== undefined && parsed.reserve_pct_normal === undefined) parsed.reserve_pct_normal = parsed.reserve_pct;
                         if (parsed.spmo_latest_high === undefined) parsed.spmo_latest_high = parsed.spmo_peak_price || 0; 
                         if (parsed.is_bear_meltdown === undefined) parsed.is_bear_meltdown = false;
+                        if (parsed.mania_trailing_stop_pct === undefined) parsed.mania_trailing_stop_pct = 7;
+                        if (parsed.satellites_enabled === undefined) parsed.satellites_enabled = true;
+                        if (parsed.auto_high_tracking === undefined) parsed.auto_high_tracking = true;
+                        if (parsed.qqq_breakout_active === undefined) parsed.qqq_breakout_active = false;
+                        if (parsed.qqq_breakout_lock_price === undefined) parsed.qqq_breakout_lock_price = 0;
+                        if (parsed.mania_cooldown_until_high === undefined) parsed.mania_cooldown_until_high = 0;
+                        if (parsed.qqq_history_high_52w === undefined) parsed.qqq_history_high_52w = 0;
+                        if (parsed.qqq_history_sync_date === undefined) parsed.qqq_history_sync_date = '';
+                        if (parsed.auto_tracking_state === undefined) parsed.auto_tracking_state = 'BASE';
                         if (!parsed.core_bounce_ladder) parsed.core_bounce_ladder = defBounceLad;
                         
                         // Clean zombie satellite fields deeply & map new MA/Leverage fields
                         if (parsed.satellites) {
                             parsed.satellites = parsed.satellites.map(sat => {
-                                delete sat.profit_pct; delete sat.ma200; delete sat.opt_p_c; delete sat.opt_d_c; delete sat.rolls; delete sat.qty_l; delete sat.leveraged; delete sat.peak_p;
-                                return {...sat, limit_pct: sat.limit_pct || 10, ma5: sat.ma5 || 0, ma10: sat.ma10 || 0, lev_val: sat.lev_val || 0, lev_ratio: sat.lev_ratio || 2};
+                                delete sat.profit_pct; delete sat.ma200; delete sat.opt_p_c; delete sat.opt_d_c; delete sat.rolls; delete sat.qty_l; delete sat.leveraged; delete sat.peak_p; delete sat.lev_val; delete sat.lev_ratio;
+                                return {...sat, limit_pct: sat.limit_pct || 10, ma5: sat.ma5 || 0, ma10: sat.ma10 || 0};
                             });
                         }
                         
@@ -304,13 +409,23 @@
                 const unsubConf = refs.confRef.onSnapshot(s => { 
                     if (s.exists) { 
                         const d = s.data() || {}; 
+                        if (d.strategy_version !== '2026-rs-core-auto-v4') { d.planText = defPlan; d.strategy_version = '2026-rs-core-auto-v4'; }
                         setInputs(p => ({ 
                             ...p, ...d, 
-                            satellites: getArr(d.satellites).length > 0 ? getArr(d.satellites).map(sat => ({...sat, limit_pct: sat.limit_pct || 10, ma5: sat.ma5 || 0, ma10: sat.ma10 || 0, lev_val: sat.lev_val || 0, lev_ratio: sat.lev_ratio || 2})) : defSats, 
+                            satellites: getArr(d.satellites).length > 0 ? getArr(d.satellites).map(sat => { const clean = {...sat, limit_pct: sat.limit_pct || 10, ma5: sat.ma5 || 0, ma10: sat.ma10 || 0}; delete clean.lev_val; delete clean.lev_ratio; return clean; }) : defSats, 
                             core_ladder: getArr(d.core_ladder).length > 0 ? getArr(d.core_ladder) : defLad, 
                             core_bounce_ladder: getArr(d.core_bounce_ladder).length > 0 ? getArr(d.core_bounce_ladder) : defBounceLad,
                             core_up_ladder: getArr(d.core_up_ladder).length > 0 ? getArr(d.core_up_ladder) : defUpLad, 
                             reserve_pct_normal: d.reserve_pct_normal !== undefined ? d.reserve_pct_normal : defInputs.reserve_pct_normal,
+                            mania_trailing_stop_pct: d.mania_trailing_stop_pct !== undefined ? d.mania_trailing_stop_pct : defInputs.mania_trailing_stop_pct,
+                            satellites_enabled: d.satellites_enabled !== undefined ? d.satellites_enabled : defInputs.satellites_enabled,
+                            auto_high_tracking: d.auto_high_tracking !== undefined ? d.auto_high_tracking : defInputs.auto_high_tracking,
+                            qqq_breakout_active: d.qqq_breakout_active !== undefined ? d.qqq_breakout_active : defInputs.qqq_breakout_active,
+                            qqq_breakout_lock_price: d.qqq_breakout_lock_price !== undefined ? d.qqq_breakout_lock_price : defInputs.qqq_breakout_lock_price,
+                            mania_cooldown_until_high: d.mania_cooldown_until_high !== undefined ? d.mania_cooldown_until_high : defInputs.mania_cooldown_until_high,
+                            qqq_history_high_52w: d.qqq_history_high_52w !== undefined ? d.qqq_history_high_52w : defInputs.qqq_history_high_52w,
+                            qqq_history_sync_date: d.qqq_history_sync_date !== undefined ? d.qqq_history_sync_date : defInputs.qqq_history_sync_date,
+                            auto_tracking_state: d.auto_tracking_state !== undefined ? d.auto_tracking_state : defInputs.auto_tracking_state,
                         })); 
                     } setIsSwitching(false); 
                 }, () => setIsSwitching(false)); 
@@ -319,12 +434,171 @@
 
             const symbolsString = useMemo(() => {
                 let syms = ['QQQ', 'TQQQ', 'BOXX', 'SPMO'];
-                getArr(inputs.satellites).forEach(s => { if(s && s.underlying) syms.push(s.underlying.trim().toUpperCase()); });
+                if (inputs.satellites_enabled !== false) {
+                    getArr(inputs.satellites).forEach(s => { if(s && s.underlying) syms.push(s.underlying.trim().toUpperCase()); });
+                }
                 return [...new Set(syms.filter(Boolean))].sort().join(',');
-            }, [inputs.satellites]);
+            }, [inputs.satellites, inputs.satellites_enabled]);
 
             const [debouncedSymbols, setDebouncedSymbols] = useState(symbolsString);
             useEffect(() => { const timer = setTimeout(() => setDebouncedSymbols(symbolsString), 800); return () => clearTimeout(timer); }, [symbolsString]);
+
+            const showToast = useCallback((txt) => { setMessage(txt); setTimeout(() => setMessage(null), 3000); }, []);
+
+            const getFirstDropPct = useCallback((ladder) => {
+                const drops = getArr(ladder).map(x => getNum(x.drop_pct)).filter(v => v > 0).sort((a,b) => a-b);
+                return drops[0] || 7;
+            }, []);
+
+            const applyAutoMarketTracking = useCallback((quoteMap = {}) => {
+                const q = getNum(quoteMap.QQQ);
+                const spmo = getNum(quoteMap.SPMO);
+                if (q <= 0 && spmo <= 0) return;
+                setInputs(prev => {
+                    if (prev.auto_high_tracking === false) return prev;
+                    const next = { ...prev };
+                    let changed = false;
+                    const setField = (key, value) => {
+                        const normalized = typeof value === 'number' ? round2(value) : value;
+                        if (next[key] !== normalized) { next[key] = normalized; changed = true; }
+                    };
+                    const hasSpmoPosition = getNum(prev.qty_spmo) > 0;
+
+                    if (q > 0) {
+                        const oldLatestHigh = getNum(prev.qqq_latest_high);
+                        const madeNewHigh = oldLatestHigh <= 0 || q >= oldLatestHigh;
+                        const nextLatestHigh = madeNewHigh ? q : oldLatestHigh;
+                        setField('qqq_latest_high', nextLatestHigh);
+
+                        const firstDropPct = getFirstDropPct(prev.core_ladder);
+                        const drawdownFromLatest = (!madeNewHigh && nextLatestHigh > 0) ? ((nextLatestHigh - q) / nextLatestHigh) * 100 : 0;
+                        const oldWaveLow = getNum(prev.qqq_wave_low);
+                        let nextWaveLow = oldWaveLow > 0 ? oldWaveLow : q;
+                        if (madeNewHigh) {
+                            nextWaveLow = q;
+                        } else if (drawdownFromLatest + 0.01 >= firstDropPct) {
+                            nextWaveLow = (oldWaveLow > 0 && oldWaveLow < nextLatestHigh) ? Math.min(oldWaveLow, q) : q;
+                        }
+                        setField('qqq_wave_low', nextWaveLow);
+
+                        let lockedAth = getNum(prev.qqq_locked_ath);
+                        let breakoutActive = prev.qqq_breakout_active === true;
+                        let breakoutLockPrice = getNum(prev.qqq_breakout_lock_price);
+                        const maniaStopPct = Math.max(1, getNum(prev.mania_trailing_stop_pct) || 7);
+                        const latestHighForStop = nextLatestHigh > 0 ? nextLatestHigh : q;
+                        const isManiaStopNow = hasSpmoPosition && latestHighForStop > 0 && q <= latestHighForStop * (1 - maniaStopPct / 100) + 0.01;
+
+                        if (lockedAth <= 0) lockedAth = getNum(prev.qqq_history_high_52w) || q;
+                        if (!breakoutActive && lockedAth > 0 && q > lockedAth) {
+                            breakoutActive = true;
+                            breakoutLockPrice = lockedAth;
+                        }
+                        if (breakoutActive && breakoutLockPrice > 0) lockedAth = breakoutLockPrice;
+
+                        const breakoutFailedBeforeMania = breakoutActive && breakoutLockPrice > 0 && !hasSpmoPosition && q < breakoutLockPrice * 0.98;
+                        if (breakoutFailedBeforeMania) {
+                            breakoutActive = false;
+                            breakoutLockPrice = 0;
+                            lockedAth = getNum(prev.qqq_history_high_52w) || lockedAth;
+                        }
+
+                        setField('qqq_locked_ath', lockedAth);
+                        setField('qqq_breakout_active', breakoutActive);
+                        setField('qqq_breakout_lock_price', breakoutLockPrice);
+
+                        if (isManiaStopNow) setField('mania_cooldown_until_high', latestHighForStop);
+                        const cooldownHigh = getNum(next.mania_cooldown_until_high);
+                        if (cooldownHigh > 0 && q >= cooldownHigh) setField('mania_cooldown_until_high', 0);
+
+                        const cooldownNow = getNum(next.mania_cooldown_until_high) > 0 && q < getNum(next.mania_cooldown_until_high);
+                        const riseFromLocked = lockedAth > 0 ? ((q - lockedAth) / lockedAth) * 100 : 0;
+                        const maniaThreshold = getArr(prev.core_up_ladder).reduce((acc, x) => {
+                            const v = getNum(x.rise_pct); return v > 0 ? Math.min(acc, v) : acc;
+                        }, 999);
+                        const maniaNow = !cooldownNow && (hasSpmoPosition || riseFromLocked >= (maniaThreshold === 999 ? 15 : maniaThreshold));
+                        setField('auto_tracking_state', isManiaStopNow ? 'MANIA_EXIT' : (cooldownNow ? 'COOLDOWN' : (maniaNow ? 'MANIA' : 'BASE')));
+                        setField('auto_tracking_last_sync', getTodayStr());
+                    }
+
+                    if (spmo > 0) {
+                        const oldSpmoHigh = getNum(prev.spmo_latest_high);
+                        if (hasSpmoPosition) {
+                            setField('spmo_latest_high', oldSpmoHigh > 0 ? Math.max(oldSpmoHigh, spmo) : spmo);
+                        } else if (oldSpmoHigh > 0) {
+                            setField('spmo_latest_high', 0);
+                        }
+                    }
+
+                    return changed ? next : prev;
+                });
+            }, [getFirstDropPct]);
+
+            const fetchQQQHistory = useCallback(async (manual = false) => {
+                if (isSyncingHistory || inputs.auto_high_tracking === false) return;
+                setIsSyncingHistory(true);
+                try {
+                    const to = Math.floor(Date.now() / 1000);
+                    const from = to - 370 * 24 * 60 * 60;
+                    const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=QQQ&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`);
+                    const data = await res.json();
+                    if (data?.s === 'ok' && Array.isArray(data.c) && data.c.length) {
+                        const closes = data.c.map(Number).filter(v => v > 0);
+                        if (closes.length) {
+                            const high52w = Math.max(...closes);
+                            setInputs(prev => {
+                                if (prev.auto_high_tracking === false) return prev;
+                                const next = { ...prev };
+                                let changed = false;
+                                const setField = (key, value) => {
+                                    const normalized = typeof value === 'number' ? round2(value) : value;
+                                    if (next[key] !== normalized) { next[key] = normalized; changed = true; }
+                                };
+                                const q = getNum(prices.QQQ);
+                                const hasSpmoPosition = getNum(prev.qty_spmo) > 0;
+                                const inManiaCooldown = getNum(prev.mania_cooldown_until_high) > 0;
+                                if (!hasSpmoPosition && !inManiaCooldown) {
+                                    const isBreakoutNow = q > 0 && q > high52w;
+                                    setField('qqq_locked_ath', high52w);
+                                    setField('qqq_breakout_active', isBreakoutNow);
+                                    setField('qqq_breakout_lock_price', isBreakoutNow ? high52w : 0);
+                                } else if (getNum(prev.qqq_locked_ath) <= 0) {
+                                    setField('qqq_locked_ath', high52w);
+                                }
+                                if (getNum(prev.qqq_latest_high) <= 0) setField('qqq_latest_high', Math.max(high52w, q || 0));
+                                if (getNum(prev.qqq_wave_low) <= 0 && q > 0) setField('qqq_wave_low', q);
+                                setField('qqq_history_high_52w', high52w);
+                                setField('qqq_history_sync_date', getTodayStr());
+                                return changed ? next : prev;
+                            });
+                            if (manual) showToast('✅ 已同步 QQQ 52週高點');
+                        }
+                    } else if (manual) {
+                        showToast('⚠️ 52週高點同步失敗，保留目前資料');
+                    }
+                } catch(e) {
+                    console.error('QQQ 歷史高點同步失敗', e);
+                    if (manual) showToast('⚠️ 52週高點同步失敗');
+                } finally {
+                    setIsSyncingHistory(false);
+                }
+            }, [isSyncingHistory, inputs.auto_high_tracking, prices.QQQ, showToast]);
+
+            const resetAutoTrackingCycle = useCallback(() => {
+                const q = getNum(prices.QQQ);
+                if (q <= 0) { showToast('⚠️ 尚未取得 QQQ 報價'); return; }
+                setInputs(prev => ({
+                    ...prev,
+                    qqq_latest_high: round2(q),
+                    qqq_wave_low: round2(q),
+                    qqq_locked_ath: round2(q),
+                    qqq_breakout_active: false,
+                    qqq_breakout_lock_price: 0,
+                    mania_cooldown_until_high: 0,
+                    auto_tracking_state: 'BASE',
+                    auto_tracking_last_sync: getTodayStr()
+                }));
+                showToast('✅ 已用目前 QQQ 價格重設循環');
+            }, [prices.QQQ, showToast]);
 
             const fetchPrices = useCallback(async (force = false) => { 
                 const targetSyms = force ? symbolsString : debouncedSymbols;
@@ -333,13 +607,15 @@
                 setLoadingPrices(true); 
                 try { 
                     const res = await Promise.allSettled(symsArray.map(s => fetch(`https://finnhub.io/api/v1/quote?symbol=${s}&token=${FINNHUB_KEY}`).then(r => r.json()).then(d => ({s, p: d.c})))); 
-                    setPrices(p => ({ ...p, ...res.reduce((acc, c) => (c.status === 'fulfilled' && c.value.p > 0 ? {...acc, [c.value.s]: c.value.p} : acc), {}) })); 
+                    const fetched = res.reduce((acc, c) => (c.status === 'fulfilled' && c.value.p > 0 ? {...acc, [c.value.s]: c.value.p} : acc), {});
+                    setPrices(p => ({ ...p, ...fetched }));
+                    applyAutoMarketTracking(fetched);
                 } catch(e) { console.error("價格更新失敗", e); } finally { setLoadingPrices(false); } 
-            }, [debouncedSymbols, symbolsString, loadingPrices]);
+            }, [debouncedSymbols, symbolsString, loadingPrices, applyAutoMarketTracking]);
 
             useEffect(() => { if(debouncedSymbols) fetchPrices(); }, [debouncedSymbols]);
+            useEffect(() => { if (prices.QQQ && inputs.auto_high_tracking !== false && !historySyncRef.current) { historySyncRef.current = true; fetchQQQHistory(false); } }, [prices.QQQ, inputs.auto_high_tracking, fetchQQQHistory]);
 
-            const showToast = (txt) => { setMessage(txt); setTimeout(() => setMessage(null), 3000); };
             const handleInput = (f, v) => setInputs(p => ({ ...p, [f]: v }));
             const syncToCloud = async (f, v) => { try { const refs = getFirebaseRefs(); if (refs) await refs.confRef.set({ [f]: sanitize(v) }, { merge: true }); } catch(e) {} };
             const updateArr = (arr, id, field, value) => { setInputs(p => { const currentArr = getArr(p[arr]); const newArr = currentArr.map(i => i.id === id ? { ...i, [field]: value } : i); return { ...p, [arr]: newArr }; }); };
@@ -351,7 +627,7 @@
             const editRecord = async () => { const refs = getFirebaseRefs(); if (!refs || !modal.data) return; const u = {}; if (modal.temp.date) u.date = modal.temp.date; if (modal.temp.equity) u.total_equity = parseFloat(modal.temp.equity); if (Object.keys(u).length) { try { await refs.recsRef.doc(modal.data.id).update(u); showToast("紀錄已更新"); } catch(e) {} } setModal({type: null}); };
 
             const copyCommand = () => {
-                const text = `【Alpha Horizon 指令】\n日期: ${getTodayStr()}\n狀態: ${metrics.core.phase}\n---\nQQQ: ${metrics.core.qDiff > 0 ? '買入' : '賣出'} $${Math.abs(Math.round(metrics.core.qDiff))}\nTQQQ: ${metrics.core.tDiff > 0 ? '買入' : '賣出'} $${Math.abs(Math.round(metrics.core.tDiff))}\nSPMO: ${metrics.core.sDiff > 0 ? '買入' : '賣出'} $${Math.abs(Math.round(metrics.core.sDiff))}\nBOXX: ${metrics.core.bDiff > 0 ? '買入' : '賣出'} $${Math.abs(Math.round(metrics.core.bDiff))}`;
+                const text = `【Alpha Horizon 指令】\n日期: ${getTodayStr()}\n狀態: ${metrics.core.phase} ${inputs.satellites_enabled === false ? '(核心-only)' : ''}\n---\nQQQ: ${metrics.core.qDiff > 0 ? '買入' : '賣出'} $${Math.abs(Math.round(metrics.core.qDiff))}\nTQQQ: ${metrics.core.tDiff > 0 ? '買入' : '賣出'} $${Math.abs(Math.round(metrics.core.tDiff))}\nSPMO: ${metrics.core.sDiff > 0 ? '買入' : '賣出'} $${Math.abs(Math.round(metrics.core.sDiff))}\nBOXX: ${metrics.core.bDiff > 0 ? '買入' : '賣出'} $${Math.abs(Math.round(metrics.core.bDiff))}`;
                 try { if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text); showToast("✅ 已複製"); } else { const t = document.createElement("textarea"); t.value = text; t.style.position = "absolute"; t.style.left = "-999999px"; document.body.prepend(t); t.select(); document.execCommand('copy'); t.remove(); showToast("✅ 已複製"); } } catch (error) { showToast("❌ 失敗"); }
             };
 
@@ -372,8 +648,9 @@
                 const valSpmo = getV('qty_spmo') * pSPMO;
                 const vBOXX = pBOXX * getV('qty_boxx'); const cash = getV('cash_balance');
                 
-                let vSatU = 0, vSatL = 0, expSat = 0, satSumPct = 0;
-                const safeSatellites = getArr(inputs.satellites);
+                let vSatU = 0, expSat = 0, satSumPct = 0;
+                const satellitesEnabled = inputs.satellites_enabled !== false;
+                const safeSatellites = satellitesEnabled ? getArr(inputs.satellites) : [];
                 const safeLadder = [...getArr(inputs.core_ladder)].sort((a,b) => getNum(a.drop_pct) - getNum(b.drop_pct));
                 const safeBounceLadder = [...getArr(inputs.core_bounce_ladder)].sort((a,b) => getNum(a.bounce_pct) - getNum(b.bounce_pct));
                 const safeUpLadder = [...getArr(inputs.core_up_ladder)].sort((a,b) => getNum(a.rise_pct) - getNum(b.rise_pct));
@@ -381,21 +658,18 @@
                 safeSatellites.forEach(s => { 
                     if (s) { 
                         vSatU += getP(s.underlying) * getNum(s.qty_u); 
-                        vSatL += getNum(s.lev_val);
                         satSumPct += getNum(s.target_pct); 
                     }
                 });
                 
-                const tRes = cash + vBOXX; const tCore = valCore1 + valCore2 + valSpmo; const tCap = tRes + tCore + vSatU + vSatL;
+                const tRes = cash + vBOXX; const tCore = valCore1 + valCore2 + valSpmo; const tCap = tRes + tCore + vSatU;
                 const safeT = tCap > 0 ? tCap : 1; const boxxPct = (vBOXX / safeT) * 100; const isBoxxFrozen = boxxPct < 5; 
 
                 const mappedSatStats = safeSatellites.map((s, i) => {
                     const uP = getP(s.underlying);
                     const vU = uP * getNum(s.qty_u);
-                    const vLev = getNum(s.lev_val);
-                    const cV = vU + vLev; 
-                    const levRatio = getNum(s.lev_ratio);
-                    const expC = (vU * 1) + (vLev * levRatio);
+                    const cV = vU; 
+                    const expC = vU;
                     expSat += expC;
                     
                     const tPct = getNum(s.target_pct); 
@@ -413,7 +687,7 @@
 
                     if (!isApiValid && s.underlying) {
                         st = "報價異常"; col = "text-slate-400"; act = "等待 API 報價，暫停再平衡";
-                    } else if (vU > 0 || vLev > 0) {
+                    } else if (vU > 0) {
                         if (cPct >= limitPct && !isMomentumLost) { 
                             st = `🚀 獲利奔跑中 (${Number(cPct || 0).toFixed(1)}%)`; col = "text-brand-500"; 
                             act = `權重達 ${Number(cPct || 0).toFixed(1)}% (上限 ${limitPct}%)，但 5MA 尚未跌破 10MA，動能延續中。`; 
@@ -438,14 +712,16 @@
                     } else {
                         if (!s.underlying) { act = "輸入代號"; } else { st = "空手觀察"; col = "text-slate-500"; act = `可建立初步倉位。`; gapVal = tVal - cV; } 
                     }
-                    return { ...s, cV, vU, vLev, uP, tPct, limitPct, cPct, tVal, st, col, act, gapVal, alert, ma5, ma10, levRatio };
+                    return { ...s, cV, vU, uP, tPct, limitPct, cPct, tVal, st, col, act, gapVal, alert, ma5, ma10 };
                 });
 
-                const gExp = expCore1 + expCore2 + valSpmo + expSat; const safeGrowthForLev = (tCore + vSatU + vSatL) > 0 ? (tCore + vSatU + vSatL) : 1;
+                const gExp = expCore1 + expCore2 + valSpmo + expSat; const safeGrowthForLev = (tCore + vSatU) > 0 ? (tCore + vSatU) : 1;
                 const gLev = gExp / safeGrowthForLev; const tLev = gExp / safeT; 
                 
                 const qAthLocked = getV('qqq_locked_ath'); const qLatestHigh = getV('qqq_latest_high'); const qWaveLow = getV('qqq_wave_low');
                 const spmoLatestHigh = getV('spmo_latest_high'); const isBearMeltdown = inputs.is_bear_meltdown;
+                const maniaCooldownHigh = getV('mania_cooldown_until_high');
+                const maniaStopPct = Math.max(1, getV('mania_trailing_stop_pct') || 7);
 
                 const simVsCurrent = hasSim && baseQQQ > 0 ? ((simPrice - baseQQQ) / baseQQQ) * 100 : null; const simVsAth = hasSim && qAthLocked > 0 ? ((simPrice - qAthLocked) / qAthLocked) * 100 : null;
 
@@ -458,8 +734,15 @@
                 // ===== 絕對目標 % 計算核心 (RS 汰弱留強完全版) =====
                 let activeUp = null;
                 if (cRise !== null && cRise >= 0) { safeUpLadder.forEach(s => { if (cRise >= getNum(s.rise_pct)) activeUp = s; }); }
+                const maniaTrailingExit = !!(valSpmo > 0 && cDD !== null && cDD + 0.01 >= maniaStopPct);
+                const maniaCooldownActive = !!(maniaCooldownHigh > 0 && pQQQ > 0 && pQQQ < maniaCooldownHigh);
+                const activeUpEffective = (maniaTrailingExit || maniaCooldownActive) ? null : activeUp;
+                const firstDropPct = safeLadder.length > 0 ? getNum(safeLadder[0].drop_pct) : 7;
+                const trackingState = maniaTrailingExit ? 'MANIA_EXIT' : (maniaCooldownActive ? 'COOLDOWN' : ((activeUpEffective || valSpmo > 0) ? 'MANIA' : 'BASE'));
+                const trackingStateLabel = trackingState === 'MANIA_EXIT' ? '🛑 狂熱解除' : trackingState === 'COOLDOWN' ? '🧊 COOLDOWN 冷卻' : trackingState === 'MANIA' ? '🟣 MANIA 狂熱' : '⚓ BASE 核心';
+                const trackingStateDesc = trackingState === 'MANIA_EXIT' ? `QQQ 已自本輪最新高點回撤達 ${maniaStopPct}%，優先解除 SPMO。` : trackingState === 'COOLDOWN' ? `等待 QQQ 重新突破本輪狂熱高點 $${Number(maniaCooldownHigh || 0).toFixed(2)}。` : trackingState === 'MANIA' ? `SPMO 狂熱持有中；若 QQQ 自本輪最新高點回撤達 ${maniaStopPct}%，會解除狂熱。` : `一般核心模式；QQQ 回撤用本輪最新高點，狂熱用 Locked ATH。`;
 
-                const tgtRPct = activeUp ? getV('reserve_pct_ath') : getV('reserve_pct_normal');
+                const tgtRPct = activeUpEffective ? getV('reserve_pct_ath') : getV('reserve_pct_normal');
                 let tgtTqqqFromCorePct = 0; let tgtTqqqFromBoxxPct = 0; let tTqqqPct = 0; let tSpmoPct = 0;
                 let phase = "標準動能配置 (Base Allocation)"; let diagnosticMsg = "✅ 系統穩定運作中，維持既定資產配置。";
 
@@ -468,10 +751,10 @@
                 // 1. RS 檢測
                 let rsTriggered = false; let rsChecked = false;
                 if (cDD !== null && cDD >= 7) { rsChecked = true; if (cSpmoDrop >= cDD) { rsTriggered = true; } }
-                if (rsChecked && rsTriggered && !activeUp) { tSpmoPct = 0; } 
+                if (rsChecked && rsTriggered && !activeUpEffective && !maniaTrailingExit) { tSpmoPct = 0; } 
 
                 // 2. 下跌階梯
-                if (cDD !== null && !activeUp) {
+                if (cDD !== null && !activeUpEffective && !maniaTrailingExit) {
                     safeLadder.forEach(l => { 
                         if (cDD >= getNum(l.drop_pct)) {
                             tgtTqqqFromCorePct += getNum(l.move_pct); 
@@ -497,13 +780,13 @@
                 if (isBearMeltdown) {
                     const currentTqqqPct = (valCore2 / safeT) * 100; tTqqqPct = Math.min(tTqqqPct, currentTqqqPct);
                     phase = "❄️ 熊市超級熔斷 (Meltdown)"; diagnosticMsg = "❄️ 已開啟熊市熔斷。停止所有 TQQQ 加碼操作，保留現金因應極端風險。";
-                } else if (totalBounceSellPct > 0 && !activeUp) {
+                } else if (totalBounceSellPct > 0 && !activeUpEffective && !maniaTrailingExit) {
                     if (totalBounceSellPct >= 100) {
                         phase = `反彈卸除 (清倉格式化)`; diagnosticMsg = `🟢 反彈達 ${highestBounceLevel}%。請執行清倉指令：賣出所有剩餘 TQQQ 轉回 QQQ，完成獲利格式化。`;
                     } else {
                         phase = `反彈卸除 (賣出 ${totalBounceSellPct}%)`; diagnosticMsg = `🟢 反彈達 ${highestBounceLevel}%。請執行降風險指令：賣出帳面 ${totalBounceSellPct}% 的 TQQQ 轉回 QQQ。`;
                     }
-                } else if (cDD !== null && cDD >= 7 && !activeUp) {
+                } else if (cDD !== null && cDD >= 7 && !activeUpEffective && !maniaTrailingExit) {
                     if (rsTriggered) {
                         phase = "啟動相對強弱汰換 (RS Replacement)"; diagnosticMsg = `🚨 QQQ 回撤達 -7%，且 SPMO 跌幅 (${Number(cSpmoDrop||0).toFixed(1)}%) ≥ QQQ。動能崩潰：請賣出全數 SPMO 退回 QQQ，並將指定比例轉為 TQQQ。`;
                     } else {
@@ -517,9 +800,15 @@
                 let activeBoxxTargetPct = Math.max(0, tgtRPct - tgtTqqqFromBoxxPct);
                 let coreTotalTargetPct = Math.max(0, 100 - activeBoxxTargetPct - satSumPct);
 
-                if (activeUp) {
-                    tTqqqPct = getNum(activeUp.target_pct); tSpmoPct = getNum(activeUp.spmo_pct); 
-                    phase = `狂熱模式全開 (Mania Mode)`; diagnosticMsg = `🚀 突破 ATH +${activeUp.rise_pct}%！請將全數核心資產轉換為 SPMO，集中壓注高動能板塊！`;
+                if (maniaTrailingExit) {
+                    tTqqqPct = 0; tSpmoPct = 0;
+                    phase = `🛑 狂熱追蹤停損 (Mania Trailing Exit)`; diagnosticMsg = `🛑 QQQ 自本輪最新高點回撤 -${Number(cDD || 0).toFixed(1)}%，已達狂熱追蹤停損 ${maniaStopPct}%。無視 Locked ATH 仍在突破區，優先賣出 SPMO 退回 QQQ，避免創高後回跌仍被狂熱訊號鎖住。`;
+                } else if (maniaCooldownActive) {
+                    tTqqqPct = 0; tSpmoPct = 0;
+                    phase = `🧊 狂熱冷卻中 (Mania Cooldown)`; diagnosticMsg = `🧊 已解除狂熱模式。QQQ 仍低於本輪狂熱高點 $${Number(maniaCooldownHigh || 0).toFixed(2)}，暫不因 Locked ATH 訊號重複買回 SPMO；等重新突破該高點後才恢復狂熱判斷。`;
+                } else if (activeUpEffective) {
+                    tTqqqPct = getNum(activeUpEffective.target_pct); tSpmoPct = getNum(activeUpEffective.spmo_pct); 
+                    phase = `狂熱模式全開 (Mania Mode)`; diagnosticMsg = `🚀 突破 ATH +${activeUpEffective.rise_pct}%！請將全數核心資產轉換為 SPMO，集中壓注高動能板塊！`;
                 } else if (cRise !== null && cRise >= 0) {
                     phase = `突破確認中 (Breakout Confirmation)`; diagnosticMsg = `📈 突破 ATH 達 +${Number(cRise || 0).toFixed(1)}%。維持既定資產配置，等待狂熱期啟動訊號。`; tTqqqPct = (valCore2 / safeT) * 100;
                 }
@@ -547,7 +836,7 @@
                     cAct = sDiff < -50 ? `啟動相對強弱汰換：賣出 SPMO` : `執行降風險指令：賣出 TQQQ`; cCol = sDiff < -50 ? "text-red-500" : "text-fin-up"; 
                 }
 
-                if (valCore2 <= 0 && tTqqqVal <= 0 && sDiff === 0 && !activeUp) {
+                if (valCore2 <= 0 && tTqqqVal <= 0 && sDiff === 0 && !activeUpEffective && !maniaTrailingExit && !maniaCooldownActive && phase === "標準動能配置 (Base Allocation)") {
                     cAct = "維持既定資產配置"; cCol = "text-slate-500"; phase = "無槓桿配置 (Unleveraged)";
                 }
 
@@ -565,9 +854,9 @@
                 return { 
                     totalCapital: tCap, safeTotal: safeT, satStats: mappedSatStats, graphData: gData, historicalPeak: pEq, mdd: mdd, growthLeverageRatio: gLev, totalLeverageRatio: tLev, 
                     simPrice, hasSim, simVsCurrent, simVsAth, pBOXX,
-                    cls: { c: { u: valCore1, l: valCore2, sm: valSpmo, t: tCore, p: (tCore/safeT)*100 }, s: { u: vSatU, l: vSatL, t: (vSatU+vSatL), p: ((vSatU+vSatL)/safeT)*100 }, r: { b: vBOXX, c: cash, t: tRes, p: (tRes/safeT)*100 } },
+                    cls: { c: { u: valCore1, l: valCore2, sm: valSpmo, t: tCore, p: (tCore/safeT)*100 }, s: { u: vSatU, l: 0, t: vSatU, p: (vSatU/safeT)*100 }, r: { b: vBOXX, c: cash, t: tRes, p: (tRes/safeT)*100 } },
                     tgt: { r: { p: tgtRPct }, s: { p: satSumPct }, q: { p: tgtQqqPct }, t: { p: tTqqqPct }, sm: { p: tSpmoPct } },
-                    core: { pQQQ, pTQQQ, pSPMO, qAthLocked, qLatestHigh, qWaveLow, cDD, cRise, tTqqqPct, tSpmoPct, phase, cAct, cCol, tDiff, sDiff, qDiff, bDiff, cBounce, diagnosticMsg, spmoLatestHigh, cSpmoDrop, maxBounceTarget }
+                    core: { pQQQ, pTQQQ, pSPMO, qAthLocked, qLatestHigh, qWaveLow, firstDropPct, cDD, cRise, tTqqqPct, tSpmoPct, maniaStopPct, trackingState, trackingStateLabel, trackingStateDesc, maniaTrailingExit, maniaCooldownActive, maniaCooldownHigh, qHistoryHigh52w: getV('qqq_history_high_52w'), qBreakoutLockPrice: getV('qqq_breakout_lock_price'), qBreakoutActive: inputs.qqq_breakout_active === true, phase, cAct, cCol, tDiff, sDiff, qDiff, bDiff, cBounce, diagnosticMsg, spmoLatestHigh, cSpmoDrop, maxBounceTarget }
                 };
             }, [prices, inputs, records]);
 
@@ -617,7 +906,7 @@
                                     <div className="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
                                         <span className="text-sm font-black text-brand-400 flex items-center gap-2"><Icon name="Zap" size={18}/> 戰術指揮中心</span>
                                         <div className="flex gap-2">
-                                            <span className="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-brand-100 truncate max-w-[120px]">{metrics.core.phase}</span>
+                                            <span className="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-brand-100 truncate max-w-[120px]">{metrics.core.phase}</span>{inputs.satellites_enabled === false && <span className="text-[10px] bg-brand-900/80 px-2 py-0.5 rounded text-brand-100">核心-only</span>}
                                             <button onClick={copyCommand} className="text-[10px] bg-brand-600 px-2 py-0.5 rounded text-white active:scale-95">複製指令</button>
                                         </div>
                                     </div>
@@ -625,6 +914,25 @@
                                     <div className="text-[11px] text-brand-300 leading-relaxed bg-slate-900 p-3 rounded-xl border border-slate-700 shadow-inner mb-5">
                                         <span className="font-bold block mb-1">💡 系統狀態診斷：</span>
                                         <span className={inputs.is_bear_meltdown ? 'text-red-400 font-bold' : 'text-slate-300'}>{metrics.core.diagnosticMsg}</span>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-2 mb-5 text-[9px]">
+                                        <div className="bg-slate-900 p-2 rounded-lg border border-slate-700">
+                                            <div className="text-slate-500 mb-1">狀態機</div>
+                                            <div className="font-black text-brand-300">{metrics.core.trackingStateLabel}</div>
+                                        </div>
+                                        <div className="bg-slate-900 p-2 rounded-lg border border-slate-700">
+                                            <div className="text-slate-500 mb-1">狂熱基準 Locked ATH</div>
+                                            <div className="font-mono text-purple-300">${Number(metrics.core.qAthLocked || 0).toFixed(2)}</div>
+                                        </div>
+                                        <div className="bg-slate-900 p-2 rounded-lg border border-slate-700">
+                                            <div className="text-slate-500 mb-1">回撤參考高點</div>
+                                            <div className="font-mono text-red-300">${Number(metrics.core.qLatestHigh || 0).toFixed(2)}</div>
+                                        </div>
+                                        <div className="bg-slate-900 p-2 rounded-lg border border-slate-700">
+                                            <div className="text-slate-500 mb-1">反彈參考低點</div>
+                                            <div className="font-mono text-fin-up">${Number(metrics.core.qWaveLow || 0).toFixed(2)}</div>
+                                        </div>
                                     </div>
 
                                     {(() => {
@@ -705,17 +1013,17 @@
                                     <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-600 mb-4 relative z-10 shadow-inner">
                                         <div className="flex justify-between items-center mb-2 border-b border-slate-700 pb-2">
                                             <span className="text-[10px] font-bold text-slate-300 flex items-center gap-1">⚡ RS 相對強弱檢測</span>
-                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded text-white ${metrics.core.cDD >= 7 ? (metrics.core.cSpmoDrop < metrics.core.cDD ? 'bg-fin-up/80' : 'bg-red-500/80') : 'bg-slate-700'}`}>
-                                                {metrics.core.cDD >= 7 ? (metrics.core.cSpmoDrop < metrics.core.cDD ? '🟢 SPMO 勝出' : '🔴 SPMO 較弱') : '⏸️ 待 QQQ 跌破 -7% 觸發'}
+                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded text-white ${metrics.core.cDD >= metrics.core.firstDropPct ? (metrics.core.cSpmoDrop < metrics.core.cDD ? 'bg-fin-up/80' : 'bg-red-500/80') : 'bg-slate-700'}`}>
+                                                {metrics.core.cDD >= metrics.core.firstDropPct ? (metrics.core.cSpmoDrop < metrics.core.cDD ? '🟢 SPMO 勝出' : '🔴 SPMO 較弱') : `⏸️ 待 QQQ 跌破 -${Number(metrics.core.firstDropPct || 7).toFixed(0)}% 觸發`}
                                             </span>
                                         </div>
                                         <div className="flex justify-between text-xs font-mono">
                                             <div className="flex flex-col">
-                                                <span className="text-[9px] text-slate-500">QQQ 距最新高點</span>
-                                                <span className={metrics.core.cDD >= 7 ? 'text-fin-down font-bold' : 'text-slate-300'}>-{Number(metrics.core.cDD || 0).toFixed(1)}%</span>
+                                                <span className="text-[9px] text-slate-500">QQQ 距本輪最新高點</span>
+                                                <span className={metrics.core.cDD >= metrics.core.firstDropPct ? 'text-fin-down font-bold' : 'text-slate-300'}>-{Number(metrics.core.cDD || 0).toFixed(1)}%</span>
                                             </div>
                                             <div className="flex flex-col text-right">
-                                                <span className="text-[9px] text-slate-500">SPMO 距最新高點</span>
+                                                <span className="text-[9px] text-slate-500">SPMO 距持有高點</span>
                                                 <span className={metrics.core.cSpmoDrop >= 7 ? 'text-red-400 font-bold' : 'text-slate-300'}>-{Number(metrics.core.cSpmoDrop || 0).toFixed(1)}%</span>
                                             </div>
                                         </div>
@@ -723,21 +1031,21 @@
 
                                     <div className="grid grid-cols-3 gap-2 text-center relative z-10">
                                         <div className="bg-slate-800 p-2 rounded-lg border border-slate-700">
-                                            <div className="text-slate-400 text-[9px] mb-1">上次波段高點(ATH)</div>
+                                            <div className="text-slate-400 text-[9px] mb-1">Locked ATH 狂熱基準</div>
                                             <div className="font-bold text-sm">{metrics.core.qAthLocked > 0 ? `$${metrics.core.qAthLocked}` : '--'}</div>
                                             <div className={`text-[10px] mt-1 ${metrics.core.cRise !== null && metrics.core.cRise >= 0 ? "text-fin-up" : "text-slate-500"}`}>
                                                 突破: {metrics.core.cRise !== null ? (metrics.core.cRise >= 0 ? `+${Number(metrics.core.cRise || 0).toFixed(1)}%` : `${Number(metrics.core.cRise || 0).toFixed(1)}%`) : '--'}
                                             </div>
                                         </div>
                                         <div className="bg-slate-800 p-2 rounded-lg border border-slate-700">
-                                            <div className="text-slate-400 text-[9px] mb-1">本次最新高點</div>
+                                            <div className="text-slate-400 text-[9px] mb-1">本輪最新高點</div>
                                             <div className="font-bold text-sm">{metrics.core.qLatestHigh > 0 ? `$${metrics.core.qLatestHigh}` : '--'}</div>
                                             <div className={`text-[10px] mt-1 ${metrics.core.cDD !== null && metrics.core.cDD > 0 ? "text-fin-down" : "text-slate-500"}`}>
                                                 回撤: {metrics.core.cDD !== null ? `-${Number(metrics.core.cDD || 0).toFixed(1)}%` : '--'}
                                             </div>
                                         </div>
                                         <div className="bg-slate-800 p-2 rounded-lg border border-slate-700">
-                                            <div className="text-slate-400 text-[9px] mb-1">波段反彈低點</div>
+                                            <div className="text-slate-400 text-[9px] mb-1">本輪反彈低點</div>
                                             <div className="font-bold text-sm">{metrics.core.qWaveLow > 0 ? `$${metrics.core.qWaveLow}` : '--'}</div>
                                             <div className={`text-[10px] mt-1 ${metrics.core.cBounce !== null && metrics.core.cBounce > 0 ? "text-fin-up" : "text-slate-500"}`}>
                                                 反彈: {metrics.core.cBounce !== null ? `+${Number(metrics.core.cBounce || 0).toFixed(1)}%` : '--'}
@@ -759,6 +1067,7 @@
                                     </div>
                                 </div>
 
+                                {inputs.satellites_enabled !== false && (
                                 <CollapsibleCard title="衛星標的即時監控" icon="Activity" isOpen={sections.satMonitor} onToggle={() => toggleSection('satMonitor')}>
                                     <div className="space-y-4">
                                         {metrics.satStats.map(s => {
@@ -791,12 +1100,13 @@
                                         )}
                                     </div>
                                 </CollapsibleCard>
+                                )}
 
                                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
                                     <div className="text-xs font-black text-slate-700 mb-4 flex items-center gap-1"><Icon name="Activity" size={14} className="text-brand-600"/> 大盤系統觸發雷達 (距目標)</div>
-                                    <RadarBar title="🟢 QQQ 波段反彈" target="波段低點：依設定比例卸除 TQQQ" valText={metrics.core.cBounce !== null ? `+${Number(metrics.core.cBounce || 0).toFixed(1)}%` : '--'} valNum={metrics.core.cBounce||0} maxNum={metrics.core.maxBounceTarget||30} textCls="text-fin-up" bgCls="bg-fin-up" />
-                                    <RadarBar title="🟣 SPMO 狂熱期啟動" target="上次高點：設定比例" valText={metrics.core.cRise !== null ? (metrics.core.cRise >= 0 ? `+${Number(metrics.core.cRise || 0).toFixed(1)}%` : '未過高') : '--'} valNum={metrics.core.cRise||0} maxNum={25} textCls="text-purple-600" bgCls="bg-purple-500" />
-                                    <RadarBar title="🔴 QQQ 回撤加碼階梯" target="最新高點：目標 -42%" valText={(metrics.core.cRise === null || metrics.core.cRise < 0) ? (metrics.core.cDD !== null ? `-${Number(metrics.core.cDD || 0).toFixed(1)}%` : '--') : '創新高中'} valNum={metrics.core.cDD||0} maxNum={42} textCls="text-fin-down" bgCls="bg-fin-down" />
+                                    <RadarBar title="🟢 QQQ 波段反彈" target="本輪反彈低點：回撤達第一階後才記錄，用來卸除 TQQQ" valText={metrics.core.cBounce !== null ? `+${Number(metrics.core.cBounce || 0).toFixed(1)}%` : '--'} valNum={metrics.core.cBounce||0} maxNum={metrics.core.maxBounceTarget||30} textCls="text-fin-up" bgCls="bg-fin-up" />
+                                    <RadarBar title="🟣 SPMO 狂熱期啟動" target={`Locked ATH：上個52W收盤高鎖定；追蹤停損 ${metrics.core.maniaStopPct}%`} valText={metrics.core.cRise !== null ? (metrics.core.cRise >= 0 ? `+${Number(metrics.core.cRise || 0).toFixed(1)}%` : '未過高') : '--'} valNum={metrics.core.cRise||0} maxNum={25} textCls="text-purple-600" bgCls="bg-purple-500" />
+                                    <RadarBar title="🔴 QQQ 回撤加碼階梯" target="本輪最新高點：用來計算 -7/-14/-21% 回撤階梯" valText={(metrics.core.cRise === null || metrics.core.cRise < 0) ? (metrics.core.cDD !== null ? `-${Number(metrics.core.cDD || 0).toFixed(1)}%` : '--') : '創新高中'} valNum={metrics.core.cDD||0} maxNum={42} textCls="text-fin-down" bgCls="bg-fin-down" />
                                 </div>
 
                                 <CollapsibleCard title="資產數量與市值更新" icon="Package" isOpen={sections.holdings} onToggle={() => toggleSection('holdings')}>
@@ -819,24 +1129,20 @@
                                             </div>
                                         </div>
 
+                                        {inputs.satellites_enabled !== false && (
                                         <div className="pt-3 border-t border-slate-100">
                                             <div className="text-xs font-black text-slate-700 mb-3 flex items-center gap-1"><Icon name="Activity" size={14} className="text-slate-400"/> 衛星配置數量與市值</div>
                                             {getArr(inputs.satellites).map(s => s.underlying && (
                                                 <div key={s.id} className="bg-slate-50 p-2 rounded-lg border mb-2">
                                                     <div className="text-[10px] font-bold text-slate-600 border-b pb-1 mb-2">{s.underlying} 配置</div>
-                                                    <div className="grid grid-cols-2 gap-2">
-                                                        <div>
-                                                            <label className="text-[8px] text-slate-400 block mb-0.5">現股股數</label>
-                                                            <input type="number" inputMode="decimal" value={s.qty_u} onChange={e=>updateArr('satellites',s.id,'qty_u',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-xs bg-white p-1 rounded border outline-none text-center"/>
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-[8px] text-brand-500 font-bold block mb-0.5">槓桿市值 ($)</label>
-                                                            <input type="number" inputMode="decimal" value={s.lev_val} onChange={e=>updateArr('satellites',s.id,'lev_val',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-xs bg-brand-50/50 p-1 rounded border border-brand-200 outline-none text-center text-brand-700 font-bold"/>
-                                                        </div>
+                                                    <div>
+                                                        <label className="text-[8px] text-slate-400 block mb-0.5">現股股數</label>
+                                                        <input type="number" inputMode="decimal" value={s.qty_u} onChange={e=>updateArr('satellites',s.id,'qty_u',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-xs bg-white p-2 rounded border outline-none text-center"/>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
+                                        )}
 
                                     </div>
                                 </CollapsibleCard>
@@ -870,6 +1176,22 @@
                                     {inputs.is_bear_meltdown && <div className="mt-3 text-[10px] text-red-600 font-bold text-center bg-white/50 p-2 rounded-lg">❄️ 目前系統已凍結所有 TQQQ 下跌加碼操作 ❄️</div>}
                                 </div>
 
+                                <div className={`${inputs.satellites_enabled !== false ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-900 border-slate-700 text-white'} border rounded-3xl p-5 shadow-sm`}>
+                                    <div className="flex justify-between items-center gap-3">
+                                        <div className="flex gap-2 items-center">
+                                            <Icon name="Package" size={24} className={inputs.satellites_enabled !== false ? 'text-emerald-600' : 'text-brand-400'}/>
+                                            <div>
+                                                <h2 className={`font-black text-sm ${inputs.satellites_enabled !== false ? 'text-emerald-700' : 'text-white'}`}>{inputs.satellites_enabled !== false ? '衛星模式開啟' : '只做核心部位'}</h2>
+                                                <p className={`text-[10px] mt-0.5 ${inputs.satellites_enabled !== false ? 'text-emerald-600' : 'text-slate-300'}`}>關閉後 TSLA / IBIT 目標占比歸零，主控台與參數區不顯示衛星部位。</p>
+                                            </div>
+                                        </div>
+                                        <button onClick={() => { const next = !(inputs.satellites_enabled !== false); handleInput('satellites_enabled', next); syncToCloud('satellites_enabled', next); showToast(next ? '已恢復衛星模式' : '已切換為核心-only模式'); }} className={`px-3 py-2 rounded-xl text-xs font-black active:scale-95 transition-all ${inputs.satellites_enabled !== false ? 'bg-white text-emerald-700 border border-emerald-200' : 'bg-brand-600 text-white'}`}>
+                                            {inputs.satellites_enabled !== false ? '一鍵隱藏衛星' : '恢復衛星'}
+                                        </button>
+                                    </div>
+                                    {inputs.satellites_enabled === false && <div className="mt-3 text-[10px] text-brand-100 bg-white/10 p-2 rounded-lg text-center">核心-only 模式：衛星資料保留，但不計入資產、目標配比、戰術指令。</div>}
+                                </div>
+
                                 <div className="bg-slate-800 rounded-3xl p-6 text-white">
                                     <div className="flex items-center gap-2 mb-4 border-b border-slate-700 pb-3"><Icon name="Google" size={20}/><h2 className="font-black">Google 同步</h2></div>
                                     {user && !user.isAnonymous ? (
@@ -891,21 +1213,65 @@
                                         
                                         <div className="text-[10px] font-black text-slate-800 bg-slate-100 p-2 rounded border border-slate-200">大盤核心 (QQQ) 與反彈參數</div>
 
-                                        <div className="grid grid-cols-2 gap-2 text-left">
-                                            <div className="bg-slate-50 p-2 rounded-lg border">
-                                                <label className="text-[9px] font-bold text-slate-500 block mb-1">QQQ 本次最新高點</label>
-                                                <div className="text-[8px] text-slate-500 mb-2 leading-tight">📌 <span className="text-brand-600 font-bold">觸發指令：</span>計算回撤。<span className="font-bold text-slate-700">賣 QQQ / 動用 BOXX ➜ 買 TQQQ</span>。</div>
-                                                <input type="number" inputMode="decimal" value={inputs.qqq_latest_high} onChange={e=>handleInput('qqq_latest_high', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono outline-none text-center border-t pt-1"/>
-                                            </div>
-                                            <div className="bg-slate-50 p-2 rounded-lg border">
-                                                <label className="text-[9px] font-bold text-slate-500 block mb-1">QQQ 波段反彈低點</label>
-                                                <div className="text-[8px] text-slate-500 mb-2 leading-tight">📌 <span className="text-brand-600 font-bold">觸發指令：</span>計算反彈。<span className="font-bold text-slate-700">賣部分 TQQQ ➜ 轉回 QQQ</span>。</div>
-                                                <input type="number" inputMode="decimal" value={inputs.qqq_wave_low} onChange={e=>handleInput('qqq_wave_low', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-transparent font-mono outline-none text-center border-t pt-1"/>
+                                        <div className={`${inputs.auto_high_tracking !== false ? 'bg-brand-50 border-brand-200' : 'bg-slate-50 border-slate-200'} p-3 rounded-xl border text-left`}>
+                                            <div className="flex justify-between items-start gap-3">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <div className="text-[10px] font-black text-slate-700">QQQ 自動追蹤高低點</div>
+                                                        <span className={`text-[9px] px-2 py-0.5 rounded-full font-black ${metrics.core.trackingState === 'MANIA' ? 'bg-purple-100 text-purple-700' : metrics.core.trackingState === 'COOLDOWN' ? 'bg-slate-800 text-white' : metrics.core.trackingState === 'MANIA_EXIT' ? 'bg-red-100 text-red-700' : 'bg-white text-brand-700 border border-brand-100'}`}>{metrics.core.trackingStateLabel}</span>
+                                                    </div>
+                                                    <div className="text-[9px] text-slate-500 leading-relaxed mt-1">
+                                                        {inputs.auto_high_tracking !== false ? '已開啟：系統用狀態機自動分辨 BASE / MANIA / COOLDOWN，避免上個 ATH 與最新高點互相衝突。' : '已關閉：下方高點與低點改為手動輸入。'}
+                                                    </div>
+                                                    <div className="text-[9px] text-brand-700 bg-white/70 border border-brand-100 rounded-lg p-2 mt-2 leading-relaxed">
+                                                        <span className="font-black">目前狀態：</span>{metrics.core.trackingStateDesc}
+                                                    </div>
+                                                    <div className="text-[9px] text-slate-400 mt-2 font-mono leading-relaxed">
+                                                        52W收盤高: ${Number(inputs.qqq_history_high_52w || 0).toFixed(2)} {inputs.qqq_history_sync_date ? `｜同步 ${inputs.qqq_history_sync_date}` : ''}<br/>
+                                                        Locked ATH: ${Number(inputs.qqq_locked_ath || 0).toFixed(2)} {inputs.qqq_breakout_active ? `｜突破基準已鎖 $${Number(inputs.qqq_breakout_lock_price || 0).toFixed(2)}` : '｜未鎖定突破'} {inputs.mania_cooldown_until_high > 0 ? `｜冷卻解除價 $${Number(inputs.mania_cooldown_until_high || 0).toFixed(2)}` : ''}
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col gap-2 min-w-[96px]">
+                                                    <button onClick={() => { const next = !(inputs.auto_high_tracking !== false); handleInput('auto_high_tracking', next); syncToCloud('auto_high_tracking', next); showToast(next ? '已開啟自動追蹤' : '已改為手動輸入'); }} className={`px-3 py-2 rounded-xl text-[10px] font-black active:scale-95 ${inputs.auto_high_tracking !== false ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 border'}`}>{inputs.auto_high_tracking !== false ? '自動 ON' : '手動 OFF'}</button>
+                                                    <button onClick={() => fetchQQQHistory(true)} disabled={isSyncingHistory || inputs.auto_high_tracking === false} className="px-3 py-2 rounded-xl text-[10px] font-black active:scale-95 bg-white border border-brand-200 text-brand-700 disabled:opacity-40">{isSyncingHistory ? '同步中' : '同步52W'}</button>
+                                                    <button onClick={resetAutoTrackingCycle} disabled={inputs.auto_high_tracking === false} className="px-3 py-2 rounded-xl text-[10px] font-black active:scale-95 bg-white border border-slate-200 text-slate-600 disabled:opacity-40">重設循環</button>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        <SettingGroup label="QQQ 上次波段高點 (Locked ATH)" hint="計算狂熱收割。依設定比例之突破，" hintAction="賣出全數核心 ➜ 轉買 SPMO" isPurple={false}>
-                                            <input type="number" inputMode="decimal" value={inputs.qqq_locked_ath} onChange={e=>handleInput('qqq_locked_ath', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-white p-2 rounded border font-mono outline-none text-center"/>
+                                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-left">
+                                            <div className="text-[10px] font-black text-amber-800 mb-2">高點名稱對照表</div>
+                                            <div className="space-y-1.5 text-[9px] text-amber-900 leading-relaxed">
+                                                <div><span className="font-black">最新 52W 高點：</span>QQQ 最近約 370 天「日收盤價」最高值。用途：同步/建立 Locked ATH，不直接下單。</div>
+                                                <div><span className="font-black">Locked ATH：</span>狂熱突破基準。平時跟著 52W 高點；一旦 QQQ 突破它，就鎖住不往上調，用來算 +15% 是否轉 SPMO。</div>
+                                                <div><span className="font-black">本輪最新高點：</span>本輪循環中 QQQ 即時報價走過的最高價。用途：算 QQQ 回撤階梯與狂熱追蹤停損。</div>
+                                                <div><span className="font-black">本輪反彈低點：</span>QQQ 從本輪最新高點回撤達第一階 -{Number(metrics.core.firstDropPct || 7).toFixed(0)}% 後，才開始記錄最低價。用途：算 +10/+20/+30% 反彈卸 TQQQ。</div>
+                                                <div><span className="font-black">冷卻解除價：</span>狂熱停損後保留的本輪狂熱高點；QQQ 沒重新突破前，不會因舊 Locked ATH 又叫你買 SPMO。</div>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2 text-left">
+                                            <div className="bg-slate-50 p-2 rounded-lg border">
+                                                <label className="text-[9px] font-bold text-slate-500 block mb-1">QQQ 本輪最新高點（回撤用）</label>
+                                                <div className="text-[8px] text-slate-500 mb-2 leading-tight">📌 來源：報價更新時取本輪最高價。用途：<span className="font-bold text-slate-700">算 -7/-14/-21% 加碼 TQQQ</span>，也算 SPMO 狂熱追蹤停損。</div>
+                                                <input type="number" inputMode="decimal" value={inputs.qqq_latest_high} readOnly={inputs.auto_high_tracking !== false} onChange={e=>handleInput('qqq_latest_high', e.target.value)} onFocus={e=>e.target.select()} className={`w-full bg-transparent font-mono outline-none text-center border-t pt-1 ${inputs.auto_high_tracking !== false ? 'text-brand-600' : ''}`}/>
+                                            </div>
+                                            <div className="bg-slate-50 p-2 rounded-lg border">
+                                                <label className="text-[9px] font-bold text-slate-500 block mb-1">QQQ 本輪反彈低點（卸槓桿用）</label>
+                                                <div className="text-[8px] text-slate-500 mb-2 leading-tight">📌 來源：回撤達第一階 -{Number(metrics.core.firstDropPct || 7).toFixed(0)}% 後才開始更新。用途：<span className="font-bold text-slate-700">算反彈 +10/+20/+30% 賣 TQQQ 回 QQQ</span>。</div>
+                                                <input type="number" inputMode="decimal" value={inputs.qqq_wave_low} readOnly={inputs.auto_high_tracking !== false} onChange={e=>handleInput('qqq_wave_low', e.target.value)} onFocus={e=>e.target.select()} className={`w-full bg-transparent font-mono outline-none text-center border-t pt-1 ${inputs.auto_high_tracking !== false ? 'text-brand-600' : ''}`}/>
+                                            </div>
+                                        </div>
+
+                                        <SettingGroup label="QQQ 狂熱突破基準（Locked ATH / 上個 52W 收盤高）" hint="用途：只用來計算 QQQ 是否突破基準達狂熱門檻；一旦突破會鎖住，不會跟著最新高點上移，" hintAction="達 +15% 才轉 SPMO" isPurple={false}>
+                                            <div className="text-[9px] text-slate-500 mb-2 leading-relaxed">
+                                                最新 52W 收盤高是 <span className="font-mono font-black text-brand-600">${Number(inputs.qqq_history_high_52w || 0).toFixed(2)}</span>；目前 Locked ATH 是 <span className="font-mono font-black text-slate-800">${Number(inputs.qqq_locked_ath || 0).toFixed(2)}</span>。這兩個不是拿來算回撤，回撤請看「本輪最新高點」。
+                                            </div>
+                                            <input type="number" inputMode="decimal" value={inputs.qqq_locked_ath} readOnly={inputs.auto_high_tracking !== false} onChange={e=>handleInput('qqq_locked_ath', e.target.value)} onFocus={e=>e.target.select()} className={`w-full bg-white p-2 rounded border font-mono outline-none text-center ${inputs.auto_high_tracking !== false ? 'text-brand-600' : ''}`}/>
+                                        </SettingGroup>
+
+                                        <SettingGroup label="狂熱追蹤停損 (%)" hint="已進入 SPMO 狂熱模式後，若 QQQ 自『本輪最新高點』回撤達此門檻，" hintAction="優先賣 SPMO ➜ 退回 QQQ，並進入 COOLDOWN" isPurple={true}>
+                                            <input type="number" inputMode="decimal" value={inputs.mania_trailing_stop_pct} onChange={e=>handleInput('mania_trailing_stop_pct', e.target.value)} onBlur={e=>syncToCloud('mania_trailing_stop_pct', e.target.value)} onFocus={e=>e.target.select()} className="w-full bg-white p-2 rounded border border-purple-100 font-mono outline-none text-center text-purple-700"/>
                                         </SettingGroup>
 
                                         <div className="bg-brand-50 p-3 rounded-lg border border-brand-200 text-left flex justify-between items-center">
@@ -924,13 +1290,13 @@
                                         <div className="text-[10px] font-black text-purple-800 bg-purple-100 p-2 rounded border border-purple-200 mt-4">相對強弱動能指標 (SPMO)</div>
 
                                         <div className="bg-purple-50 p-3 rounded-xl border border-purple-200 text-left transition-colors hover:border-brand-300">
-                                            <label className="text-[10px] font-black text-purple-700 block mb-1">SPMO 波段最高價 (RS防線)</label>
+                                            <label className="text-[10px] font-black text-purple-700 block mb-1">SPMO 持有期間最高價（RS 防線）</label>
                                             <div className="text-[9px] text-purple-500 mb-2 leading-relaxed">
-                                                📌 <span className="font-bold">自動觸發：</span>當 QQQ 跌破 -7% 時，系統會比較 QQQ 與此 SPMO 高點的回撤。若 SPMO 回撤 ≥ QQQ 跌幅，系統將判定動能崩潰，<span className="font-bold text-red-500">強制賣出全數 SPMO ➜ 轉回 QQQ 防禦</span>。
+                                                📌 <span className="font-bold">來源：</span>只有實際持有 SPMO 時才追蹤最高價；沒持有時會清空。當 QQQ 回撤達第一階 -{Number(metrics.core.firstDropPct || 7).toFixed(0)}% 時，系統比較 SPMO 與 QQQ 的跌幅。若 SPMO 跌幅 ≥ QQQ 跌幅，判定動能弱化，<span className="font-bold text-red-500">賣出全數 SPMO ➜ 轉回 QQQ</span>。
                                             </div>
                                             <div className="flex items-center gap-2 bg-white p-2 rounded border border-purple-200 shadow-sm mb-2">
-                                                <span className="text-[9px] text-purple-600 font-bold whitespace-nowrap">SPMO 最高價</span>
-                                                <input type="number" inputMode="decimal" value={inputs.spmo_latest_high} onChange={e=>handleInput('spmo_latest_high', e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-purple-700 outline-none text-center bg-transparent"/>
+                                                <span className="text-[9px] text-purple-600 font-bold whitespace-nowrap">SPMO 持有高點</span>
+                                                <input type="number" inputMode="decimal" value={inputs.spmo_latest_high} readOnly={inputs.auto_high_tracking !== false} onChange={e=>handleInput('spmo_latest_high', e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-purple-700 outline-none text-center bg-transparent"/>
                                             </div>
                                         </div>
 
@@ -1040,6 +1406,7 @@
                                     </div>
                                 </div>
 
+                                {inputs.satellites_enabled !== false && (
                                 <div className="bg-white rounded-3xl p-6 border border-slate-200 text-left">
                                     <div className="flex justify-between mb-4 border-b pb-2"><h2 className="font-black flex items-center gap-2"><Icon name="Activity" size={18} className="text-fin-info"/>衛星標的設定</h2></div>
                                     
@@ -1047,7 +1414,7 @@
                                         💡 <span className="font-bold text-slate-700">衛星動態再平衡指南：</span><br/>
                                         • 跌破均價達 [補倉-%] ➜ <span className="text-fin-down font-bold">賣 BOXX 買入現股，精準補回 [權重%]</span><br/>
                                         • 權重膨脹達 [上限%]，且 5MA 跌破 10MA ➜ <span className="text-fin-up font-bold">賣出超額部位，壓縮回 [權重%]</span><br/>
-                                        • 支援 <span className="text-brand-600 font-bold">LEAPS/槓桿 ETF</span> 混合計算，獨立追蹤槓桿市值與倍數。
+                                        • 此版策略以 <span className="text-brand-600 font-bold">純現股長期持有</span> 為主；若切換核心-only，衛星資料會保留但不參與計算。
                                     </div>
 
                                     <div className="space-y-4">
@@ -1074,7 +1441,7 @@
                                                     </div>
                                                 </div>
 
-                                                <div className="grid grid-cols-4 gap-1 bg-white p-1 rounded border">
+                                                <div className="grid grid-cols-3 gap-1 bg-white p-1 rounded border">
                                                     <div className="text-center flex flex-col items-center">
                                                         <label className="text-[8px] text-brand-600">目標%</label>
                                                         <input type="number" inputMode="decimal" value={s.target_pct} onChange={e=>updateArr('satellites',s.id,'target_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[11px] bg-transparent outline-none text-center min-w-0"/>
@@ -1087,16 +1454,13 @@
                                                         <label className="text-[8px] text-fin-down">補倉-%</label>
                                                         <input type="number" inputMode="decimal" value={s.loss_pct} onChange={e=>updateArr('satellites',s.id,'loss_pct',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[11px] bg-transparent outline-none text-center min-w-0"/>
                                                     </div>
-                                                    <div className="text-center border-l flex flex-col items-center bg-brand-50">
-                                                        <label className="text-[8px] text-brand-600 font-bold">槓桿倍數(x)</label>
-                                                        <input type="number" inputMode="decimal" value={s.lev_ratio} onChange={e=>updateArr('satellites',s.id,'lev_ratio',e.target.value)} onFocus={e=>e.target.select()} className="w-full font-mono text-[11px] bg-transparent outline-none text-center min-w-0 text-brand-700 font-bold"/>
-                                                    </div>
                                                 </div>
                                             </div>
                                         ))}
-                                        <button onClick={()=>addArr('satellites', { underlying:'', qty_u:0, lev_val:0, lev_ratio:2, avg_cost:0, target_pct:5, limit_pct:10, loss_pct:14, ma5:0, ma10:0 })} className="w-full py-3 border-dashed border-2 rounded-xl text-slate-500 text-sm active:scale-95">+ 新增衛星</button>
+                                        <button onClick={()=>addArr('satellites', { underlying:'', qty_u:0, avg_cost:0, target_pct:5, limit_pct:10, loss_pct:14, ma5:0, ma10:0 })} className="w-full py-3 border-dashed border-2 rounded-xl text-slate-500 text-sm active:scale-95">+ 新增衛星</button>
                                     </div>
                                 </div>
+                                )}
                             </div>
                         )}
 
@@ -1191,4 +1555,4 @@
         ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><App /></ErrorBoundary>);
     </script>
 </body>
-    </html>
+</html>

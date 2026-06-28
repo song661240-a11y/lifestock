@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="color-scheme" content="light only" />
-  <title>Alpha Horizon Core v5.7</title>
+  <title>Alpha Horizon Core v5.9</title>
   <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230f172a'/><path d='M24 72 L50 24 L76 72' stroke='%233b82f6' stroke-width='11' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='50' cy='24' r='7' fill='%233b82f6'/></svg>" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -83,7 +83,7 @@
     const signedPct = (v, digits = 1) => `${v >= 0 ? "+" : ""}${Number(v || 0).toFixed(digits)}%`;
     const EPS = 1e-6;
 
-    const PLAN_TEXT = `Alpha Horizon Core v5.7（2026 相對強弱簡化版）
+    const PLAN_TEXT = `Alpha Horizon Core v5.8（2026 相對強弱簡化版）
 — 系統化十年期資產累積策略 —
 
 一、策略核心
@@ -142,7 +142,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
     ];
 
     const DEFAULT_INPUTS = {
-      version: "core-v5.7.1",
+      version: "core-v5.8",
       planText: PLAN_TEXT,
       reserve_target_pct: 15,
       satellites_enabled: false,
@@ -169,6 +169,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
       motto_visible: true,
       params_unlocked: false,
       execution_logs: [],
+      pending_execution_note: "",
       qty_core_1: 0,
       qty_core_2: 0,
       qty_spmo: 0,
@@ -216,9 +217,10 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
       if (!next.motto) next.motto = "嚴守紀律，摒除主觀判斷；依據量化指標，執行絕對配置。";
       if (next.params_unlocked === undefined) next.params_unlocked = false;
       next.execution_logs = getArr(next.execution_logs).slice(0, 200);
+      if (next.pending_execution_note === undefined) next.pending_execution_note = "";
       if (next.auto_high_tracking === undefined) next.auto_high_tracking = true;
       if (!next.planText || String(next.planText).includes("順勢再平衡進化版")) next.planText = PLAN_TEXT;
-      next.version = "core-v5.7";
+      next.version = "core-v5.8";
       return next;
     };
 
@@ -414,7 +416,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
         const init = async () => {
           try {
             if (!auth.currentUser) await auth.signInAnonymously();
-          } catch (e) { setAuthError("Firebase 登入異常，請檢查瀏覽器是否封鎖第三方或彈窗。"); }
+          } catch (e) { setAuthError("跨裝置同步初始化異常，請檢查瀏覽器是否封鎖第三方或彈窗。"); }
         };
         const unsub = auth.onAuthStateChanged(usr => {
           if (usr) { setUser(usr); setAuthError(""); }
@@ -437,7 +439,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
           setCloudLoaded(true);
         }, err => {
           console.error(err);
-          setAuthError("雲端資料讀取失敗，可能是 Firebase 權限或網路問題。");
+          setAuthError("跨裝置同步讀取失敗，可能是權限或網路問題。");
           setCloudReady(false);
           setCloudLoaded(true);
         });
@@ -458,7 +460,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
           } catch (e) {
             ignoreSnapshotRef.current = false;
             console.error(e);
-            setAuthError("雲端自動同步失敗，請稍後再試。");
+            setAuthError("跨裝置自動同步失敗，請稍後再試。");
           }
         }, 1200);
         return () => clearTimeout(saveTimerRef.current);
@@ -468,24 +470,24 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
         try {
           const provider = new firebase.auth.GoogleAuthProvider();
           if (auth.currentUser && auth.currentUser.isAnonymous) {
-            try { await auth.currentUser.linkWithPopup(provider); showToast("已綁定 Google，跨裝置同步開啟"); }
+            try { await auth.currentUser.linkWithPopup(provider); showToast("跨裝置同步已啟用"); }
             catch (e) {
               if (e.code === "auth/credential-already-in-use" && e.credential) {
                 await auth.signInWithCredential(e.credential);
-                showToast("已登入既有 Google 帳號");
+                showToast("跨裝置同步已啟用");
               } else if (e.code === "auth/credential-already-in-use") {
                 await auth.signInWithPopup(provider);
-                showToast("已登入既有 Google 帳號");
+                showToast("跨裝置同步已啟用");
               } else throw e;
             }
           } else {
             await auth.signInWithPopup(provider);
-            showToast("Google 登入成功");
+            showToast("跨裝置同步已啟用");
           }
           setAuthError("");
         } catch (e) {
           console.error(e);
-          setAuthError(e.message || "Google 登入失敗");
+          setAuthError(e.message || "跨裝置同步啟用失敗");
         }
       };
 
@@ -493,7 +495,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
         try {
           await auth.signOut();
           await auth.signInAnonymously();
-          showToast("已切換為訪客模式");
+          showToast("已關閉跨裝置同步，改為本機模式");
         } catch (e) { setAuthError("登出失敗"); }
       };
 
@@ -873,8 +875,8 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
         setSaving(true);
         try {
           await r.confRef.set(sanitize(inputs), { merge:true });
-          showToast("已同步到雲端");
-        } catch (e) { setAuthError("同步失敗"); }
+          showToast("已同步跨裝置資料");
+        } catch (e) { setAuthError("跨裝置同步失敗"); }
         setSaving(false);
       };
 
@@ -885,13 +887,13 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
           const snap = await r.confRef.get();
           if (snap.exists) {
             setInputs(prev => migrate({ ...prev, ...(snap.data() || {}) }));
-            showToast("已讀取雲端資料");
+            showToast("已重新讀取跨裝置資料");
           } else {
-            showToast("雲端尚無資料");
+            showToast("尚無跨裝置資料");
           }
         } catch (e) {
           console.error(e);
-          setAuthError("讀取雲端失敗，請確認登入與網路。 ");
+          setAuthError("讀取跨裝置資料失敗，請確認同步狀態與網路。");
         }
       };
 
@@ -913,7 +915,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
       };
 
       const copyCommand = async () => {
-        const text = `【Alpha Horizon Core v5.7】\n日期：${todayStr()}\n狀態：${metrics.title}\n總資產市值：$${money(metrics.values.total)}\n股票等效曝險：$${money(metrics.values.stockEquivalentExposure)}\n總曝險槓桿：${metrics.values.totalLeverageRatio.toFixed(2)}x\n成長部位槓桿：${metrics.values.growthLeverageRatio.toFixed(2)}x\n\n今日指令：\n${metrics.actions.map(x => `- ${x}`).join("\n")}\n\n目標配置：QQQ ${pct(metrics.t.q)} / TQQQ ${pct(metrics.t.tq)} / SPMO ${pct(metrics.t.sm)} / BOXX ${pct(metrics.t.r)}${inputs.satellites_enabled ? ` / 衛星 ${pct(metrics.t.sat)}` : ""}`;
+        const text = `【Alpha Horizon Core v5.8】\n日期：${todayStr()}\n狀態：${metrics.title}\n總資產市值：$${money(metrics.values.total)}\n股票等效曝險：$${money(metrics.values.stockEquivalentExposure)}\n總曝險槓桿：${metrics.values.totalLeverageRatio.toFixed(2)}x\n成長部位槓桿：${metrics.values.growthLeverageRatio.toFixed(2)}x\n\n今日指令：\n${metrics.actions.map(x => `- ${x}`).join("\n")}\n\n目標配置：QQQ ${pct(metrics.t.q)} / TQQQ ${pct(metrics.t.tq)} / SPMO ${pct(metrics.t.sm)} / BOXX ${pct(metrics.t.r)}${inputs.satellites_enabled ? ` / 衛星 ${pct(metrics.t.sat)}` : ""}`;
         try {
           await navigator.clipboard.writeText(text);
           showToast("已複製今日指令");
@@ -924,7 +926,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
         const blob = new Blob([JSON.stringify(inputs, null, 2)], { type:"application/json" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = `alpha-horizon-core-v5-7-${todayStr()}.json`;
+        a.download = `alpha-horizon-core-v5-8-${todayStr()}.json`;
         a.click();
         URL.revokeObjectURL(a.href);
       };
@@ -942,7 +944,48 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
         reader.readAsText(file);
       };
 
-      const markExecuted = () => {
+      const syncToCloud = async (data, successMessage = "已同步跨裝置資料") => {
+        const r = refs();
+        if (!r) return false;
+        setSaving(true);
+        try {
+          await r.confRef.set(sanitize(data), { merge:true });
+          showToast(successMessage);
+          return true;
+        } catch (e) {
+          console.error(e);
+          setAuthError("跨裝置同步失敗");
+          return false;
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      const buildHoldingsSnapshot = () => {
+        const sats = inputs.satellites_enabled ? getArr(inputs.satellites).map(s => {
+          const symbol = String(s.underlying || "").trim().toUpperCase();
+          const qty = getNum(s.qty_u);
+          const price = Number(prices[symbol] || 0);
+          return { symbol, qty, price, value: qty * price };
+        }) : [];
+        return {
+          qqq: { qty: getNum(inputs.qty_core_1), price: metrics.prices.pQQQ, value: metrics.values.vQQQ },
+          tqqq: { qty: getNum(inputs.qty_core_2), price: metrics.prices.pTQQQ, value: metrics.values.vTQQQ },
+          spmo: { qty: getNum(inputs.qty_spmo), price: metrics.prices.pSPMO, value: metrics.values.vSPMO },
+          boxx: { qty: getNum(inputs.qty_boxx), price: metrics.prices.pBOXX, value: metrics.values.vBOXX },
+          cash: { value: getNum(inputs.cash_balance) },
+          satellites: sats
+        };
+      };
+
+      const updateExecutionLog = (id, patch) => {
+        setInputs(prev => ({
+          ...prev,
+          execution_logs: getArr(prev.execution_logs).map(log => String(log.id) === String(id) ? { ...log, ...patch, updated_at: new Date().toISOString() } : log)
+        }));
+      };
+
+      const markExecuted = async () => {
         const record = {
           id: String(Date.now()),
           date: new Date().toISOString(),
@@ -952,10 +995,20 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
           total: metrics.values.total,
           leverage: metrics.values.totalLeverageRatio,
           actions: metrics.actions,
-          target: metrics.t
+          instruction: metrics.instruction,
+          latest_judgement: metrics.ux.latestJudgement,
+          target: metrics.t,
+          holdings: buildHoldingsSnapshot(),
+          note: String(inputs.pending_execution_note || "").trim()
         };
-        setInputs(prev => ({ ...prev, execution_logs: [record, ...getArr(prev.execution_logs)].slice(0, 200) }));
-        showToast("已紀錄今日指令；成交後請記得更新持倉");
+        const nextInputs = {
+          ...inputs,
+          pending_execution_note: "",
+          execution_logs: [record, ...getArr(inputs.execution_logs)].slice(0, 200)
+        };
+        setInputs(nextInputs);
+        const ok = await syncToCloud(nextInputs, "已紀錄並完成跨裝置同步");
+        if (!ok) showToast("已先存本機，跨裝置同步失敗");
       };
 
       const CollapsibleCard = ({ id, title, desc, right, children, defaultOpen = true, className = "p-5" }) => {
@@ -1033,12 +1086,20 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
                   <div className="text-xs font-black text-slate-700 leading-relaxed">「{inputs.motto || DEFAULT_INPUTS.motto}」</div>
                 </div>
               )}
+              <div className="mt-4 bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                <div className="text-[10px] font-black text-slate-500 mb-2">本次紀錄備註</div>
+                <textarea
+                  value={inputs.pending_execution_note || ""}
+                  onChange={e => setField("pending_execution_note", e.target.value)}
+                  placeholder="可自行輸入備註，例如：實際成交價、手動調整原因、系統訊號飄掉時自己的操作想法。"
+                  className="w-full min-h-[74px] bg-white border border-slate-200 rounded-2xl p-3 text-sm font-bold text-slate-800 leading-relaxed focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                />
+              </div>
               <div className="grid grid-cols-2 gap-2 mt-4">
                 <button onClick={copyCommand} className="min-h-[48px] rounded-2xl bg-brand-600 text-white text-sm font-black active:scale-95">複製指令</button>
-                <button onClick={saveNow} className="min-h-[48px] rounded-2xl bg-slate-100 text-slate-700 text-sm font-black border border-slate-200 active:scale-95">{saving ? "同步中" : "同步雲端"}</button>
-                <button onClick={markExecuted} className="col-span-2 min-h-[52px] rounded-2xl bg-emerald-500 text-white text-sm font-black active:scale-95">我已執行今日指令</button>
+                <button onClick={markExecuted} disabled={saving} className="min-h-[48px] rounded-2xl bg-emerald-500 text-white text-sm font-black active:scale-95 disabled:opacity-60">{saving ? "同步中" : "紀錄並同步"}</button>
               </div>
-              <div className="text-[10px] text-slate-400 mt-2 leading-relaxed">此按鈕只會留下紀錄，不會自動改股數；成交後仍要手動更新持倉。</div>
+              <div className="text-[10px] text-slate-400 mt-2 leading-relaxed">按下後會記錄：當下指令、持股股數、目標配置與備註，並立即同步到你的其他裝置；成交後仍要手動更新持倉。</div>
             </div>
           </Card>
 
@@ -1156,7 +1217,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
             <Card className="p-5">
               <SectionTitle
                 title={`全部紀錄（${logs.length}）`}
-                desc="按首頁『我已執行今日指令』後會留下紀錄；它不會自動改股數，實際成交後仍要更新持倉。"
+                desc="按首頁『紀錄並同步』後會留下當時指令、持股股數與備註；它不會自動改股數。"
                 right={<button onClick={() => setField("execution_logs", [])} className="text-xs font-black bg-slate-100 px-3 py-2 rounded-xl active:scale-95">清空</button>}
               />
               {logs.length === 0 ? (
@@ -1175,6 +1236,36 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
                       </summary>
                       <div className="mt-3 border-t border-slate-200 pt-3 space-y-3">
                         <ActionList actions={getArr(r.actions).length ? getArr(r.actions) : ["無動作紀錄"]} />
+                        {r.latest_judgement && (
+                          <div className="bg-brand-50 border border-brand-100 rounded-2xl p-3 text-xs font-bold text-slate-700 leading-relaxed">
+                            <div className="text-[10px] font-black text-brand-600 mb-1">當時最新判讀</div>
+                            {r.latest_judgement}
+                          </div>
+                        )}
+                        <div className="bg-white border border-slate-200 rounded-2xl p-3">
+                          <div className="text-[10px] font-black text-slate-500 mb-2">持股股數快照</div>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">QQQ 股數</div><div className="font-mono font-black">{Number(r.holdings?.qqq?.qty || 0).toLocaleString(undefined,{maximumFractionDigits:4})}</div></div>
+                            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">TQQQ 股數</div><div className="font-mono font-black">{Number(r.holdings?.tqqq?.qty || 0).toLocaleString(undefined,{maximumFractionDigits:4})}</div></div>
+                            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">SPMO 股數</div><div className="font-mono font-black">{Number(r.holdings?.spmo?.qty || 0).toLocaleString(undefined,{maximumFractionDigits:4})}</div></div>
+                            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">BOXX 股數</div><div className="font-mono font-black">{Number(r.holdings?.boxx?.qty || 0).toLocaleString(undefined,{maximumFractionDigits:4})}</div></div>
+                            <div className="col-span-2 bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">現金</div><div className="font-mono font-black">${money(r.holdings?.cash?.value || 0)}</div></div>
+                          </div>
+                          {getArr(r.holdings?.satellites).length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              {getArr(r.holdings?.satellites).map((s, idx) => <div key={idx} className="text-[11px] font-bold text-slate-500 bg-slate-50 rounded-xl px-3 py-2">{s.symbol || "衛星"}：{Number(s.qty || 0).toLocaleString(undefined,{maximumFractionDigits:4})} 股｜市值 ${money(s.value || 0)}</div>)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="bg-white border border-slate-200 rounded-2xl p-3">
+                          <div className="text-[10px] font-black text-slate-500 mb-2">備註</div>
+                          <textarea
+                            value={r.note || ""}
+                            onChange={e => updateExecutionLog(r.id, { note: e.target.value })}
+                            placeholder="可補充實際成交價、手動調整原因、或當時自己的想法。"
+                            className="w-full min-h-[72px] bg-slate-50 border border-slate-200 rounded-2xl p-3 text-sm font-bold text-slate-800 leading-relaxed focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                          />
+                        </div>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">QQQ 價格</div><div className="font-mono font-black">${money(r.qqq_price, 2)}</div></div>
                           <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">總資產</div><div className="font-mono font-black">${money(r.total)}</div></div>
@@ -1195,22 +1286,21 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
 
       const Advanced = () => (
         <main className="max-w-3xl mx-auto px-4 pt-20 content-bottom-space space-y-5">
-          <AdvancedGroupTitle title="系統 / 登入 / 同步" desc="跨裝置同步、讀取雲端與模式切換。" />
+          <AdvancedGroupTitle title="系統 / 跨裝置同步" desc="跨裝置同步、重新讀取與模式切換。" />
           <Card className="p-5">
-            <SectionTitle title="帳號與同步" desc="保留登入功能，方便你在電腦和手機切換。Google 登入後才是真正跨裝置同步；訪客模式多半只適合同一裝置。" />
+            <SectionTitle title="跨裝置同步" desc="第一次使用 Google 啟用同步後，手機與電腦會共用同一份資料；未啟用時僅保存在本機。" />
             <div className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-3">
               <div>
-                <div className="text-sm font-black">{user && !user.isAnonymous ? (user.email || "Google 帳號") : "訪客模式"}</div>
-                <div className="text-[11px] text-slate-500 mt-1">{cloudReady ? "雲端已連線" : "等待雲端連線"}</div>
+                <div className="text-sm font-black">{user && !user.isAnonymous ? "已啟用跨裝置同步" : "僅本機儲存"}</div>
+                <div className="text-[11px] text-slate-500 mt-1">{cloudReady ? "跨裝置同步已連線" : "等待同步連線"}</div>
               </div>
-              {user && !user.isAnonymous ? <button onClick={handleLogout} className="px-3 py-2 rounded-xl bg-slate-200 text-slate-700 text-xs font-black active:scale-95">登出</button> : <button onClick={handleGoogleLogin} className="px-3 py-2 rounded-xl bg-brand-600 text-white text-xs font-black active:scale-95">Google 登入</button>}
+              {user && !user.isAnonymous ? <button onClick={handleLogout} className="px-3 py-2 rounded-xl bg-slate-200 text-slate-700 text-xs font-black active:scale-95">關閉同步</button> : <button onClick={handleGoogleLogin} className="px-3 py-2 rounded-xl bg-brand-600 text-white text-xs font-black active:scale-95">使用 Google 啟用同步</button>}
             </div>
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <button onClick={loadCloudNow} className="min-h-[44px] rounded-2xl bg-slate-100 text-slate-700 text-xs font-black active:scale-95">讀取雲端</button>
-              <button onClick={saveNow} className="min-h-[44px] rounded-2xl bg-brand-600 text-white text-xs font-black active:scale-95">{saving ? "同步中" : "同步目前資料"}</button>
+            <div className="grid grid-cols-1 gap-2 mb-3">
+              <button onClick={loadCloudNow} className="min-h-[44px] rounded-2xl bg-slate-100 text-slate-700 text-xs font-black active:scale-95">重新讀取跨裝置資料</button>
             </div>
             <div className="text-[11px] text-slate-500 leading-relaxed bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-3">
-              登入後會自動讀取雲端；只有資料看起來沒同步、換裝置或想覆蓋本機資料時，才需要手動按「讀取雲端」。
+              啟用後會自動讀取跨裝置資料；平常修改持倉與參數會自動同步。按首頁「紀錄並同步」時，也會把當下指令、持股股數與備註立刻同步到其他裝置。
             </div>
             {authError && <div className="bg-red-50 text-red-700 border border-red-100 rounded-2xl p-3 text-xs font-bold leading-relaxed">{authError}</div>}
           </Card>
@@ -1343,7 +1433,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
           )}
 
           <AdvancedGroupTitle title="備份 / 策略全文" desc="資料保險與規則備忘。" />
-          <CollapsibleCard id="backup" title="備份 / 匯入" desc="登入同步保留；另外提供 JSON 備份，避免 GitHub 或 Firebase 暫時出問題。" defaultOpen={false}>
+          <CollapsibleCard id="backup" title="備份 / 匯入" desc="跨裝置同步保留；另外提供 JSON 備份，避免 GitHub 或同步服務暫時出問題。" defaultOpen={false}>
             <div className="grid grid-cols-2 gap-3">
               <button onClick={exportData} className="py-3 rounded-2xl bg-slate-900 text-white text-sm font-black active:scale-95">匯出 JSON</button>
               <label className="py-3 rounded-2xl bg-slate-100 text-slate-700 text-sm font-black text-center active:scale-95 cursor-pointer">匯入 JSON<input type="file" accept="application/json" className="hidden" onChange={e => importData(e.target.files?.[0])} /></label>
@@ -1365,12 +1455,12 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
                 <div className="w-10 h-10 rounded-2xl bg-slate-950 flex items-center justify-center text-brand-400 font-black text-xl">A</div>
                 <div className="min-w-0">
                   <div className="font-black leading-tight truncate">Alpha Horizon Core</div>
-                  <div className="text-[10px] font-black text-brand-600 tracking-widest">v5.7 MOBILE</div>
+                  <div className="text-[10px] font-black text-brand-600 tracking-widest">v5.9 SYNC</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={fetchPrices} className={`w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center font-black active:scale-95 ${loadingPrices ? "animate-spin" : ""}`}>↻</button>
-                <Pill tone={user && !user.isAnonymous ? "green" : "amber"}>{user && !user.isAnonymous ? "已登入" : "訪客"}</Pill>
+                <Pill tone={user && !user.isAnonymous ? "green" : "amber"}>{user && !user.isAnonymous ? "已同步" : "本機"}</Pill>
               </div>
             </div>
           </header>
@@ -1378,12 +1468,11 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
           {page === "home" ? <Home /> : page === "logs" ? <Logs /> : <Advanced />}
 
           <nav className="fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur border-t border-slate-200 safe-bottom">
-            <div className="max-w-3xl mx-auto grid grid-cols-5 gap-1.5 p-2">
+            <div className="max-w-3xl mx-auto grid grid-cols-4 gap-1.5 p-2">
               <button onClick={() => setPage("home")} className={`py-2.5 rounded-2xl text-[11px] font-black active:scale-95 ${page === "home" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"}`}>首頁</button>
               <button onClick={() => setPage("advanced")} className={`py-2.5 rounded-2xl text-[11px] font-black active:scale-95 ${page === "advanced" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"}`}>進階</button>
               <button onClick={() => setPage("logs")} className={`py-2.5 rounded-2xl text-[11px] font-black active:scale-95 ${page === "logs" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"}`}>紀錄</button>
-              <button onClick={fetchPrices} className="py-2.5 rounded-2xl text-[11px] font-black bg-brand-50 text-brand-700 active:scale-95">更新</button>
-              <button onClick={saveNow} className="py-2.5 rounded-2xl text-[11px] font-black bg-slate-100 text-slate-700 active:scale-95">同步</button>
+              <button onClick={fetchPrices} className="py-2.5 rounded-2xl text-[11px] font-black bg-brand-50 text-brand-700 active:scale-95">更新報價</button>
             </div>
           </nav>
         </div>

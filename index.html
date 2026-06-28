@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>Alpha Horizon Core v5.5</title>
+  <meta name="color-scheme" content="light only" />
+  <title>Alpha Horizon Core v5.7</title>
   <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230f172a'/><path d='M24 72 L50 24 L76 72' stroke='%233b82f6' stroke-width='11' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='50' cy='24' r='7' fill='%233b82f6'/></svg>" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -29,6 +30,7 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&display=swap');
+    html { color-scheme: light; background:#f1f5f9; }
     body { font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:#f1f5f9; color:#0f172a; -webkit-tap-highlight-color: transparent; }
     .font-mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
     input, textarea, select { outline: none; }
@@ -36,6 +38,8 @@
     input[type=number] { -moz-appearance: textfield; }
     ::-webkit-scrollbar { width:0; height:0; }
     .safe-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+    .content-bottom-space { padding-bottom: calc(9rem + env(safe-area-inset-bottom)); }
+    @media (prefers-color-scheme: dark) { html, body { background:#f1f5f9 !important; color:#0f172a !important; } }
   </style>
 </head>
 <body>
@@ -79,7 +83,7 @@
     const signedPct = (v, digits = 1) => `${v >= 0 ? "+" : ""}${Number(v || 0).toFixed(digits)}%`;
     const EPS = 1e-6;
 
-    const PLAN_TEXT = `Alpha Horizon Core v5.5（2026 相對強弱簡化版）
+    const PLAN_TEXT = `Alpha Horizon Core v5.7（2026 相對強弱簡化版）
 — 系統化十年期資產累積策略 —
 
 一、策略核心
@@ -138,7 +142,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
     ];
 
     const DEFAULT_INPUTS = {
-      version: "core-v5.5",
+      version: "core-v5.7.1",
       planText: PLAN_TEXT,
       reserve_target_pct: 15,
       satellites_enabled: false,
@@ -161,6 +165,8 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
       scenario_tqqq_beta: 3,
       scenario_spmo_beta: 1,
       max_loss_amount: 0,
+      motto: "嚴守紀律，摒除主觀判斷；依據量化指標，執行絕對配置。",
+      motto_visible: true,
       params_unlocked: false,
       execution_logs: [],
       qty_core_1: 0,
@@ -207,11 +213,12 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
       if (next.scenario_tqqq_beta === undefined) next.scenario_tqqq_beta = 3;
       if (next.scenario_spmo_beta === undefined) next.scenario_spmo_beta = 1;
       if (next.max_loss_amount === undefined) next.max_loss_amount = 0;
+      if (!next.motto) next.motto = "嚴守紀律，摒除主觀判斷；依據量化指標，執行絕對配置。";
       if (next.params_unlocked === undefined) next.params_unlocked = false;
-      next.execution_logs = getArr(next.execution_logs).slice(0, 30);
+      next.execution_logs = getArr(next.execution_logs).slice(0, 200);
       if (next.auto_high_tracking === undefined) next.auto_high_tracking = true;
       if (!next.planText || String(next.planText).includes("順勢再平衡進化版")) next.planText = PLAN_TEXT;
-      next.version = "core-v5.5";
+      next.version = "core-v5.7";
       return next;
     };
 
@@ -241,7 +248,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
         green:"bg-emerald-50 text-emerald-700 border-emerald-100",
         red:"bg-red-50 text-red-700 border-red-100",
         amber:"bg-amber-50 text-amber-700 border-amber-100",
-        purple:"bg-purple-50 text-purple-700 border-purple-100",
+        purple:"bg-purple-700 text-white border-purple-700",
         dark:"bg-slate-900 text-white border-slate-800"
       }[tone] || "bg-slate-100 text-slate-700 border-slate-200";
       return <span className={`inline-flex items-center px-2.5 py-1 rounded-full border text-[11px] font-black ${cls}`}>{children}</span>;
@@ -303,7 +310,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
         <div className={`rounded-3xl border p-3 ${over ? "bg-red-50 border-red-100" : "bg-white border-slate-100"}`}>
           <div className="flex justify-between items-start gap-2 mb-2">
             <div>
-              <div className="text-[10px] font-black text-slate-400">QQQ 情境</div>
+              <div className="text-[10px] font-black text-slate-500">QQQ 情境</div>
               <div className="font-mono text-xl font-black text-red-600">{row.movePct}%</div>
             </div>
             <div className={`px-2 py-1 rounded-full text-[10px] font-black ${over ? "bg-red-600 text-white" : "bg-slate-100 text-slate-500"}`}>{over ? "超過承受線" : "承受線內"}</div>
@@ -381,6 +388,17 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
       const [cloudLoaded, setCloudLoaded] = useState(false);
       const saveTimerRef = useRef(null);
       const ignoreSnapshotRef = useRef(false);
+      const [collapsed, setCollapsed] = useState(() => {
+        try { return JSON.parse(localStorage.getItem("ah_core_v5_collapsed")) || {}; }
+        catch (e) { return {}; }
+      });
+      const toggleCollapse = useCallback((id) => {
+        setCollapsed(prev => {
+          const next = { ...prev, [id]: !prev[id] };
+          try { localStorage.setItem("ah_core_v5_collapsed", JSON.stringify(next)); } catch (e) {}
+          return next;
+        });
+      }, []);
 
       const showToast = useCallback((txt) => {
         setMessage(txt);
@@ -440,7 +458,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
           } catch (e) {
             ignoreSnapshotRef.current = false;
             console.error(e);
-            setAuthError("雲端自動儲存失敗，請稍後再試。");
+            setAuthError("雲端自動同步失敗，請稍後再試。");
           }
         }, 1200);
         return () => clearTimeout(saveTimerRef.current);
@@ -813,6 +831,17 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
           ? `目前冷卻中；QQQ 需重新突破 $${money(cooldownHigh, 2)}，才允許下一次 SPMO 狂熱模式。`
           : (hasSpmo ? `持有 SPMO 時，QQQ 跌破 $${money(latestHigh > 0 ? latestHigh * (1 - maniaStopPct / 100) : 0, 2)} 會觸發狂熱追蹤停損。` : "目前沒有狂熱冷卻限制。" );
 
+        let latestJudgement = "目前資料不足，請先更新報價並輸入持倉。";
+        if (total > 0) {
+          if (state === "MANIA_EXIT") latestJudgement = `QQQ 已自狂熱高點回撤達 -${pct(cDD)}，觸發 SPMO 退場；今日偏減碼 / 降風險，照交易清單退回 QQQ。`;
+          else if (state === "COOLDOWN") latestJudgement = `目前在狂熱冷卻中；QQQ 未重新突破 $${money(cooldownHigh, 2)} 前，不重新買回 SPMO，今日以維持 QQQ 為主。`;
+          else if (state === "MANIA") latestJudgement = hasSpmo ? `目前為 SPMO 狂熱持有中；QQQ 尚未跌破追蹤停損線 $${money(latestHigh > 0 ? latestHigh * (1 - maniaStopPct / 100) : 0, 2)}，暫不切回 QQQ / TQQQ。` : `QQQ 距 Locked ATH 已達 ${signedPct(cRise || 0)}，觸發狂熱模式；今日重點是把核心部位轉向 SPMO。`;
+          else if (state === "MELTDOWN") latestJudgement = "熊市熔斷已啟動；停止新增 TQQQ，優先保留 BOXX / 現金，今日只做必要降風險。";
+          else if (state === "DRAWDOWN") latestJudgement = `QQQ 距本輪高點回撤 -${pct(cDD)}，已進入回撤階梯；若交易清單出現 TQQQ / BOXX 動作，就照清單加碼。`;
+          else if (state === "BREAKOUT") latestJudgement = `QQQ 高於 Locked ATH ${signedPct(cRise || 0)}，但尚未達 +15% 狂熱門檻；目前不追 SPMO，維持核心配置。`;
+          else latestJudgement = `QQQ 距本輪高點回撤 -${pct(cDD)}，尚未達第一階 -${pct(firstDrop, 0)}；目前不用加碼或減碼，照配置維持。`;
+        }
+
         return {
           prices: { pQQQ, pQQQReal, pTQQQ, pSPMO, pBOXX },
           values: { vQQQ, vTQQQ, vSPMO, vBOXX, cash, vSat, total, growthMarketValue, stockEquivalentExposure, totalLeverageRatio, growthLeverageRatio },
@@ -823,7 +852,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
           high: { locked, latestHigh, waveLow, cDD, cRise, cBounce, cooldownHigh, maniaStopPct, maniaStopLine: latestHigh > 0 ? latestHigh * (1 - maniaStopPct / 100) : 0, high52:getNum(inputs.qqq_history_high_52w), notes:[drawdownNote, maniaNote, cooldownNote] },
           satStats,
           scenario: { ...activeScenario, stressRows, riskMinus10, lossLimit, scenarioLossStatus, riskMinus10Status },
-          ux: { primaryAction, tradeNeeded },
+          ux: { primaryAction, tradeNeeded, latestJudgement },
           warnings: { satTargetWarning, satTargetRawPct, maxSatTargetPct }
         };
       }, [prices, inputs, firstDropPct]);
@@ -844,9 +873,26 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
         setSaving(true);
         try {
           await r.confRef.set(sanitize(inputs), { merge:true });
-          showToast("已儲存到雲端");
-        } catch (e) { setAuthError("儲存失敗"); }
+          showToast("已同步到雲端");
+        } catch (e) { setAuthError("同步失敗"); }
         setSaving(false);
+      };
+
+      const loadCloudNow = async () => {
+        const r = refs();
+        if (!r) return;
+        try {
+          const snap = await r.confRef.get();
+          if (snap.exists) {
+            setInputs(prev => migrate({ ...prev, ...(snap.data() || {}) }));
+            showToast("已讀取雲端資料");
+          } else {
+            showToast("雲端尚無資料");
+          }
+        } catch (e) {
+          console.error(e);
+          setAuthError("讀取雲端失敗，請確認登入與網路。 ");
+        }
       };
 
       const resetCycle = () => {
@@ -867,7 +913,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
       };
 
       const copyCommand = async () => {
-        const text = `【Alpha Horizon Core v5.5】\n日期：${todayStr()}\n狀態：${metrics.title}\n總資產市值：$${money(metrics.values.total)}\n股票等效曝險：$${money(metrics.values.stockEquivalentExposure)}\n總曝險槓桿：${metrics.values.totalLeverageRatio.toFixed(2)}x\n成長部位槓桿：${metrics.values.growthLeverageRatio.toFixed(2)}x\n\n今日指令：\n${metrics.actions.map(x => `- ${x}`).join("\n")}\n\n目標配置：QQQ ${pct(metrics.t.q)} / TQQQ ${pct(metrics.t.tq)} / SPMO ${pct(metrics.t.sm)} / BOXX ${pct(metrics.t.r)}${inputs.satellites_enabled ? ` / 衛星 ${pct(metrics.t.sat)}` : ""}`;
+        const text = `【Alpha Horizon Core v5.7】\n日期：${todayStr()}\n狀態：${metrics.title}\n總資產市值：$${money(metrics.values.total)}\n股票等效曝險：$${money(metrics.values.stockEquivalentExposure)}\n總曝險槓桿：${metrics.values.totalLeverageRatio.toFixed(2)}x\n成長部位槓桿：${metrics.values.growthLeverageRatio.toFixed(2)}x\n\n今日指令：\n${metrics.actions.map(x => `- ${x}`).join("\n")}\n\n目標配置：QQQ ${pct(metrics.t.q)} / TQQQ ${pct(metrics.t.tq)} / SPMO ${pct(metrics.t.sm)} / BOXX ${pct(metrics.t.r)}${inputs.satellites_enabled ? ` / 衛星 ${pct(metrics.t.sat)}` : ""}`;
         try {
           await navigator.clipboard.writeText(text);
           showToast("已複製今日指令");
@@ -878,7 +924,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
         const blob = new Blob([JSON.stringify(inputs, null, 2)], { type:"application/json" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = `alpha-horizon-core-v5-5-${todayStr()}.json`;
+        a.download = `alpha-horizon-core-v5-7-${todayStr()}.json`;
         a.click();
         URL.revokeObjectURL(a.href);
       };
@@ -908,8 +954,22 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
           actions: metrics.actions,
           target: metrics.t
         };
-        setInputs(prev => ({ ...prev, execution_logs: [record, ...getArr(prev.execution_logs)].slice(0, 30) }));
+        setInputs(prev => ({ ...prev, execution_logs: [record, ...getArr(prev.execution_logs)].slice(0, 200) }));
         showToast("已紀錄今日指令；成交後請記得更新持倉");
+      };
+
+      const CollapsibleCard = ({ id, title, desc, right, children, defaultOpen = true, className = "p-5" }) => {
+        const open = collapsed[id] === undefined ? defaultOpen : !collapsed[id];
+        return (
+          <Card className={className}>
+            <SectionTitle
+              title={title}
+              desc={desc}
+              right={<div className="flex items-center gap-2">{right}<button onClick={() => toggleCollapse(id)} className="shrink-0 text-xs font-black bg-slate-100 text-slate-600 px-3 py-2 rounded-xl active:scale-95">{open ? "收合" : "展開"}</button></div>}
+            />
+            {open && <div>{children}</div>}
+          </Card>
+        );
       };
 
       const Home = () => {
@@ -917,13 +977,13 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
         const scenarioTone = metrics.scenario.pnl > 0 ? "text-emerald-600" : metrics.scenario.pnl < 0 ? "text-red-600" : "text-slate-600";
         const scenarioBg = metrics.scenario.pnl > 0 ? "bg-emerald-50 border-emerald-100" : metrics.scenario.pnl < 0 ? "bg-red-50 border-red-100" : "bg-slate-50 border-slate-200";
         return (
-        <main className="max-w-2xl mx-auto px-4 pt-20 safe-bottom space-y-4">
-          <Card className="p-5 bg-slate-950 text-white border-slate-900 overflow-hidden relative">
+        <main className="max-w-2xl mx-auto px-4 pt-20 content-bottom-space space-y-4">
+          <Card className="p-5 bg-white text-slate-900 border-slate-200 overflow-hidden relative">
             <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-brand-600/20 blur-2xl" />
             <div className="relative">
               <div className="flex justify-between items-start gap-3 mb-3">
                 <div className="min-w-0">
-                  <div className="text-[11px] font-black text-brand-300 mb-1">今日只看這個</div>
+                  <div className="text-[11px] font-black text-brand-700 mb-1">今日只看這個</div>
                   <h1 className="text-2xl font-black leading-tight truncate">{metrics.title}</h1>
                 </div>
                 <div className="flex flex-col gap-1 items-end shrink-0">
@@ -931,49 +991,58 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
                   <Pill tone={metrics.ux.tradeNeeded ? "red" : "green"}>{metrics.ux.tradeNeeded ? "需交易" : "不動"}</Pill>
                 </div>
               </div>
-              <p className="text-sm text-slate-300 leading-relaxed mb-2">{metrics.instruction}</p>
-              <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-black mb-4 ${priceFreshness.stale ? "bg-amber-400/20 text-amber-200" : "bg-emerald-400/20 text-emerald-200"}`}>
+              <p className="text-sm text-slate-700 leading-relaxed mb-2">{metrics.instruction}</p>
+              <div className="bg-brand-50 border border-brand-100 rounded-2xl p-3 mb-3">
+                <div className="text-[10px] font-black text-brand-600 mb-1">最新判讀</div>
+                <div className="text-sm font-black text-slate-900 leading-relaxed">{metrics.ux.latestJudgement}</div>
+              </div>
+              <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-black mb-4 ${priceFreshness.stale ? "bg-amber-50 text-amber-700 border border-amber-100" : "bg-emerald-50 text-emerald-700 border border-emerald-100"}`}>
                 <span>{priceFreshness.stale ? "⚠" : "●"}</span><span>報價：{loadingPrices ? "更新中..." : priceFreshness.label}</span>
               </div>
               <div className="grid grid-cols-2 gap-2 mb-4">
-                <div className="col-span-2 bg-white/10 border border-white/10 rounded-3xl p-4">
-                  <div className="text-[10px] font-black text-slate-400">總資產市值</div>
-                  <div className="font-mono text-3xl font-black text-white tracking-tight">${money(metrics.values.total)}</div>
+                <div className="col-span-2 bg-slate-50 border border-slate-200 rounded-3xl p-4">
+                  <div className="text-[10px] font-black text-slate-500">總資產市值</div>
+                  <div className="font-mono text-3xl font-black text-slate-900 tracking-tight">${money(metrics.values.total)}</div>
                 </div>
-                <div className="bg-white/10 border border-white/10 rounded-2xl p-3">
-                  <div className="text-[10px] font-black text-slate-400">今日動作</div>
-                  <div className="text-sm font-black text-white leading-snug line-clamp-2">{metrics.ux.primaryAction}</div>
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                  <div className="text-[10px] font-black text-slate-500">今日動作</div>
+                  <div className="text-sm font-black text-slate-900 leading-snug line-clamp-2">{metrics.ux.primaryAction}</div>
                 </div>
-                <div className="bg-white/10 border border-white/10 rounded-2xl p-3">
-                  <div className="text-[10px] font-black text-slate-400">QQQ -10% 預估</div>
-                  <div className={`font-mono text-xl font-black ${metrics.scenario.riskMinus10.pnl < 0 ? "text-red-300" : "text-emerald-300"}`}>{metrics.scenario.riskMinus10.pnl >= 0 ? "+" : "-"}${money(Math.abs(metrics.scenario.riskMinus10.pnl))}</div>
-                  {metrics.scenario.lossLimit > 0 && <div className={`text-[10px] font-black ${metrics.scenario.riskMinus10Status === "over" ? "text-red-300" : "text-emerald-300"}`}>{metrics.scenario.riskMinus10Status === "over" ? "超過承受線" : "承受線內"}</div>}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                  <div className="text-[10px] font-black text-slate-500">QQQ -10% 預估</div>
+                  <div className={`font-mono text-xl font-black ${metrics.scenario.riskMinus10.pnl < 0 ? "text-red-600" : "text-emerald-600"}`}>{metrics.scenario.riskMinus10.pnl >= 0 ? "+" : "-"}${money(Math.abs(metrics.scenario.riskMinus10.pnl))}</div>
+                  {metrics.scenario.lossLimit > 0 && <div className={`text-[10px] font-black ${metrics.scenario.riskMinus10Status === "over" ? "text-red-600" : "text-emerald-600"}`}>{metrics.scenario.riskMinus10Status === "over" ? "超過承受線" : "承受線內"}</div>}
                 </div>
-                <div className="bg-white/10 border border-white/10 rounded-2xl p-3">
-                  <div className="text-[10px] font-black text-slate-400">總曝險槓桿</div>
-                  <div className="font-mono text-xl font-black text-white">{metrics.values.totalLeverageRatio.toFixed(2)}x</div>
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                  <div className="text-[10px] font-black text-slate-500">總曝險槓桿</div>
+                  <div className="font-mono text-xl font-black text-slate-900">{metrics.values.totalLeverageRatio.toFixed(2)}x</div>
                 </div>
-                <div className="bg-white/10 border border-white/10 rounded-2xl p-3">
-                  <div className="text-[10px] font-black text-slate-400">成長部位槓桿</div>
-                  <div className="font-mono text-xl font-black text-white">{metrics.values.growthLeverageRatio.toFixed(2)}x</div>
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                  <div className="text-[10px] font-black text-slate-500">成長部位槓桿</div>
+                  <div className="font-mono text-xl font-black text-slate-900">{metrics.values.growthLeverageRatio.toFixed(2)}x</div>
                 </div>
-                <div className="col-span-2 bg-white/10 border border-white/10 rounded-2xl p-3">
-                  <div className="text-[10px] font-black text-slate-400">目前最大風險來源</div>
-                  <div className="text-sm font-black text-white leading-snug">{metrics.scenario.riskMinus10.biggest ? `${metrics.scenario.riskMinus10.biggest.name}｜QQQ -10% 約 ${metrics.scenario.riskMinus10.biggest.pnl >= 0 ? "+" : "-"}$${money(Math.abs(metrics.scenario.riskMinus10.biggest.pnl))}` : "尚無成長部位"}</div>
+                <div className="col-span-2 bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                  <div className="text-[10px] font-black text-slate-500">目前最大風險來源</div>
+                  <div className="text-sm font-black text-slate-900 leading-snug">{metrics.scenario.riskMinus10.biggest ? `${metrics.scenario.riskMinus10.biggest.name}｜QQQ -10% 約 ${metrics.scenario.riskMinus10.biggest.pnl >= 0 ? "+" : "-"}$${money(Math.abs(metrics.scenario.riskMinus10.biggest.pnl))}` : "尚無成長部位"}</div>
                 </div>
               </div>
-              <ActionList actions={metrics.actions} dark />
+              <ActionList actions={metrics.actions} />
+              {inputs.motto_visible !== false && (
+                <div className="mt-4 bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                  <div className="text-[10px] font-black text-slate-500 mb-1">座右銘</div>
+                  <div className="text-xs font-black text-slate-700 leading-relaxed">「{inputs.motto || DEFAULT_INPUTS.motto}」</div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2 mt-4">
                 <button onClick={copyCommand} className="min-h-[48px] rounded-2xl bg-brand-600 text-white text-sm font-black active:scale-95">複製指令</button>
-                <button onClick={saveNow} className="min-h-[48px] rounded-2xl bg-white/10 text-white text-sm font-black border border-white/10 active:scale-95">{saving ? "儲存中" : "儲存雲端"}</button>
+                <button onClick={saveNow} className="min-h-[48px] rounded-2xl bg-slate-100 text-slate-700 text-sm font-black border border-slate-200 active:scale-95">{saving ? "同步中" : "同步雲端"}</button>
                 <button onClick={markExecuted} className="col-span-2 min-h-[52px] rounded-2xl bg-emerald-500 text-white text-sm font-black active:scale-95">我已執行今日指令</button>
               </div>
               <div className="text-[10px] text-slate-400 mt-2 leading-relaxed">此按鈕只會留下紀錄，不會自動改股數；成交後仍要手動更新持倉。</div>
             </div>
           </Card>
 
-          <Card className="p-5">
-            <SectionTitle title="QQQ 情境模擬" desc="只估目前持倉若 QQQ 漲跌時，總資產大概會變多少；不是交易訊號，也不是精準回測。" />
+          <CollapsibleCard id="scenario" title="QQQ 情境模擬" desc="只估目前持倉若 QQQ 漲跌時，總資產大概會變多少；不是交易訊號，也不是精準回測。">
             <div className="grid grid-cols-1 gap-3">
               <div className="bg-slate-50 border border-slate-200 rounded-3xl p-3">
                 <div className="flex items-center justify-between gap-3 mb-3">
@@ -1029,10 +1098,9 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
                 </div>
               </div>
             </div>
-          </Card>
+          </CollapsibleCard>
 
-          <Card className="p-5">
-            <SectionTitle title="持倉輸入" desc="手機操作以大按鈕與大輸入框為主。只要輸入股數；價格由報價 API 抓取。" right={<button onClick={fetchPrices} className="text-xs font-black bg-slate-100 px-3 py-2 rounded-xl active:scale-95">{loadingPrices ? "更新中" : "更新報價"}</button>} />
+          <CollapsibleCard id="holdings" title="持倉輸入" desc="手機操作以大按鈕與大輸入框為主。只要輸入股數；價格由報價 API 抓取。" right={ <button onClick={fetchPrices} className="text-xs font-black bg-slate-100 px-3 py-2 rounded-xl active:scale-95">{loadingPrices ? "更新中" : "更新報價"}</button> }>
             <div className="grid grid-cols-2 gap-3">
               <NumberInput label={`QQQ｜$${money(metrics.prices.pQQQ, 2)}`} value={inputs.qty_core_1} onChange={v => setField("qty_core_1", v)} />
               <NumberInput label={`TQQQ｜$${money(metrics.prices.pTQQQ, 2)}`} value={inputs.qty_core_2} onChange={v => setField("qty_core_2", v)} />
@@ -1040,15 +1108,13 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
               <NumberInput label={`BOXX｜$${money(metrics.prices.pBOXX, 2)}`} value={inputs.qty_boxx} onChange={v => setField("qty_boxx", v)} />
               <div className="col-span-2"><NumberInput label="現金餘額" value={inputs.cash_balance} onChange={v => setField("cash_balance", v)} suffix="$" /></div>
             </div>
-          </Card>
+          </CollapsibleCard>
 
-          <Card className="p-5">
-            <SectionTitle title="目標配置" desc="只看目標，不看情緒。若與實際持倉差距超過約 $50，今日指令會列出買賣方向。" right={<Pill tone={inputs.satellites_enabled ? "green" : "blue"}>{inputs.satellites_enabled ? "完整版" : "核心-only"}</Pill>} />
+          <CollapsibleCard id="allocation" title="目標配置" desc="只看目標，不看情緒。若與實際持倉差距超過約 $50，今日指令會列出買賣方向。" right={ <Pill tone={inputs.satellites_enabled ? "green" : "blue"}>{inputs.satellites_enabled ? "完整版" : "核心-only"}</Pill> }>
             <div>{metrics.rows.map(r => <AllocationRow key={r.name} {...r} />)}</div>
-          </Card>
+          </CollapsibleCard>
 
-          <Card className="p-5">
-            <SectionTitle title="高點追蹤摘要" desc="用一句話告訴你現在有沒有觸發，不用自己解讀高點名詞。" right={<button onClick={() => fetchQQQHistory(true)} className="text-xs font-black bg-brand-50 text-brand-700 px-3 py-2 rounded-xl active:scale-95">{syncingHistory ? "同步中" : "同步52W"}</button>} />
+          <CollapsibleCard id="high-summary" title="高點追蹤摘要" desc="用一句話告訴你現在有沒有觸發，不用自己解讀高點名詞。" right={ <button onClick={() => fetchQQQHistory(true)} className="text-xs font-black bg-brand-50 text-brand-700 px-3 py-2 rounded-xl active:scale-95">{syncingHistory ? "同步中" : "同步52W"}</button> }>
             <div className="space-y-2 mb-3">
               {metrics.high.notes.map((note, i) => <div key={i} className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-700 leading-relaxed">{note}</div>)}
             </div>
@@ -1074,17 +1140,62 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
                 <div className="text-[10px] text-emerald-600 mt-1">反彈卸 TQQQ 用</div>
               </div>
             </div>
-            <div className="mt-3 bg-purple-50 border border-purple-100 rounded-2xl p-3 text-xs text-purple-800 leading-relaxed">
+            <div className="mt-3 bg-purple-100 border border-purple-300 rounded-2xl p-3 text-xs text-purple-950 font-bold leading-relaxed">
               <b>SPMO 停損線：</b>${money(metrics.high.maniaStopLine, 2)}。若持有 SPMO 且 QQQ 跌破此線，核心退回 QQQ，冷卻解除價為 ${money(metrics.high.cooldownHigh, 2)}。
             </div>
-          </Card>
+          </CollapsibleCard>
         </main>
         );
       };
 
+      const Logs = () => {
+        const logs = getArr(inputs.execution_logs);
+        return (
+          <main className="max-w-3xl mx-auto px-4 pt-20 content-bottom-space space-y-5">
+            <AdvancedGroupTitle title="執行紀錄" desc="單獨分頁整理；每筆紀錄可展開/收合，避免記錄多了以後首頁與進階頁太亂。" />
+            <Card className="p-5">
+              <SectionTitle
+                title={`全部紀錄（${logs.length}）`}
+                desc="按首頁『我已執行今日指令』後會留下紀錄；它不會自動改股數，實際成交後仍要更新持倉。"
+                right={<button onClick={() => setField("execution_logs", [])} className="text-xs font-black bg-slate-100 px-3 py-2 rounded-xl active:scale-95">清空</button>}
+              />
+              {logs.length === 0 ? (
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm text-slate-500 font-bold">尚無紀錄。</div>
+              ) : (
+                <div className="space-y-3">
+                  {logs.map((r, i) => (
+                    <details key={r.id || i} className="group bg-slate-50 border border-slate-200 rounded-3xl p-3 open:bg-white open:border-brand-100">
+                      <summary className="list-none cursor-pointer flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-[11px] font-black text-slate-400 mb-1">{new Date(r.date).toLocaleString()}</div>
+                          <div className="font-black text-sm text-slate-900 truncate">{r.title || r.state || "執行紀錄"}</div>
+                          <div className="text-[11px] text-slate-500 mt-1">總資產 ${money(r.total)}｜槓桿 {Number(r.leverage || 0).toFixed(2)}x</div>
+                        </div>
+                        <span className="shrink-0 text-[11px] font-black bg-white border border-slate-200 text-slate-500 px-3 py-2 rounded-xl group-open:bg-slate-950 group-open:text-white">展開</span>
+                      </summary>
+                      <div className="mt-3 border-t border-slate-200 pt-3 space-y-3">
+                        <ActionList actions={getArr(r.actions).length ? getArr(r.actions) : ["無動作紀錄"]} />
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">QQQ 價格</div><div className="font-mono font-black">${money(r.qqq_price, 2)}</div></div>
+                          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">總資產</div><div className="font-mono font-black">${money(r.total)}</div></div>
+                          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">QQQ 目標</div><div className="font-mono font-black">{pct(r.target?.q)}</div></div>
+                          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">TQQQ 目標</div><div className="font-mono font-black">{pct(r.target?.tq)}</div></div>
+                          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">SPMO 目標</div><div className="font-mono font-black">{pct(r.target?.sm)}</div></div>
+                          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">儲備目標</div><div className="font-mono font-black">{pct(r.target?.r)}</div></div>
+                        </div>
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </main>
+        );
+      };
+
       const Advanced = () => (
-        <main className="max-w-3xl mx-auto px-4 pt-20 safe-bottom space-y-5">
-          <AdvancedGroupTitle title="系統 / 登入 / 紀錄" desc="跨裝置同步、執行紀錄與模式切換。" />
+        <main className="max-w-3xl mx-auto px-4 pt-20 content-bottom-space space-y-5">
+          <AdvancedGroupTitle title="系統 / 登入 / 同步" desc="跨裝置同步、讀取雲端與模式切換。" />
           <Card className="p-5">
             <SectionTitle title="帳號與同步" desc="保留登入功能，方便你在電腦和手機切換。Google 登入後才是真正跨裝置同步；訪客模式多半只適合同一裝置。" />
             <div className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-3">
@@ -1094,31 +1205,34 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
               </div>
               {user && !user.isAnonymous ? <button onClick={handleLogout} className="px-3 py-2 rounded-xl bg-slate-200 text-slate-700 text-xs font-black active:scale-95">登出</button> : <button onClick={handleGoogleLogin} className="px-3 py-2 rounded-xl bg-brand-600 text-white text-xs font-black active:scale-95">Google 登入</button>}
             </div>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <button onClick={loadCloudNow} className="min-h-[44px] rounded-2xl bg-slate-100 text-slate-700 text-xs font-black active:scale-95">讀取雲端</button>
+              <button onClick={saveNow} className="min-h-[44px] rounded-2xl bg-brand-600 text-white text-xs font-black active:scale-95">{saving ? "同步中" : "同步目前資料"}</button>
+            </div>
+            <div className="text-[11px] text-slate-500 leading-relaxed bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-3">
+              登入後會自動讀取雲端；只有資料看起來沒同步、換裝置或想覆蓋本機資料時，才需要手動按「讀取雲端」。
+            </div>
             {authError && <div className="bg-red-50 text-red-700 border border-red-100 rounded-2xl p-3 text-xs font-bold leading-relaxed">{authError}</div>}
           </Card>
 
-          <Card className="p-5">
-            <SectionTitle title="執行紀錄" desc="按首頁『我已執行今日指令』後會留下紀錄；它不會自動改股數，實際成交後仍要更新持倉。" right={<button onClick={() => setField("execution_logs", [])} className="text-xs font-black bg-slate-100 px-3 py-2 rounded-xl active:scale-95">清空</button>} />
-            {getArr(inputs.execution_logs).length === 0 ? (
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm text-slate-500 font-bold">尚無紀錄。</div>
-            ) : (
-              <div className="space-y-2">
-                {getArr(inputs.execution_logs).slice(0, 6).map(r => (
-                  <div key={r.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-3">
-                    <div className="flex justify-between gap-3 text-xs font-black text-slate-500 mb-1">
-                      <span>{new Date(r.date).toLocaleString()}</span>
-                      <span>{Number(r.leverage || 0).toFixed(2)}x</span>
-                    </div>
-                    <div className="font-black text-sm text-slate-800">{r.title}</div>
-                    <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">{getArr(r.actions).join("｜")}</div>
-                  </div>
-                ))}
+          <CollapsibleCard id="motto" title="座右銘" desc="顯示在首頁最上方卡片下方，只做紀律提醒，不參與任何交易計算。" defaultOpen={false}>
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-3 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-black text-slate-700">首頁顯示座右銘</div>
+                <div className="text-[11px] text-slate-500 font-bold mt-1">關閉後只隱藏首頁提示，文字內容會保留。</div>
               </div>
-            )}
-          </Card>
+              <button onClick={() => setField("motto_visible", inputs.motto_visible === false)} className={`px-4 py-2 rounded-2xl text-xs font-black active:scale-95 ${inputs.motto_visible === false ? "bg-slate-200 text-slate-700" : "bg-brand-600 text-white"}`}>
+                {inputs.motto_visible === false ? "已關閉" : "顯示中"}
+              </button>
+            </div>
+            <textarea value={inputs.motto || DEFAULT_INPUTS.motto} onChange={e => setField("motto", e.target.value)} className="w-full h-24 bg-slate-50 border border-slate-200 rounded-2xl p-3 text-sm font-bold text-slate-700 leading-relaxed" />
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <button onClick={() => setField("motto", DEFAULT_INPUTS.motto)} className="min-h-[44px] rounded-2xl bg-slate-100 text-slate-700 text-xs font-black active:scale-95">恢復預設</button>
+              <button onClick={() => setField("motto_visible", inputs.motto_visible === false)} className="min-h-[44px] rounded-2xl bg-slate-900 text-white text-xs font-black active:scale-95">{inputs.motto_visible === false ? "打開顯示" : "關閉顯示"}</button>
+            </div>
+          </CollapsibleCard>
 
-          <Card className="p-5">
-            <SectionTitle title="模式選擇" desc="預設核心-only：衛星資料保留，但完全不參與計算與畫面。需要時再開啟完整版。" />
+          <CollapsibleCard id="mode" title="模式選擇" desc="預設核心-only：衛星資料保留，但完全不參與計算與畫面。需要時再開啟完整版。" defaultOpen={false}>
             <div className={`${inputs.satellites_enabled ? "bg-emerald-50 border-emerald-200" : "bg-slate-950 border-slate-800 text-white"} border rounded-3xl p-4 flex items-center justify-between gap-4`}>
               <div>
                 <div className="font-black">{inputs.satellites_enabled ? "完整版：核心 + 衛星" : "核心-only：QQQ / TQQQ / SPMO / BOXX"}</div>
@@ -1126,10 +1240,9 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
               </div>
               <button onClick={() => setField("satellites_enabled", !inputs.satellites_enabled)} className={`px-4 py-3 rounded-2xl font-black text-xs active:scale-95 ${inputs.satellites_enabled ? "bg-white text-emerald-700 border border-emerald-200" : "bg-brand-600 text-white"}`}>{inputs.satellites_enabled ? "關閉衛星" : "開啟衛星"}</button>
             </div>
-          </Card>
+          </CollapsibleCard>
 
-          <Card className="p-5">
-            <SectionTitle title="核心參數" desc="一般不需要常改。改動後會影響今日指令與目標配置。" />
+          <CollapsibleCard id="core-params" title="核心參數" desc="一般不需要常改。改動後會影響今日指令與目標配置。" defaultOpen={false}>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-brand-50 border border-brand-100 rounded-2xl p-3">
                 <div className="text-[10px] font-black text-brand-600 mb-1">核心目標（自動）</div>
@@ -1144,19 +1257,17 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
                 <button onClick={() => setField("is_bear_meltdown", !inputs.is_bear_meltdown)} className={`w-full py-3 rounded-xl text-sm font-black active:scale-95 ${inputs.is_bear_meltdown ? "bg-red-600 text-white" : "bg-white border border-slate-200 text-slate-600"}`}>{inputs.is_bear_meltdown ? "已啟動：停止新增 TQQQ" : "未啟動"}</button>
               </label>
             </div>
-          </Card>
+          </CollapsibleCard>
 
           <AdvancedGroupTitle title="模擬參數" desc="只影響風險估算，不影響交易訊號。" />
-          <Card className="p-5">
-            <SectionTitle title="參數鎖定" desc="避免手機誤觸。解鎖後才能調整策略階梯、追蹤停損與模擬係數。" right={<Pill tone={paramLocked ? "amber" : "green"}>{paramLocked ? "已鎖定" : "可編輯"}</Pill>} />
+          <CollapsibleCard id="param-lock" title="參數鎖定" desc="避免手機誤觸。解鎖後才能調整策略階梯、追蹤停損與模擬係數。" right={ <Pill tone={paramLocked ? "amber" : "green"}>{paramLocked ? "已鎖定" : "可編輯"}</Pill> } defaultOpen={true}>
             <button onClick={() => setField("params_unlocked", !inputs.params_unlocked)} className={`w-full min-h-[48px] rounded-2xl text-sm font-black active:scale-95 ${paramLocked ? "bg-slate-950 text-white" : "bg-emerald-600 text-white"}`}>{paramLocked ? "解鎖參數" : "鎖定參數"}</button>
             <div className="mt-3 text-[11px] text-slate-500 leading-relaxed bg-slate-50 border border-slate-200 rounded-2xl p-3">
               持倉股數、現金與最大可承受損失仍可直接修改；策略相關參數鎖定後會防止誤改。
             </div>
-          </Card>
+          </CollapsibleCard>
 
-          <Card className="p-5">
-            <SectionTitle title="情境模擬係數" desc="只影響首頁 QQQ 情境模擬，不影響今日指令。係數越高，代表該部位對 QQQ 漲跌越敏感。" />
+          <CollapsibleCard id="scenario-params" title="情境模擬係數" desc="只影響首頁 QQQ 情境模擬，不影響今日指令。係數越高，代表該部位對 QQQ 漲跌越敏感。" defaultOpen={false}>
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2"><NumberInput label="最大可承受損失" value={inputs.max_loss_amount} onChange={v => setField("max_loss_amount", v)} suffix="$" hint="填 0 或空白＝不顯示承受線。首頁會用它判斷壓力情境是否超線。" /></div>
               <NumberInput label="TQQQ 係數" value={inputs.scenario_tqqq_beta} onChange={v => setField("scenario_tqqq_beta", v)} suffix="x" hint="預設 3x，僅為單次情境粗估" disabled={paramLocked} />
@@ -1165,12 +1276,11 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
             <div className="mt-3 text-[11px] text-slate-500 leading-relaxed bg-slate-50 border border-slate-200 rounded-2xl p-3">
               QQQ 固定用 1x；BOXX / 現金固定用 0x。衛星若開啟，會使用每個衛星標的自己的情境係數。
             </div>
-          </Card>
+          </CollapsibleCard>
 
 
           <AdvancedGroupTitle title="策略參數" desc="平常保持鎖定，需要調整規則時才解鎖。" />
-          <Card className="p-5">
-            <SectionTitle title="自動追蹤細節" desc="這裡是審計區。首頁只看摘要；你要確認系統到底參考哪個高點時，再來這裡。" right={<button onClick={resetCycle} disabled={paramLocked} className={`text-xs font-black px-3 py-2 rounded-xl active:scale-95 ${paramLocked ? "bg-slate-100 text-slate-400" : "bg-slate-100 text-slate-700"}`}>重設循環</button>} />
+          <CollapsibleCard id="tracking-detail" title="自動追蹤細節" desc="這裡是審計區。首頁只看摘要；你要確認系統到底參考哪個高點時，再來這裡。" right={ <button onClick={resetCycle} disabled={paramLocked} className={`text-xs font-black px-3 py-2 rounded-xl active:scale-95 ${paramLocked ? "bg-slate-100 text-slate-400" : "bg-slate-100 text-slate-700"}`}>重設循環</button> } defaultOpen={false}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <NumberInput label="最新 52W 高點｜只建立 Locked ATH" value={inputs.qqq_history_high_52w} onChange={v => setField("qqq_history_high_52w", v)} disabled={inputs.auto_high_tracking} />
               <NumberInput label="Locked ATH｜狂熱突破基準" value={inputs.qqq_locked_ath} onChange={v => setField("qqq_locked_ath", v)} disabled={inputs.auto_high_tracking} />
@@ -1186,10 +1296,9 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
             <div className="mt-3 text-[11px] text-slate-500 leading-relaxed bg-slate-50 border border-slate-200 rounded-2xl p-3">
               <b>判讀：</b>Locked ATH 是「上個 52W 收盤高」，只算 +15% 狂熱突破；本輪最新高點才是算 QQQ 回撤、TQQQ 階梯與 SPMO 追蹤停損；本輪反彈低點只有回撤達第一階後才開始記錄。
             </div>
-          </Card>
+          </CollapsibleCard>
 
-          <Card className="p-5">
-            <SectionTitle title="回撤 / 反彈階梯" desc="精簡版保留固定階梯，不在首頁顯示，避免每天被參數干擾。" />
+          <CollapsibleCard id="ladders" title="回撤 / 反彈階梯" desc="精簡版保留固定階梯，不在首頁顯示，避免每天被參數干擾。" defaultOpen={false}>
             <div className="space-y-3">
               {getArr(inputs.drop_ladder).map((l, i) => (
                 <div key={l.id || i} className="grid grid-cols-3 gap-2 bg-slate-50 border border-slate-200 rounded-2xl p-2">
@@ -1207,11 +1316,10 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
                 </div>
               ))}
             </div>
-          </Card>
+          </CollapsibleCard>
 
           {inputs.satellites_enabled && (
-            <Card className="p-5">
-              <SectionTitle title="衛星模組" desc="已開啟完整版才會顯示。仍建議只作輔助，不讓個股干擾核心策略。" />
+            <CollapsibleCard id="satellite-module" title="衛星模組" desc="已開啟完整版才會顯示。仍建議只作輔助，不讓個股干擾核心策略。" defaultOpen={false}>
               <div className="space-y-3">
                 {getArr(inputs.satellites).map((s, i) => (
                   <div key={s.id || i} className="bg-slate-50 border border-slate-200 rounded-2xl p-3">
@@ -1231,22 +1339,20 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
                   </div>
                 ))}
               </div>
-            </Card>
+            </CollapsibleCard>
           )}
 
           <AdvancedGroupTitle title="備份 / 策略全文" desc="資料保險與規則備忘。" />
-          <Card className="p-5">
-            <SectionTitle title="備份 / 匯入" desc="登入同步保留；另外提供 JSON 備份，避免 GitHub 或 Firebase 暫時出問題。" />
+          <CollapsibleCard id="backup" title="備份 / 匯入" desc="登入同步保留；另外提供 JSON 備份，避免 GitHub 或 Firebase 暫時出問題。" defaultOpen={false}>
             <div className="grid grid-cols-2 gap-3">
               <button onClick={exportData} className="py-3 rounded-2xl bg-slate-900 text-white text-sm font-black active:scale-95">匯出 JSON</button>
               <label className="py-3 rounded-2xl bg-slate-100 text-slate-700 text-sm font-black text-center active:scale-95 cursor-pointer">匯入 JSON<input type="file" accept="application/json" className="hidden" onChange={e => importData(e.target.files?.[0])} /></label>
             </div>
-          </Card>
+          </CollapsibleCard>
 
-          <Card className="p-5">
-            <SectionTitle title="策略全文" desc="平常不用打開，僅作為規則備忘。" />
+          <CollapsibleCard id="plan-text" title="策略全文" desc="平常不用打開，僅作為規則備忘。" defaultOpen={false}>
             <textarea value={inputs.planText} onChange={e => setField("planText", e.target.value)} className="w-full h-80 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs leading-relaxed font-bold text-slate-700" />
-          </Card>
+          </CollapsibleCard>
         </main>
       );
 
@@ -1259,7 +1365,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
                 <div className="w-10 h-10 rounded-2xl bg-slate-950 flex items-center justify-center text-brand-400 font-black text-xl">A</div>
                 <div className="min-w-0">
                   <div className="font-black leading-tight truncate">Alpha Horizon Core</div>
-                  <div className="text-[10px] font-black text-brand-600 tracking-widest">v5.5 MOBILE</div>
+                  <div className="text-[10px] font-black text-brand-600 tracking-widest">v5.7 MOBILE</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -1269,15 +1375,15 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
             </div>
           </header>
 
-          {page === "home" ? <Home /> : <Advanced />}
+          {page === "home" ? <Home /> : page === "logs" ? <Logs /> : <Advanced />}
 
           <nav className="fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur border-t border-slate-200 safe-bottom">
             <div className="max-w-3xl mx-auto grid grid-cols-5 gap-1.5 p-2">
               <button onClick={() => setPage("home")} className={`py-2.5 rounded-2xl text-[11px] font-black active:scale-95 ${page === "home" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"}`}>首頁</button>
               <button onClick={() => setPage("advanced")} className={`py-2.5 rounded-2xl text-[11px] font-black active:scale-95 ${page === "advanced" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"}`}>進階</button>
+              <button onClick={() => setPage("logs")} className={`py-2.5 rounded-2xl text-[11px] font-black active:scale-95 ${page === "logs" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"}`}>紀錄</button>
               <button onClick={fetchPrices} className="py-2.5 rounded-2xl text-[11px] font-black bg-brand-50 text-brand-700 active:scale-95">更新</button>
-              <button onClick={saveNow} className="py-2.5 rounded-2xl text-[11px] font-black bg-slate-100 text-slate-700 active:scale-95">儲存</button>
-              <button onClick={markExecuted} className="py-2.5 rounded-2xl text-[11px] font-black bg-emerald-600 text-white active:scale-95">執行</button>
+              <button onClick={saveNow} className="py-2.5 rounded-2xl text-[11px] font-black bg-slate-100 text-slate-700 active:scale-95">同步</button>
             </div>
           </nav>
         </div>

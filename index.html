@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="color-scheme" content="light only" />
-  <title>Alpha Horizon Pro Aggressive v2.3 Custom ATH Entry</title>
+  <title>Alpha Horizon Pro Aggressive v2.5 Tracking Labels + Scroll Fix</title>
   <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230f172a'/><path d='M24 72 L50 24 L76 72' stroke='%233b82f6' stroke-width='11' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='50' cy='24' r='7' fill='%233b82f6'/></svg>" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -104,11 +104,11 @@
     const pct = (v, digits = 1) => `${Number(v || 0).toFixed(digits)}%`;
     const signedPct = (v, digits = 1) => `${v >= 0 ? "+" : ""}${Number(v || 0).toFixed(digits)}%`;
     const EPS = 1e-6;
-    const APP_VERSION = "Aggressive v2.4 ATH 15 Default";
-    const DATA_VERSION = "aggressive-v2.4-ath-15-default";
+    const APP_VERSION = "Aggressive v2.5 Tracking Labels + Scroll Fix";
+    const DATA_VERSION = "aggressive-v2.5-tracking-scroll-fix";
 
     // --- 3) Strategy defaults ---
-    const PLAN_TEXT = `Alpha Horizon Pro Aggressive 簡化版 v2.4 ATH 15 Default
+    const PLAN_TEXT = `Alpha Horizon Pro Aggressive 簡化版 v2.5 Tracking Labels + Scroll Fix
 — 執行摘要 —
 
 1. 常態配置：核心 75% QQQ、衛星 10%（可關閉）、BOXX / 現金 15%；核心-only 時核心提高至 85%。
@@ -546,6 +546,20 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
       const [cloudLoaded, setCloudLoaded] = useState(false);
       const saveTimerRef = useRef(null);
       const ignoreSnapshotRef = useRef(false);
+      const scrollRestoreRef = useRef(null);
+      const restoreScrollSoon = useCallback((y) => {
+        const target = typeof y === "number" ? y : (window.scrollY || document.documentElement.scrollTop || 0);
+        scrollRestoreRef.current = target;
+        const restore = () => {
+          if (scrollRestoreRef.current === null) return;
+          window.scrollTo({ top: scrollRestoreRef.current, left: 0, behavior: "auto" });
+        };
+        requestAnimationFrame(() => {
+          restore();
+          setTimeout(restore, 0);
+          setTimeout(restore, 80);
+        });
+      }, []);
       const [collapsed, setCollapsed] = useState(() => {
         try { return JSON.parse(localStorage.getItem("ah_core_v5_collapsed")) || {}; }
         catch (e) { return {}; }
@@ -658,33 +672,45 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
         } catch (e) { setAuthError("登出失敗"); }
       };
 
-      const setField = (key, value) => setInputs(prev => ({ ...prev, [key]: value }));
-      const updateArr = (arrKey, id, field, value) => {
+      const setField = useCallback((key, value) => {
+        const y = window.scrollY || document.documentElement.scrollTop || 0;
+        setInputs(prev => ({ ...prev, [key]: value }));
+        restoreScrollSoon(y);
+      }, [restoreScrollSoon]);
+      const updateArr = useCallback((arrKey, id, field, value) => {
+        const y = window.scrollY || document.documentElement.scrollTop || 0;
         setInputs(prev => ({ ...prev, [arrKey]: getArr(prev[arrKey]).map(x => x.id === id ? { ...x, [field]: value } : x) }));
-      };
+        restoreScrollSoon(y);
+      }, [restoreScrollSoon]);
 
       const addDropLadderRow = () => {
+        const y = window.scrollY || document.documentElement.scrollTop || 0;
         setInputs(prev => {
           const rows = getArr(prev.drop_ladder);
           const maxLevel = rows.reduce((m, x) => Math.max(m, getNum(x.drop_pct)), 0);
           return { ...prev, drop_ladder: [...rows, { id:`d${Date.now()}`, drop_pct:maxLevel > 0 ? maxLevel + 5 : 5, move_core_pct:0, use_reserve_pct:0 }] };
         });
+        restoreScrollSoon(y);
       };
 
       const addBounceLadderRow = () => {
+        const y = window.scrollY || document.documentElement.scrollTop || 0;
         setInputs(prev => {
           const rows = getArr(prev.bounce_ladder);
           const maxLevel = rows.reduce((m, x) => Math.max(m, getNum(x.bounce_pct)), 0);
           return { ...prev, bounce_ladder: [...rows, { id:`b${Date.now()}`, bounce_pct:maxLevel > 0 ? maxLevel + 10 : 8, sell_pct:25, refill_reserve_pct:getNum(prev.reserve_target_pct) || 15 }] };
         });
+        restoreScrollSoon(y);
       };
 
       const removeLadderRow = (arrKey, id) => {
+        const y = window.scrollY || document.documentElement.scrollTop || 0;
         setInputs(prev => {
           const rows = getArr(prev[arrKey]);
           if (rows.length <= 1) return prev;
           return { ...prev, [arrKey]: rows.filter(x => x.id !== id) };
         });
+        restoreScrollSoon(y);
       };
 
       const cloneRows = (rows) => rows.map(r => ({ ...r }));
@@ -1207,7 +1233,7 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
         const blob = new Blob([JSON.stringify(inputs, null, 2)], { type:"application/json" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = `alpha-horizon-aggressive-v1-4-clean-${todayStr()}.json`;
+        a.download = `alpha-horizon-aggressive-v2-5-${todayStr()}.json`;
         a.click();
         URL.revokeObjectURL(a.href);
       };
@@ -1295,19 +1321,19 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
       };
 
       /* -------------------- Page-local UI components -------------------- */
-      const CollapsibleCard = ({ id, title, desc, right, children, defaultOpen = true, className = "p-5" }) => {
+      const CollapsibleCard = useCallback(({ id, title, desc, right, children, defaultOpen = true, className = "p-5" }) => {
         const open = collapsed[id] === undefined ? defaultOpen : !collapsed[id];
         return (
           <Card className={className}>
             <SectionTitle
               title={title}
               desc={desc}
-              right={<div className="flex items-center gap-2">{right}<button onClick={() => toggleCollapse(id)} className="shrink-0 text-xs font-black bg-slate-100 text-slate-600 px-3 py-2 rounded-xl active:scale-95">{open ? "收合" : "展開"}</button></div>}
+              right={<div className="flex items-center gap-2">{right}<button type="button" onClick={() => toggleCollapse(id)} className="shrink-0 text-xs font-black bg-slate-100 text-slate-600 px-3 py-2 rounded-xl active:scale-95">{open ? "收合" : "展開"}</button></div>}
             />
             {open && <div>{children}</div>}
           </Card>
         );
-      };
+      }, [collapsed, toggleCollapse]);
 
       /* -------------------- Home page -------------------- */
       const Home = () => {
@@ -1692,21 +1718,27 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
           </CollapsibleCard>
 
           <AdvancedGroupTitle title="策略參數" desc="平常保持鎖定，需要調整規則時才解鎖。" />
-          <CollapsibleCard id="tracking-detail" title="自動追蹤細節" desc="這裡是審計區。首頁只看摘要；你要確認系統到底參考哪個高點時，再來這裡。" right={ <button onClick={resetCycle} disabled={paramLocked} className={`text-xs font-black px-3 py-2 rounded-xl active:scale-95 ${paramLocked ? "bg-slate-100 text-slate-400" : "bg-slate-100 text-slate-700"}`}>重設循環</button> } defaultOpen={false}>
+          <CollapsibleCard id="tracking-detail" title="訊號參考價檢查" desc="這裡只用來驗算系統參考哪個價位；每日操作仍看首頁摘要與今日交易清單。" right={ <button type="button" onClick={resetCycle} disabled={paramLocked} className={`text-xs font-black px-3 py-2 rounded-xl active:scale-95 ${paramLocked ? "bg-slate-100 text-slate-400" : "bg-slate-100 text-slate-700"}`}>重設循環</button> } defaultOpen={false}>
+            <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="bg-purple-50 border border-purple-100 rounded-2xl p-3 text-[11px] text-purple-800 leading-relaxed"><b>SPMO 進場：</b>看「SPMO 進場基準價」加上你設定的突破 %。</div>
+              <div className="bg-red-50 border border-red-100 rounded-2xl p-3 text-[11px] text-red-700 leading-relaxed"><b>TQQQ 加碼：</b>看 QQQ 從「TQQQ 加碼參考高點」跌了多少。</div>
+              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 text-[11px] text-emerald-700 leading-relaxed"><b>TQQQ 卸除：</b>看 QQQ 從「TQQQ 卸除參考低點」反彈多少。</div>
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-[11px] text-slate-600 leading-relaxed"><b>SPMO 退出：</b>只看 SPMO 從「SPMO 退出參考高點」回撤是否達 -5%。</div>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <NumberInput label="最新 52W 高點｜只建立 Locked ATH" value={inputs.qqq_history_high_52w} onChange={v => setField("qqq_history_high_52w", v)} disabled={inputs.auto_high_tracking} />
-              <NumberInput label="Locked ATH｜狂熱突破基準" value={inputs.qqq_locked_ath} onChange={v => setField("qqq_locked_ath", v)} disabled={inputs.auto_high_tracking} />
-              <NumberInput label="本輪最新高點｜回撤/停損用" value={inputs.qqq_latest_high} onChange={v => setField("qqq_latest_high", v)} disabled={inputs.auto_high_tracking} />
-              <NumberInput label="本輪反彈低點｜卸 TQQQ 用" value={inputs.qqq_wave_low} onChange={v => setField("qqq_wave_low", v)} disabled={inputs.auto_high_tracking} />
-              <NumberInput label="冷卻解除價｜重新啟動 SPMO 門檻" value={inputs.mania_cooldown_until_high} onChange={v => setField("mania_cooldown_until_high", v)} disabled={inputs.auto_high_tracking} />
-              <NumberInput label="SPMO 持有期間高點" value={inputs.spmo_latest_high} onChange={v => setField("spmo_latest_high", v)} disabled={inputs.auto_high_tracking} />
+              <NumberInput label="最近一年 QQQ 高點｜建立 SPMO 基準" value={inputs.qqq_history_high_52w} onChange={v => setField("qqq_history_high_52w", v)} disabled={inputs.auto_high_tracking} />
+              <NumberInput label="SPMO 進場基準價｜原 Locked ATH" value={inputs.qqq_locked_ath} onChange={v => setField("qqq_locked_ath", v)} disabled={inputs.auto_high_tracking} />
+              <NumberInput label="TQQQ 加碼參考高點｜算 QQQ 回撤" value={inputs.qqq_latest_high} onChange={v => setField("qqq_latest_high", v)} disabled={inputs.auto_high_tracking} />
+              <NumberInput label="TQQQ 卸除參考低點｜算 QQQ 反彈" value={inputs.qqq_wave_low} onChange={v => setField("qqq_wave_low", v)} disabled={inputs.auto_high_tracking} />
+              <NumberInput label="下一次允許進 SPMO 價｜冷卻解除" value={inputs.mania_cooldown_until_high} onChange={v => setField("mania_cooldown_until_high", v)} disabled={inputs.auto_high_tracking} />
+              <NumberInput label="SPMO 退出參考高點｜持有期間最高價" value={inputs.spmo_latest_high} onChange={v => setField("spmo_latest_high", v)} disabled={inputs.auto_high_tracking} />
             </div>
             <div className="mt-3 flex gap-2">
               <button onClick={() => setField("auto_high_tracking", !inputs.auto_high_tracking)} disabled={paramLocked} className={`flex-1 py-3 rounded-2xl text-xs font-black active:scale-95 ${paramLocked ? "bg-slate-100 text-slate-400" : inputs.auto_high_tracking ? "bg-brand-600 text-white" : "bg-slate-200 text-slate-700"}`}>{inputs.auto_high_tracking ? "自動追蹤 ON" : "手動模式 OFF"}</button>
               <button onClick={() => fetchQQQHistory(true)} className="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-700 text-xs font-black active:scale-95">同步 52W</button>
             </div>
             <div className="mt-3 text-[11px] text-slate-500 leading-relaxed bg-slate-50 border border-slate-200 rounded-2xl p-3">
-              <b>判讀：</b>Locked ATH 是「上個 52W 收盤高」，只算自訂狂熱突破門檻；本輪最新高點用來算 QQQ 回撤與 TQQQ 階梯；SPMO 退出只看 SPMO 自身高點，不再做 QQQ / SPMO 相對強弱比較；本輪反彈低點只有回撤達第一階後才開始記錄。
+              <b>白話判讀：</b>這區不是交易按鈕，而是驗算用。SPMO 進場看「SPMO 進場基準價」；TQQQ 加碼看「TQQQ 加碼參考高點」；TQQQ 卸除看「TQQQ 卸除參考低點」；SPMO 退出只看「SPMO 退出參考高點」。自動追蹤 ON 時這些數字由系統維護，通常不要手動改。
             </div>
           </CollapsibleCard>
 
@@ -1818,7 +1850,7 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
                 <div className="w-10 h-10 rounded-2xl bg-slate-950 flex items-center justify-center text-brand-400 font-black text-xl">A</div>
                 <div className="min-w-0">
                   <div className="font-black leading-tight truncate">Alpha Horizon Pro</div>
-                  <div className="text-[10px] font-black text-brand-600 tracking-widest">Aggressive v2.3</div>
+                  <div className="text-[10px] font-black text-brand-600 tracking-widest">Aggressive v2.5</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -1828,7 +1860,7 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
             </div>
           </header>
 
-          {page === "home" ? <Home /> : page === "logs" ? <Logs /> : <Advanced />}
+          {page === "home" ? Home() : page === "logs" ? Logs() : Advanced()}
 
           <nav className="fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur border-t border-slate-200 safe-bottom">
             <div className="max-w-3xl mx-auto grid grid-cols-4 gap-1.5 p-2">

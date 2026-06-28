@@ -90,6 +90,10 @@
       const n = parseFloat(v);
       return Number.isFinite(n) ? n : 0;
     };
+    const numWithDefault = (v, def) => {
+      const n = parseFloat(v);
+      return Number.isFinite(n) ? n : def;
+    };
     const round2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
     const getArr = (arr) => Array.isArray(arr) ? arr : (arr && typeof arr === "object" ? Object.values(arr) : []);
     const sanitize = (data) => JSON.parse(JSON.stringify(data, (k, v) => v === undefined ? null : v));
@@ -100,17 +104,17 @@
     const pct = (v, digits = 1) => `${Number(v || 0).toFixed(digits)}%`;
     const signedPct = (v, digits = 1) => `${v >= 0 ? "+" : ""}${Number(v || 0).toFixed(digits)}%`;
     const EPS = 1e-6;
-    const APP_VERSION = "Aggressive v2.0 Single-File Clean";
-    const DATA_VERSION = "aggressive-v2.0-clean";
+    const APP_VERSION = "Aggressive v2.2 Strategy Defaults";
+    const DATA_VERSION = "aggressive-v2.2-strategy-defaults";
 
     // --- 3) Strategy defaults ---
-    const PLAN_TEXT = `Alpha Horizon Pro Aggressive 簡化版 v2.0 Single-File Clean
+    const PLAN_TEXT = `Alpha Horizon Pro Aggressive 簡化版 v2.2 Strategy Defaults
 — 執行摘要 —
 
 1. 常態配置：核心 75% QQQ、衛星 10%（可關閉）、BOXX / 現金 15%；核心-only 時核心提高至 85%。
-2. 狂熱模式：QQQ 突破最近 52 週最高收盤價 +15% 時，核心 QQQ 與未結清 TQQQ 全數轉 SPMO。
+2. 狂熱模式：QQQ 突破最近 52 週最高收盤價後，達到自訂門檻（預設 +15%）時，核心 QQQ 與未結清 TQQQ 全數轉 SPMO。
 3. SPMO 退出：不看 RS；SPMO 自身高點回撤 -5% 時，全數轉回 QQQ，並同日檢查 QQQ 是否達 TQQQ 加碼階梯。
-4. 下跌加碼：預設 -5%、-10%、-15%、-20%、-25%；核心轉 TQQQ 預設 10%、10%、10%、10%、0%；BOXX / 現金動用預設 3%、3%、3%、2%、1%。全部以總資產百分比計算且可自訂。
+4. 下跌加碼：預設 -5%、-10%、-15%、-20%、-25%；核心轉 TQQQ 預設 10%、10%、10%、10%、0%；BOXX / 現金動用預設 3%、3%、3%、2%、1%。階梯可新增、刪除與自訂，全部以總資產百分比計算。
 5. 風控：核心轉 TQQQ 上限 40%；BOXX / 現金動用上限 12%；BOXX 底線 3%；QQQ 回撤 -30% 後停止新增 TQQQ。
 6. 反彈卸除：QQQ 自本輪低點反彈 +8%、+15%、+25%、+35% 時分批賣 TQQQ，優先補 BOXX / 現金，再買回 QQQ。
 7. 熔斷：QQQ 跌破 200MA、200MA 下彎且持續超過 60 交易日，停止新增 TQQQ；既有 TQQQ 依反彈卸除處理。
@@ -156,6 +160,7 @@
       qqq_wave_low: 0,
       spmo_latest_high: 0,
       mania_trailing_stop_pct: 5,
+      mania_entry_pct: 15,
       mania_cooldown_until_high: 0,
       is_bear_meltdown: false,
       sim_qqq_price: "",
@@ -232,7 +237,8 @@
       next.motto = next.motto || DEFAULT_INPUTS.motto;
       next.motto_visible = next.motto_visible !== false;
       next.params_unlocked = next.params_unlocked === true;
-      next.mania_trailing_stop_pct = 5;
+      next.mania_trailing_stop_pct = getNum(next.mania_trailing_stop_pct) || 5;
+      next.mania_entry_pct = next.mania_entry_pct === undefined || next.mania_entry_pct === null || next.mania_entry_pct === "" ? 15 : Math.max(0, getNum(next.mania_entry_pct));
       next.planText = PLAN_TEXT;
       next.version = DATA_VERSION;
       return next;
@@ -654,6 +660,59 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
         setInputs(prev => ({ ...prev, [arrKey]: getArr(prev[arrKey]).map(x => x.id === id ? { ...x, [field]: value } : x) }));
       };
 
+      const addDropLadderRow = () => {
+        setInputs(prev => {
+          const rows = getArr(prev.drop_ladder);
+          const maxLevel = rows.reduce((m, x) => Math.max(m, getNum(x.drop_pct)), 0);
+          return { ...prev, drop_ladder: [...rows, { id:`d${Date.now()}`, drop_pct:maxLevel > 0 ? maxLevel + 5 : 5, move_core_pct:0, use_reserve_pct:0 }] };
+        });
+      };
+
+      const addBounceLadderRow = () => {
+        setInputs(prev => {
+          const rows = getArr(prev.bounce_ladder);
+          const maxLevel = rows.reduce((m, x) => Math.max(m, getNum(x.bounce_pct)), 0);
+          return { ...prev, bounce_ladder: [...rows, { id:`b${Date.now()}`, bounce_pct:maxLevel > 0 ? maxLevel + 10 : 8, sell_pct:25, refill_reserve_pct:getNum(prev.reserve_target_pct) || 15 }] };
+        });
+      };
+
+      const removeLadderRow = (arrKey, id) => {
+        setInputs(prev => {
+          const rows = getArr(prev[arrKey]);
+          if (rows.length <= 1) return prev;
+          return { ...prev, [arrKey]: rows.filter(x => x.id !== id) };
+        });
+      };
+
+      const cloneRows = (rows) => rows.map(r => ({ ...r }));
+
+      const resetLaddersToDefault = () => {
+        setInputs(prev => ({ ...prev, drop_ladder: cloneRows(DEFAULT_DROP_LADDER), bounce_ladder: cloneRows(DEFAULT_BOUNCE_LADDER) }));
+        showToast("已套用回撤 / 反彈預設階梯");
+      };
+
+      const applyStrategyDefaults = () => {
+        setInputs(prev => ({
+          ...prev,
+          reserve_target_pct: DEFAULT_INPUTS.reserve_target_pct,
+          reserve_floor_pct: DEFAULT_INPUTS.reserve_floor_pct,
+          core_tqqq_cap_pct: DEFAULT_INPUTS.core_tqqq_cap_pct,
+          reserve_tqqq_cap_pct: DEFAULT_INPUTS.reserve_tqqq_cap_pct,
+          stop_add_after_drawdown_pct: DEFAULT_INPUTS.stop_add_after_drawdown_pct,
+          mania_entry_pct: DEFAULT_INPUTS.mania_entry_pct,
+          mania_trailing_stop_pct: DEFAULT_INPUTS.mania_trailing_stop_pct,
+          scenario_tqqq_beta: DEFAULT_INPUTS.scenario_tqqq_beta,
+          scenario_spmo_beta: DEFAULT_INPUTS.scenario_spmo_beta,
+          drop_ladder: cloneRows(DEFAULT_DROP_LADDER),
+          bounce_ladder: cloneRows(DEFAULT_BOUNCE_LADDER),
+          satellites: getArr(prev.satellites).length ? getArr(prev.satellites).map(s => {
+            const base = DEFAULT_SATELLITES.find(d => String(d.underlying).toUpperCase() === String(s.underlying).toUpperCase());
+            return base ? { ...s, target_pct: base.target_pct, limit_pct: base.limit_pct, loss_pct: base.loss_pct, scenario_beta: base.scenario_beta } : s;
+          }) : cloneRows(DEFAULT_SATELLITES)
+        }));
+        showToast("已套用策略預設參數");
+      };
+
       /* -------------------- Market data -------------------- */
       const symbols = useMemo(() => {
         const base = ["QQQ", "TQQQ", "SPMO", "BOXX"];
@@ -794,7 +853,8 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
 
             const cooldownNow = getNum(next.mania_cooldown_until_high) > 0 && q < getNum(next.mania_cooldown_until_high);
             const riseFromLocked = locked > 0 ? ((q - locked) / locked) * 100 : 0;
-            const maniaNow = !cooldownNow && (hasSpmo || riseFromLocked >= 15);
+            const maniaEntryPct = Math.max(0, numWithDefault(prev.mania_entry_pct, 15));
+            const maniaNow = !cooldownNow && (hasSpmo || riseFromLocked >= maniaEntryPct);
             write("auto_tracking_state", maniaStopNow ? "MANIA_EXIT" : (cooldownNow ? "COOLDOWN" : (maniaNow ? "MANIA" : (currentDD >= drop1 ? "DRAWDOWN" : "BASE"))));
             write("auto_tracking_last_sync", todayStr());
           }
@@ -855,16 +915,25 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
         const cDD = latestHigh > 0 && pQQQ > 0 && pQQQ < latestHigh ? ((latestHigh - pQQQ) / latestHigh) * 100 : 0;
         const cRise = locked > 0 && pQQQ > 0 ? ((pQQQ - locked) / locked) * 100 : null;
         const cBounce = waveLow > 0 && pQQQ > waveLow ? ((pQQQ - waveLow) / waveLow) * 100 : 0;
-        const firstBounce = getArr(inputs.bounce_ladder).map(x => getNum(x.bounce_pct)).filter(v => v > 0).sort((a,b) => a - b)[0] || 8;
+        const dropLadderSorted = getArr(inputs.drop_ladder)
+          .map((l, i) => ({ ...l, _i:i, drop_pct:getNum(l.drop_pct), move_core_pct:getNum(l.move_core_pct), use_reserve_pct:getNum(l.use_reserve_pct) }))
+          .filter(l => l.drop_pct > 0)
+          .sort((a,b) => a.drop_pct - b.drop_pct || a._i - b._i);
+        const bounceLadderSorted = getArr(inputs.bounce_ladder)
+          .map((l, i) => ({ ...l, _i:i, bounce_pct:getNum(l.bounce_pct), sell_pct:getNum(l.sell_pct), refill_reserve_pct:getNum(l.refill_reserve_pct) }))
+          .filter(l => l.bounce_pct > 0)
+          .sort((a,b) => a.bounce_pct - b.bounce_pct || a._i - b._i);
+        const firstBounce = bounceLadderSorted[0]?.bounce_pct || 8;
         const maniaStopPct = Math.max(1, getNum(inputs.mania_trailing_stop_pct) || 5);
+        const maniaEntryPct = Math.max(0, numWithDefault(inputs.mania_entry_pct, 15));
         const hasSpmo = getNum(inputs.qty_spmo) > 0 || vSPMO > 50;
         const spmoHigh = getNum(inputs.spmo_latest_high);
         const cSPMODD = hasSpmo && spmoHigh > 0 && pSPMO > 0 && pSPMO < spmoHigh ? ((spmoHigh - pSPMO) / spmoHigh) * 100 : 0;
         const maniaTrailingExit = hasSpmo && spmoHigh > 0 && pSPMO > 0 && pSPMO <= spmoHigh * (1 - maniaStopPct / 100) + 0.01;
         const cooldownActive = cooldownHigh > 0 && pQQQ > 0 && pQQQ < cooldownHigh;
-        const maniaEntrySignal = !hasSpmo && !cooldownActive && cRise !== null && cRise >= 15;
+        const maniaEntrySignal = !hasSpmo && !cooldownActive && cRise !== null && cRise + EPS >= maniaEntryPct;
         const maniaHoldActive = hasSpmo && !maniaTrailingExit;
-        const firstDrop = firstDropPct(inputs.drop_ladder);
+        const firstDrop = dropLadderSorted[0]?.drop_pct || firstDropPct(inputs.drop_ladder);
 
         let state = "BASE";
         let title = "一般核心模式";
@@ -876,7 +945,7 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
         else if (cBounce + EPS >= firstBounce && vTQQQ > 50) { state = "BOUNCE"; title = "反彈卸除區"; tone = "green"; instruction = `QQQ 自本輪低點反彈 ${pct(cBounce)}，依反彈階梯卸除 TQQQ。`; }
         else if (cDD + EPS >= firstDrop) { state = "DRAWDOWN"; title = "回撤加碼區"; tone = "red"; instruction = `QQQ 自本輪高點回撤 ${pct(cDD)}，依階梯配置 TQQQ。`; }
         else if (cooldownActive) { state = "COOLDOWN"; title = "狂熱冷卻中"; tone = "amber"; instruction = "維持 QQQ；QQQ 重新突破冷卻解除價前，不重啟 SPMO。"; }
-        else if (cRise !== null && cRise >= 0) { state = "BREAKOUT"; title = "突破確認中"; tone = "green"; instruction = `QQQ 高於 Locked ATH ${signedPct(cRise)}，尚未達 +15% 則維持 QQQ。`; }
+        else if (cRise !== null && cRise >= 0) { state = "BREAKOUT"; title = "突破確認中"; tone = "green"; instruction = `QQQ 高於 Locked ATH ${signedPct(cRise)}，尚未達 +${pct(maniaEntryPct, 0)} 則維持 QQQ。`; }
 
         let targetReservePct = reservePct;
         let tQQQPct = coreBasePct;
@@ -890,7 +959,7 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
           let tqqqFromReserve = 0;
           const stopAddAfter = Math.max(0, getNum(inputs.stop_add_after_drawdown_pct) || 30);
           if (cDD + EPS >= firstDrop && !inputs.is_bear_meltdown) {
-            getArr(inputs.drop_ladder).forEach(l => {
+            dropLadderSorted.forEach(l => {
               const level = getNum(l.drop_pct);
               const allowedByStop = stopAddAfter <= 0 || level < stopAddAfter;
               if (allowedByStop && cDD + EPS >= level) {
@@ -903,7 +972,7 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
           let highestBounce = 0;
           let bounceReserveTarget = 0;
           if (cBounce > 0) {
-            getArr(inputs.bounce_ladder).forEach(l => {
+            bounceLadderSorted.forEach(l => {
               if (cBounce + EPS >= getNum(l.bounce_pct)) {
                 bounceSell += getNum(l.sell_pct);
                 highestBounce = Math.max(highestBounce, getNum(l.bounce_pct));
@@ -998,7 +1067,7 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
           triggerText = maniaEntrySignal ? `觸發狂熱模式：QQQ 距 Locked ATH ${signedPct(cRise || 0)}，核心轉 SPMO。` : "SPMO 狂熱持有中：尚未觸發自身 -5% 退出。";
         } else if (state === "MELTDOWN") triggerText = "熊市熔斷中：停止新增 TQQQ，只保留必要調整。";
         else if (state === "COOLDOWN") triggerText = "狂熱冷卻中：不重新買回 SPMO，等待 QQQ 重新突破冷卻價。";
-        else if (state === "BREAKOUT") triggerText = "突破確認中：高於 Locked ATH，但尚未達 +15% 狂熱轉換門檻。";
+        else if (state === "BREAKOUT") triggerText = `突破確認中：高於 Locked ATH，但尚未達 +${pct(maniaEntryPct, 0)} 狂熱轉換門檻。`;
         const actionPlan = { triggerText, stepText, fundingSources, purchases, targetSummary, tradeNeeded: total > 0 && (fundingSources.length > 0 || purchases.length > 0) };
 
         const rows = [
@@ -1046,8 +1115,8 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
           ? `QQQ 距離本輪高點回撤 -${pct(cDD)}，${cDD + EPS >= firstDrop ? `已達第一階 -${pct(firstDrop, 0)}，會進入 TQQQ 階梯判斷。` : `尚未達第一階 -${pct(firstDrop, 0)}，不啟動 TQQQ 加碼。`}`
           : "尚未建立本輪最新高點，請先更新 QQQ 報價或同步 52W。";
         const maniaNote = locked > 0 && cRise !== null
-          ? `狂熱基準 Locked ATH 為 $${money(locked, 2)}，目前距離基準 ${signedPct(cRise)}，${cRise >= 15 ? "已達 +15% 狂熱門檻。" : "尚未達 +15%，不轉 SPMO。"}`
-          : "尚未建立 Locked ATH，無法判斷 +15% 狂熱門檻。";
+          ? `狂熱基準 Locked ATH 為 $${money(locked, 2)}，目前距離基準 ${signedPct(cRise)}，${cRise + EPS >= maniaEntryPct ? `已達 +${pct(maniaEntryPct, 0)} 狂熱門檻。` : `尚未達 +${pct(maniaEntryPct, 0)}，不轉 SPMO。`}`
+          : "尚未建立 Locked ATH，無法判斷狂熱門檻。";
         const cooldownNote = cooldownActive
           ? `目前冷卻中；QQQ 需重新突破 $${money(cooldownHigh, 2)}，才允許下一次 SPMO 狂熱模式。`
           : (hasSpmo ? `持有 SPMO 時，SPMO 自身跌破 $${money(spmoHigh > 0 ? spmoHigh * (1 - maniaStopPct / 100) : 0, 2)} 會觸發退出，退回 QQQ。` : "目前沒有狂熱冷卻限制。" );
@@ -1060,7 +1129,7 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
           else if (state === "MELTDOWN") latestJudgement = "熊市熔斷已啟動；停止新增 TQQQ，優先保留 BOXX / 現金，今日只做必要降風險。";
           else if (state === "BOUNCE") latestJudgement = `QQQ 自本輪低點反彈 ${pct(cBounce)}，已進入反彈卸除；若交易清單出現賣出 TQQQ，就照清單降槓桿並補 BOXX。`;
           else if (state === "DRAWDOWN") latestJudgement = `QQQ 距本輪高點回撤 -${pct(cDD)}，已進入回撤階梯；若交易清單出現 TQQQ / BOXX 動作，就照清單加碼。`;
-          else if (state === "BREAKOUT") latestJudgement = `QQQ 高於 Locked ATH ${signedPct(cRise || 0)}，但尚未達 +15% 狂熱門檻；目前不追 SPMO，維持核心配置。`;
+          else if (state === "BREAKOUT") latestJudgement = `QQQ 高於 Locked ATH ${signedPct(cRise || 0)}，但尚未達 +${pct(maniaEntryPct, 0)} 狂熱門檻；目前不追 SPMO，維持核心配置。`;
           else latestJudgement = `QQQ 距本輪高點回撤 -${pct(cDD)}，尚未達第一階 -${pct(firstDrop, 0)}；目前不用加碼或減碼，照配置維持。`;
         }
 
@@ -1071,7 +1140,7 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
           rows,
           t: { q:tQQQPct, tq:tTQQQPct, sm:tSPMOPct, r:targetReservePct, sat:effectiveSatTargetPct },
           diff: { q:diffQQQ, tq:diffTQQQ, sm:diffSPMO, r:diffBOXX },
-          high: { locked, latestHigh, waveLow, cDD, cRise, cBounce, cooldownHigh, maniaStopPct, spmoHigh, cSPMODD, maniaStopLine: spmoHigh > 0 ? spmoHigh * (1 - maniaStopPct / 100) : 0, high52:getNum(inputs.qqq_history_high_52w), notes:[drawdownNote, maniaNote, cooldownNote] },
+          high: { locked, latestHigh, waveLow, cDD, cRise, cBounce, cooldownHigh, maniaStopPct, maniaEntryPct, spmoHigh, cSPMODD, maniaStopLine: spmoHigh > 0 ? spmoHigh * (1 - maniaStopPct / 100) : 0, high52:getNum(inputs.qqq_history_high_52w), notes:[drawdownNote, maniaNote, cooldownNote] },
           satStats,
           scenario: { ...activeScenario, stressRows, riskMinus10, lossLimit, scenarioLossStatus, riskMinus10Status },
           ux: { primaryAction, tradeNeeded, latestJudgement },
@@ -1575,6 +1644,11 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
           </CollapsibleCard>
 
           <CollapsibleCard id="core-params" title="核心參數" desc="一般不需要常改。改動後會影響今日指令與目標配置。" defaultOpen={false}>
+            <div className="mb-3 bg-amber-50 border border-amber-200 rounded-2xl p-3">
+              <div className="text-xs font-black text-amber-800 mb-1">策略預設值</div>
+              <div className="text-[11px] text-amber-700 leading-relaxed mb-3">一鍵帶入策略文字的趴數：SPMO +15% 進場 / -5% 退出、TQQQ 回撤階梯、反彈卸除、BOXX 15% / 底線 3%。不會改你的持股股數與現金。</div>
+              <button onClick={applyStrategyDefaults} disabled={paramLocked} className={`w-full min-h-[44px] rounded-2xl text-xs font-black active:scale-95 ${paramLocked ? "bg-slate-100 text-slate-400" : "bg-amber-600 text-white"}`}>套用策略預設趴數</button>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-brand-50 border border-brand-100 rounded-2xl p-3">
                 <div className="text-[10px] font-black text-brand-600 mb-1">核心目標（自動）</div>
@@ -1586,6 +1660,7 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
               <NumberInput label="核心轉 TQQQ 上限" value={inputs.core_tqqq_cap_pct} onChange={v => setField("core_tqqq_cap_pct", v)} suffix="%" hint="預設 40%，以總資產計" disabled={paramLocked} />
               <NumberInput label="BOXX 動用上限" value={inputs.reserve_tqqq_cap_pct} onChange={v => setField("reserve_tqqq_cap_pct", v)} suffix="%" hint="預設 12%，以總資產計" disabled={paramLocked} />
               <NumberInput label="停止新增 TQQQ 回撤" value={inputs.stop_add_after_drawdown_pct} onChange={v => setField("stop_add_after_drawdown_pct", v)} suffix="%" hint="預設 30%，達此回撤後不再增加新階梯" disabled={paramLocked} />
+              <NumberInput label="突破 Locked ATH 轉 SPMO" value={inputs.mania_entry_pct} onChange={v => setField("mania_entry_pct", v)} suffix="%" hint="預設 15%，QQQ 高於 Locked ATH 後達此幅度，核心轉 SPMO" disabled={paramLocked} />
               <NumberInput label="SPMO 退出回撤" value={inputs.mania_trailing_stop_pct} onChange={v => setField("mania_trailing_stop_pct", v)} suffix="%" hint="策略固定預設 5%，以 SPMO 自身高點回撤計算；可解鎖後自訂" disabled={paramLocked} />
               <NumberInput label="模擬 QQQ 價格" value={inputs.sim_qqq_price} onChange={v => setField("sim_qqq_price", v)} hint="空白＝使用即時報價；填入後只用來測試策略情境" />
               <label className="block bg-slate-50 border border-slate-200 rounded-2xl p-3 col-span-2">
@@ -1629,28 +1704,52 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
               <button onClick={() => fetchQQQHistory(true)} className="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-700 text-xs font-black active:scale-95">同步 52W</button>
             </div>
             <div className="mt-3 text-[11px] text-slate-500 leading-relaxed bg-slate-50 border border-slate-200 rounded-2xl p-3">
-              <b>判讀：</b>Locked ATH 是「上個 52W 收盤高」，只算 +15% 狂熱突破；本輪最新高點用來算 QQQ 回撤與 TQQQ 階梯；SPMO 退出只看 SPMO 自身高點，不再做 QQQ / SPMO 相對強弱比較；本輪反彈低點只有回撤達第一階後才開始記錄。
+              <b>判讀：</b>Locked ATH 是「上個 52W 收盤高」，只算自訂狂熱突破門檻；本輪最新高點用來算 QQQ 回撤與 TQQQ 階梯；SPMO 退出只看 SPMO 自身高點，不再做 QQQ / SPMO 相對強弱比較；本輪反彈低點只有回撤達第一階後才開始記錄。
             </div>
           </CollapsibleCard>
 
-          <CollapsibleCard id="ladders" title="回撤 / 反彈階梯" desc="精簡版保留固定階梯，不在首頁顯示，避免每天被參數干擾。" defaultOpen={false}>
+          <CollapsibleCard id="ladders" title="回撤 / 反彈階梯" desc="可新增 / 刪除階梯。系統會依百分比由小到大排序後計算；新增後仍受 TQQQ 與 BOXX 上限保護。" defaultOpen={false}>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="text-xs font-black text-slate-600">下跌加碼階梯</div>
+              <button onClick={addDropLadderRow} disabled={paramLocked} className={`px-3 py-2 rounded-xl text-xs font-black active:scale-95 ${paramLocked ? "bg-slate-100 text-slate-400" : "bg-red-50 text-red-700 border border-red-100"}`}>新增回撤階梯</button>
+            </div>
             <div className="space-y-3">
-              {getArr(inputs.drop_ladder).map((l, i) => (
-                <div key={l.id || i} className="grid grid-cols-3 gap-2 bg-slate-50 border border-slate-200 rounded-2xl p-2">
-                  <NumberInput label="回撤" value={l.drop_pct} onChange={v => updateArr("drop_ladder", l.id, "drop_pct", v)} suffix="%" disabled={paramLocked} />
-                  <NumberInput label="核心轉 TQQQ" value={l.move_core_pct} onChange={v => updateArr("drop_ladder", l.id, "move_core_pct", v)} suffix="%" disabled={paramLocked} />
-                  <NumberInput label="動用 BOXX（總資產）" value={l.use_reserve_pct} onChange={v => updateArr("drop_ladder", l.id, "use_reserve_pct", v)} suffix="%" disabled={paramLocked} />
+              {[...getArr(inputs.drop_ladder)].sort((a,b) => getNum(a.drop_pct) - getNum(b.drop_pct)).map((l, i) => (
+                <div key={l.id || i} className="bg-slate-50 border border-slate-200 rounded-2xl p-2">
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <div className="text-[11px] font-black text-slate-500">回撤第 {i + 1} 階</div>
+                    <button onClick={() => removeLadderRow("drop_ladder", l.id)} disabled={paramLocked || getArr(inputs.drop_ladder).length <= 1} className={`text-[11px] font-black px-2 py-1 rounded-lg active:scale-95 ${paramLocked || getArr(inputs.drop_ladder).length <= 1 ? "bg-slate-100 text-slate-300" : "bg-white text-red-600 border border-red-100"}`}>刪除</button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <NumberInput label="回撤" value={l.drop_pct} onChange={v => updateArr("drop_ladder", l.id, "drop_pct", v)} suffix="%" disabled={paramLocked} />
+                    <NumberInput label="核心轉 TQQQ" value={l.move_core_pct} onChange={v => updateArr("drop_ladder", l.id, "move_core_pct", v)} suffix="%" disabled={paramLocked} />
+                    <NumberInput label="動用 BOXX（總資產）" value={l.use_reserve_pct} onChange={v => updateArr("drop_ladder", l.id, "use_reserve_pct", v)} suffix="%" disabled={paramLocked} />
+                  </div>
                 </div>
               ))}
             </div>
-            <div className="mt-4 space-y-3">
-              {getArr(inputs.bounce_ladder).map((l, i) => (
-                <div key={l.id || i} className="grid grid-cols-3 gap-2 bg-emerald-50 border border-emerald-100 rounded-2xl p-2">
-                  <NumberInput label="自低點反彈" value={l.bounce_pct} onChange={v => updateArr("bounce_ladder", l.id, "bounce_pct", v)} suffix="%" disabled={paramLocked} />
-                  <NumberInput label="賣出 TQQQ" value={l.sell_pct} onChange={v => updateArr("bounce_ladder", l.id, "sell_pct", v)} suffix="%" disabled={paramLocked} />
-                  <NumberInput label="BOXX 補至" value={l.refill_reserve_pct} onChange={v => updateArr("bounce_ladder", l.id, "refill_reserve_pct", v)} suffix="%" disabled={paramLocked} />
+            <div className="flex items-center justify-between gap-2 mt-5 mb-2">
+              <div className="text-xs font-black text-slate-600">反彈卸除階梯</div>
+              <button onClick={addBounceLadderRow} disabled={paramLocked} className={`px-3 py-2 rounded-xl text-xs font-black active:scale-95 ${paramLocked ? "bg-slate-100 text-slate-400" : "bg-emerald-50 text-emerald-700 border border-emerald-100"}`}>新增反彈階梯</button>
+            </div>
+            <div className="space-y-3">
+              {[...getArr(inputs.bounce_ladder)].sort((a,b) => getNum(a.bounce_pct) - getNum(b.bounce_pct)).map((l, i) => (
+                <div key={l.id || i} className="bg-emerald-50 border border-emerald-100 rounded-2xl p-2">
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <div className="text-[11px] font-black text-emerald-700">反彈第 {i + 1} 階</div>
+                    <button onClick={() => removeLadderRow("bounce_ladder", l.id)} disabled={paramLocked || getArr(inputs.bounce_ladder).length <= 1} className={`text-[11px] font-black px-2 py-1 rounded-lg active:scale-95 ${paramLocked || getArr(inputs.bounce_ladder).length <= 1 ? "bg-slate-100 text-slate-300" : "bg-white text-red-600 border border-red-100"}`}>刪除</button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <NumberInput label="自低點反彈" value={l.bounce_pct} onChange={v => updateArr("bounce_ladder", l.id, "bounce_pct", v)} suffix="%" disabled={paramLocked} />
+                    <NumberInput label="賣出 TQQQ" value={l.sell_pct} onChange={v => updateArr("bounce_ladder", l.id, "sell_pct", v)} suffix="%" disabled={paramLocked} />
+                    <NumberInput label="BOXX 補至" value={l.refill_reserve_pct} onChange={v => updateArr("bounce_ladder", l.id, "refill_reserve_pct", v)} suffix="%" disabled={paramLocked} />
+                  </div>
                 </div>
               ))}
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button onClick={resetLaddersToDefault} disabled={paramLocked} className={`min-h-[44px] rounded-2xl text-xs font-black active:scale-95 ${paramLocked ? "bg-slate-100 text-slate-400" : "bg-slate-900 text-white"}`}>套用預設階梯</button>
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-[11px] text-slate-500 leading-relaxed">預設：回撤 -5/-10/-15/-20/-25；核心 10/10/10/10/0；BOXX 3/3/3/2/1。新增階梯後系統自動排序。</div>
             </div>
           </CollapsibleCard>
 

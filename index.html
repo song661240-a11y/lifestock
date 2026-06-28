@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="color-scheme" content="light only" />
-  <title>Alpha Horizon Core v5.9</title>
+  <title>Alpha Horizon Pro Aggressive v1.3</title>
   <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230f172a'/><path d='M24 72 L50 24 L76 72' stroke='%233b82f6' stroke-width='11' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='50' cy='24' r='7' fill='%233b82f6'/></svg>" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -83,58 +83,87 @@
     const signedPct = (v, digits = 1) => `${v >= 0 ? "+" : ""}${Number(v || 0).toFixed(digits)}%`;
     const EPS = 1e-6;
 
-    const PLAN_TEXT = `Alpha Horizon Core v5.8（2026 相對強弱簡化版）
+    const PLAN_TEXT = `Alpha Horizon Pro Aggressive 簡化版 v1.3
 — 系統化十年期資產累積策略 —
 
-一、策略核心
-以 QQQ 為唯一價格訊號源，不預測市場、不猜高低點。日常只看今日指令、狀態、目標配置與高點追蹤摘要。
+一、策略目標
+以 QQQ 為長期核心資產，利用市場回撤時的 TQQQ 階梯轉換提高反彈報酬，並在牛市強勢階段切換至 SPMO 參與動能行情。
+策略假設：指數長期向上、重大回撤後長期仍有機會再創新高、政府與市場機制長期傾向穩定金融系統。
+最高原則：長期向上、提高報酬、避免 FOMO 亂買、避免因單一錯誤交易重傷出場。
 
-二、預設配置
-核心-only 模式：核心 85%（QQQ / TQQQ / SPMO）＋ 現金儲備 15%。
-完整版模式：核心 75% ＋ 衛星 10% ＋ 現金儲備 15%。
-現金儲備可用 BOXX 或現金表示，用於深度回撤與風險緩衝。
-衛星部位預設關閉；若開啟，TSLA / IBIT 各 5%，但不干擾核心引擎。
+二、常態資產配置
+核心部位：75%。常態持有 QQQ，狂熱模式時核心部位可全數轉換為 SPMO。
+衛星部位：10%。預設 TSLA 5%、IBIT 5%；衛星總權重不得超過總資產 10%。
+現金儲備：15%。BOXX 用於下跌進攻、極端保命與反彈後補回。
+核心-only 模式下，衛星關閉，核心可提升至 85%，BOXX / 現金維持 15%。
 
-三、高點定義
-最新 52W 高點：QQQ 最近約 370 天日收盤價最高值，只用來建立 Locked ATH。
-Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破後鎖住，不跟著最新高點上移。
-本輪最新高點：QQQ 本輪即時報價走過的最高價，用來計算回撤與狂熱追蹤停損。
-本輪反彈低點：QQQ 從本輪最新高點回撤達第一階 -7% 後，才開始記錄，用於反彈卸除 TQQQ。
-冷卻解除價：SPMO 狂熱停損後留下的本輪狂熱高點；QQQ 未重新突破前，不再重啟 SPMO。
+三、百分比定義
+所有「10% QQQ → TQQQ」皆指以當下總資產淨值為基準，將等同於總資產 10% 的核心部位由 QQQ 轉換為 TQQQ；不是剩餘 QQQ 的 10%。
+所有「3% BOXX → TQQQ」皆指以當下總資產淨值為基準，動用總資產 3% 的 BOXX / 現金儲備買入 TQQQ；此百分比可於進階設定自訂。
 
-四、狂熱模式
-當 QQQ 相對 Locked ATH 上漲達 +15%，核心部位轉為 SPMO。若已持有 SPMO，除非觸發狂熱追蹤停損，否則核心目標維持 SPMO，不再被 QQQ / TQQQ 階梯覆蓋。
+四、狂熱模式：QQQ 轉 SPMO
+訊號基準：QQQ 最近 52 週最高收盤價。
+觸發條件：QQQ 突破 52 週高點 +15%。
+執行動作：將帳上所有核心 QQQ 全數轉換為 SPMO；若此時仍有未結清 TQQQ，也一併全數轉換為 SPMO。
+目的：牛市強勢階段以 SPMO 參與動能行情，避免高檔繼續持有 TQQQ 的槓桿風險。
 
-五、狂熱追蹤停損
-若持有 SPMO，且 QQQ 從本輪最新高點回撤達設定門檻（預設 7%），強制 SPMO 退回 QQQ，並進入冷卻狀態。QQQ 重新突破冷卻解除價前，不會再次買回 SPMO。
+五、SPMO 退出規則
+訊號基準：SPMO 自身最高收盤價。
+觸發條件：SPMO 自高點回撤 -5%。
+執行動作：SPMO 全數轉回 QQQ。
+轉回 QQQ 當天，立即檢查 QQQ 自最近滾動高點的回撤幅度；若 QQQ 已達 TQQQ 加碼階梯，則同日執行對應階梯。
+本版本不比較 SPMO 與 QQQ 誰跌得少，避免系統過度複雜。
 
-六、回撤加碼
-未處於 SPMO 狂熱持有時，依 QQQ 從本輪最新高點回撤階梯執行 TQQQ：-7%、-14%、-21%、-28%、-35%、-42%。BOXX 使用僅在深度階梯啟動。
+六、下跌加碼系統：積極版
+訊號基準：QQQ 最近滾動高點。
+預設階梯：-5%、-10%、-15%、-20%、-25%。
+前四階各將總資產 10% 的核心 QQQ 轉為 TQQQ；BOXX / 現金依預設 3%、3%、3%、2%、1% 動用。
+QQQ 回撤 -30% 後停止新增 TQQQ，並保留 BOXX 戰鬥底線。
+下跌與補倉百分比可於進階設定自訂，但仍受 TQQQ 曝險上限與 BOXX 底線保護。
 
-七、反彈卸除
-自本輪反彈低點起，QQQ 反彈 +10%、+20%、+30% 時分批卸除 TQQQ，最後回到 QQQ。
+七、TQQQ 曝險上限
+核心 QQQ 最多轉換 40% 總資產至 TQQQ。
+BOXX / 現金最多動用 12% 總資產至 TQQQ。
+BOXX 最低保留 3%。
+QQQ 回撤 -30% 後，不再新增 TQQQ。
 
-八、QQQ 情境模擬
-情境模擬只用來估算「目前持倉」在 QQQ 上漲或下跌時的粗略資產變化，不產生交易訊號。預設 QQQ 1x、TQQQ 3x、SPMO 1x、衛星依各標的係數估算，BOXX 與現金視為不變。TQQQ 為每日 3 倍 ETF，長期多日結果會受複利與波動耗損影響，因此模擬僅作風險感覺，不等於回測。
+八、反彈卸除模式
+訊號基準：本輪 QQQ 回撤最低點。
+預設反彈階梯：+8%、+15%、+25%、+35%。
+每階賣出帳上 25% TQQQ；最後一階等同清空剩餘 TQQQ。
+資金依 BOXX 閉環補回儲備，再買回 QQQ。
 
-九、每日執行紀錄
-「我已執行今日指令」只做紀錄，不會自動改股數；實際成交後仍需手動更新持倉，避免系統替你假設成交價格。
+九、超級熊市熔斷機制
+若 QQQ 跌破 200 日均線、200 日均線開始下彎、且狀態持續超過 60 個交易日，停止所有新增 TQQQ 加碼，保留剩餘 BOXX。若熔斷前已持有 TQQQ，不強制賣出，依反彈卸除模式處理。
 
-十、執行鐵律
-所有操作只依照網頁顯示的目標配置與今日指令執行。禁止因新聞、情緒、預測或臨時想法改變策略。`;
+十、衛星部位規則
+衛星總權重最高 10%，單一衛星最高 5%。預設 TSLA 5%、IBIT 5%。
+不使用 LEAPS、Call、Put、TSLL 或其他單一股票槓桿 ETF。
+衛星補倉：自持有均價下跌 -14% 可用 BOXX 補回原始 5%，單一標的最多連續補倉 3 次；BOXX 低於 5% 時停止衛星補倉。
+衛星收割：單一衛星膨脹至總資產 10% 以上，且週線 5MA 跌破週線 10MA，賣出超額壓回 5%。
+
+十一、BOXX 資金閉環
+BOXX 常態目標水位 15%，戰鬥底線 3%。BOXX 低於 5% 時停止衛星補倉與非必要操作。
+所有系統獲利先補 BOXX 至 10%，再買回 QQQ；若 QQQ 進入狂熱模式準備轉 SPMO，先補 BOXX 至 15%，剩餘核心資金再進入 SPMO。
+
+十二、禁止事項
+禁止買入策略沒有寫的標的；禁止臨時買 Call、Put、LEAPS；禁止買 TSLL 或其他單一股票槓桿 ETF；禁止因新聞、情緒、帳面損益或 FOMO 改變策略。
+
+十三、核心精神
+QQQ 是長期核心。TQQQ 是回撤後的反彈加速器。SPMO 是牛市動能模式。BOXX 是下跌進攻與極端保命資金。TSLA 與 IBIT 是小比例衛星，不是主策略。策略沒有寫的交易，一律不做。`;
 
     const DEFAULT_DROP_LADDER = [
-      { id:"d1", drop_pct:7, move_core_pct:15, use_reserve_pct:0 },
-      { id:"d2", drop_pct:14, move_core_pct:0, use_reserve_pct:25 },
-      { id:"d3", drop_pct:21, move_core_pct:15, use_reserve_pct:0 },
-      { id:"d4", drop_pct:28, move_core_pct:15, use_reserve_pct:0 },
-      { id:"d5", drop_pct:35, move_core_pct:0, use_reserve_pct:25 },
-      { id:"d6", drop_pct:42, move_core_pct:15, use_reserve_pct:0 }
+      { id:"d1", drop_pct:5, move_core_pct:10, use_reserve_pct:3 },
+      { id:"d2", drop_pct:10, move_core_pct:10, use_reserve_pct:3 },
+      { id:"d3", drop_pct:15, move_core_pct:10, use_reserve_pct:3 },
+      { id:"d4", drop_pct:20, move_core_pct:10, use_reserve_pct:2 },
+      { id:"d5", drop_pct:25, move_core_pct:0, use_reserve_pct:1 }
     ];
     const DEFAULT_BOUNCE_LADDER = [
-      { id:"b1", bounce_pct:10, sell_pct:33 },
-      { id:"b2", bounce_pct:20, sell_pct:33 },
-      { id:"b3", bounce_pct:30, sell_pct:34 }
+      { id:"b1", bounce_pct:8, sell_pct:25, refill_reserve_pct:8 },
+      { id:"b2", bounce_pct:15, sell_pct:25, refill_reserve_pct:10 },
+      { id:"b3", bounce_pct:25, sell_pct:25, refill_reserve_pct:10 },
+      { id:"b4", bounce_pct:35, sell_pct:25, refill_reserve_pct:15 }
     ];
     const DEFAULT_SATELLITES = [
       { id:"s1", underlying:"TSLA", qty_u:0, avg_cost:250, target_pct:5, limit_pct:10, loss_pct:14, rescues:0, ma5:0, ma10:0, scenario_beta:2 },
@@ -142,9 +171,13 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
     ];
 
     const DEFAULT_INPUTS = {
-      version: "core-v5.8",
+      version: "aggressive-v1.3",
       planText: PLAN_TEXT,
       reserve_target_pct: 15,
+      reserve_floor_pct: 3,
+      core_tqqq_cap_pct: 40,
+      reserve_tqqq_cap_pct: 12,
+      stop_add_after_drawdown_pct: 30,
       satellites_enabled: false,
       auto_high_tracking: true,
       auto_tracking_state: "BASE",
@@ -157,7 +190,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
       qqq_latest_high: 0,
       qqq_wave_low: 0,
       spmo_latest_high: 0,
-      mania_trailing_stop_pct: 7,
+      mania_trailing_stop_pct: 5,
       mania_cooldown_until_high: 0,
       is_bear_meltdown: false,
       sim_qqq_price: "",
@@ -196,11 +229,17 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
         next.bounce_ladder = getArr(src.core_bounce_ladder).map((x, i) => ({
           id: x.id || `b${i + 1}`,
           bounce_pct: getNum(x.bounce_pct),
-          sell_pct: getNum(x.sell_pct)
+          sell_pct: getNum(x.sell_pct),
+          refill_reserve_pct: getNum(x.refill_reserve_pct)
         }));
       }
       next.drop_ladder = getArr(next.drop_ladder).length ? getArr(next.drop_ladder) : DEFAULT_DROP_LADDER;
-      next.bounce_ladder = getArr(next.bounce_ladder).length ? getArr(next.bounce_ladder) : DEFAULT_BOUNCE_LADDER;
+      const oldAggressiveDefaultReserve = [3, 3, 3, 2, 1];
+      const isOldAggressiveDefaultLadder = String(src.version || "") === "aggressive-v1.0"
+        && getArr(next.drop_ladder).length === 5
+        && getArr(next.drop_ladder).every((x, i) => Math.abs(getNum(x.use_reserve_pct) - oldAggressiveDefaultReserve[i]) < EPS);
+      if (isOldAggressiveDefaultLadder) next.drop_ladder = DEFAULT_DROP_LADDER;
+      next.bounce_ladder = getArr(next.bounce_ladder).length ? getArr(next.bounce_ladder).map((x, i) => ({ ...x, refill_reserve_pct: x.refill_reserve_pct ?? (i === 0 ? 8 : i === 1 ? 10 : i === 2 ? 10 : 15) })) : DEFAULT_BOUNCE_LADDER;
       next.satellites = getArr(next.satellites).length ? getArr(next.satellites).map(s => {
         const clean = { ...s };
         delete clean.lev_val;
@@ -219,8 +258,27 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
       next.execution_logs = getArr(next.execution_logs).slice(0, 200);
       if (next.pending_execution_note === undefined) next.pending_execution_note = "";
       if (next.auto_high_tracking === undefined) next.auto_high_tracking = true;
-      if (!next.planText || String(next.planText).includes("順勢再平衡進化版")) next.planText = PLAN_TEXT;
-      next.version = "core-v5.8";
+      if (next.reserve_floor_pct === undefined) next.reserve_floor_pct = 3;
+      if (next.core_tqqq_cap_pct === undefined) next.core_tqqq_cap_pct = 40;
+      if (next.reserve_tqqq_cap_pct === undefined) next.reserve_tqqq_cap_pct = 12;
+      if (next.stop_add_after_drawdown_pct === undefined) next.stop_add_after_drawdown_pct = 30;
+      const upgradingAggressive = !String(src.version || "").includes("aggressive-v1");
+      if (upgradingAggressive) {
+        next.drop_ladder = DEFAULT_DROP_LADDER;
+        next.bounce_ladder = DEFAULT_BOUNCE_LADDER;
+        next.mania_trailing_stop_pct = 5;
+        next.planText = PLAN_TEXT;
+      }
+      const v = String(src.version || "");
+      const oldDrop = getArr(src.drop_ladder);
+      const oldReservePattern = oldDrop.map(x => getNum(x.use_reserve_pct)).join(",");
+      if (v === "aggressive-v1.0" || v === "aggressive-v1.1") {
+        next.planText = PLAN_TEXT;
+        next.mania_trailing_stop_pct = 5;
+        if (!oldDrop.length || oldReservePattern === "2,2,2,2,1" || oldReservePattern === "3,3,3,2,1") next.drop_ladder = DEFAULT_DROP_LADDER;
+      }
+      if (!next.planText || String(next.planText).includes("順勢再平衡進化版") || String(next.planText).includes("相對強弱") || String(next.planText).includes("預設 -7%") || String(next.planText).includes("2%、2%、2%、2%、1%")) next.planText = PLAN_TEXT;
+      next.version = "aggressive-v1.3";
       return next;
     };
 
@@ -258,16 +316,53 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
 
     const Card = ({ children, className="" }) => <div className={`bg-white rounded-3xl border border-slate-200 shadow-soft ${className}`}>{children}</div>;
 
-    const NumberInput = ({ label, value, onChange, suffix="", hint="", disabled=false }) => (
-      <label className={`block bg-slate-50 border rounded-2xl p-3 ${disabled ? "opacity-50" : "border-slate-200 focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-100"}`}>
-        <div className="text-[10px] font-black text-slate-500 mb-1">{label}</div>
-        <div className="flex items-center gap-2">
-          <input disabled={disabled} type="number" inputMode="decimal" value={value} onChange={e => onChange(e.target.value)} onFocus={e => e.target.select()} className="w-full bg-transparent text-center font-mono font-black text-lg text-slate-900" />
-          {suffix && <span className="text-xs text-slate-400 font-black">{suffix}</span>}
-        </div>
-        {hint && <div className="text-[10px] text-slate-400 mt-1 leading-relaxed">{hint}</div>}
-      </label>
-    );
+    const normalizeNumberText = (raw, allowNegative=false) => {
+      let s = String(raw ?? "").replace(/[，]/g, ".").replace(/[－−–—]/g, "-").replace(/,/g, "").trim();
+      const allowed = allowNegative ? /[^0-9.\-]/g : /[^0-9.]/g;
+      s = s.replace(allowed, "");
+      if (allowNegative) s = s.replace(/(?!^)-/g, "");
+      else s = s.replace(/-/g, "");
+      const parts = s.split(".");
+      if (parts.length > 2) s = parts.shift() + "." + parts.join("");
+      return s;
+    };
+
+    const NumberInput = ({ label, value, onChange, suffix="", hint="", disabled=false, allowNegative=false }) => {
+      const commit = (raw) => onChange(normalizeNumberText(raw, allowNegative));
+      const flipSign = () => {
+        if (disabled) return;
+        const current = normalizeNumberText(value, true);
+        if (!current || current === "0") onChange("-");
+        else if (current.startsWith("-")) onChange(current.slice(1));
+        else onChange("-" + current);
+      };
+      return (
+        <label className={`block bg-slate-50 border rounded-2xl p-3 ${disabled ? "opacity-50" : "border-slate-200 focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-100"}`}>
+          <div className="text-[10px] font-black text-slate-500 mb-1">{label}</div>
+          <div className="flex items-center gap-2">
+            {allowNegative && (
+              <button type="button" disabled={disabled} onClick={flipSign} className="shrink-0 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-black text-sm active:scale-95 disabled:opacity-40">±</button>
+            )}
+            <input
+              disabled={disabled}
+              type="text"
+              inputMode={allowNegative ? "text" : "decimal"}
+              enterKeyHint="done"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              value={value ?? ""}
+              onChange={e => commit(e.target.value)}
+              className="w-full bg-transparent text-center font-mono font-black text-lg text-slate-900 min-h-[44px]"
+              style={{ fontSize: "16px" }}
+            />
+            {suffix && <span className="text-xs text-slate-400 font-black">{suffix}</span>}
+          </div>
+          {allowNegative && <div className="text-[10px] text-slate-400 mt-1 leading-relaxed">三星鍵盤若沒有負號，可先輸入數字再按 ± 切換正負。</div>}
+          {hint && <div className="text-[10px] text-slate-400 mt-1 leading-relaxed">{hint}</div>}
+        </label>
+      );
+    };
 
     const AllocationRow = ({ name, currentPct, targetPct, diff, value, tone="slate" }) => {
       const barTone = tone === "purple" ? "bg-purple-500" : tone === "red" ? "bg-red-500" : tone === "green" ? "bg-emerald-500" : tone === "blue" ? "bg-brand-500" : "bg-slate-500";
@@ -332,25 +427,91 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
       );
     };
 
-    const ActionList = ({ actions, dark=false }) => (
-      <div className={`${dark ? "bg-white/10 border-white/10" : "bg-white border-slate-200"} border rounded-2xl p-4`}>
-        <div className={`text-[11px] font-black mb-2 ${dark ? "text-slate-400" : "text-slate-500"}`}>今日交易清單</div>
-        <ul className="space-y-2">
-          {actions.map((a, i) => {
-            const isBuy = a.includes("買入");
-            const isSell = a.includes("賣出") || a.includes("清空") || a.includes("退回");
-            const badge = isBuy ? "買" : isSell ? "賣" : "訊";
-            const badgeCls = isBuy ? "bg-red-500 text-white" : isSell ? "bg-emerald-500 text-white" : (dark ? "bg-white/10 text-slate-300" : "bg-slate-100 text-slate-500");
-            return (
-              <li key={i} className="flex gap-2 text-sm font-black leading-relaxed items-start">
-                <span className={`mt-0.5 shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[11px] ${badgeCls}`}>{badge}</span>
-                <span className={dark ? "text-white" : "text-slate-800"}>{a}</span>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    );
+    const ActionList = ({ actions, plan=null, dark=false }) => {
+      const sourceItems = getArr(plan?.fundingSources);
+      const buyItems = getArr(plan?.purchases);
+      const targetItems = getArr(plan?.targetSummary);
+      const simpleActions = getArr(actions);
+      const renderMoneyLine = (item, tone) => (
+        <div key={item.name} className="flex items-start justify-between gap-3 py-2 border-b border-slate-100 last:border-b-0">
+          <div className="min-w-0">
+            <div className="text-sm font-black text-slate-800 leading-snug">{item.label}</div>
+            {item.hint && <div className="text-[10px] font-bold text-slate-400 leading-relaxed mt-0.5">{item.hint}</div>}
+          </div>
+          <div className={`font-mono text-sm font-black shrink-0 ${tone}`}>${money(item.amount)}</div>
+        </div>
+      );
+      if (plan) return (
+        <div className="bg-white border border-slate-200 rounded-2xl p-4">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div>
+              <div className="text-[11px] font-black text-slate-500 mb-1">今日交易清單</div>
+              <div className="text-sm font-black text-slate-900 leading-relaxed">{plan.triggerText}</div>
+            </div>
+            <Pill tone={plan.tradeNeeded ? "red" : "green"}>{plan.tradeNeeded ? "需交易" : "不動"}</Pill>
+          </div>
+
+          {plan.stepText && <div className="mb-3 bg-amber-50 border border-amber-100 rounded-2xl p-3 text-xs font-black text-amber-800 leading-relaxed">{plan.stepText}</div>}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3">
+              <div className="text-[10px] font-black text-slate-500 mb-1">資金來源</div>
+              {sourceItems.length ? sourceItems.map(item => renderMoneyLine(item, "text-emerald-600")) : <div className="text-sm font-bold text-slate-400 py-2">沒有需要賣出或動用的部位。</div>}
+            </div>
+            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3">
+              <div className="text-[10px] font-black text-slate-500 mb-1">買入 / 補回</div>
+              {buyItems.length ? buyItems.map(item => renderMoneyLine(item, "text-red-600")) : <div className="text-sm font-bold text-slate-400 py-2">沒有需要買入的部位。</div>}
+            </div>
+          </div>
+
+          <div className="mt-3 bg-slate-950 rounded-2xl p-3 text-white">
+            <div className="text-[10px] font-black text-slate-300 mb-2">執行後目標配置</div>
+            <div className="grid grid-cols-4 gap-2 text-center">
+              {targetItems.map(item => (
+                <div key={item.name} className="bg-white/10 rounded-xl p-2">
+                  <div className="text-[10px] font-black text-slate-300">{item.name}</div>
+                  <div className="font-mono text-sm font-black">{pct(item.pct)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <ul className="mt-3 space-y-2">
+            {simpleActions.map((a, i) => {
+              const isBuy = a.includes("買入") || a.includes("補回");
+              const isSell = a.includes("賣出") || a.includes("動用") || a.includes("清空") || a.includes("退回");
+              const badge = isBuy ? "買" : isSell ? "源" : "訊";
+              const badgeCls = isBuy ? "bg-red-500 text-white" : isSell ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-500";
+              return (
+                <li key={i} className="flex gap-2 text-xs font-bold leading-relaxed items-start">
+                  <span className={`mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${badgeCls}`}>{badge}</span>
+                  <span className="text-slate-500">{a}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      );
+      return (
+        <div className={`${dark ? "bg-white/10 border-white/10" : "bg-white border-slate-200"} border rounded-2xl p-4`}>
+          <div className={`text-[11px] font-black mb-2 ${dark ? "text-slate-400" : "text-slate-500"}`}>今日交易清單</div>
+          <ul className="space-y-2">
+            {simpleActions.map((a, i) => {
+              const isBuy = a.includes("買入");
+              const isSell = a.includes("賣出") || a.includes("清空") || a.includes("退回") || a.includes("動用");
+              const badge = isBuy ? "買" : isSell ? "賣" : "訊";
+              const badgeCls = isBuy ? "bg-red-500 text-white" : isSell ? "bg-emerald-500 text-white" : (dark ? "bg-white/10 text-slate-300" : "bg-slate-100 text-slate-500");
+              return (
+                <li key={i} className="flex gap-2 text-sm font-black leading-relaxed items-start">
+                  <span className={`mt-0.5 shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[11px] ${badgeCls}`}>{badge}</span>
+                  <span className={dark ? "text-white" : "text-slate-800"}>{a}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      );
+    };
 
     const AdvancedGroupTitle = ({ title, desc }) => (
       <div className="px-1 pt-1">
@@ -633,8 +794,9 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
             write("qqq_breakout_active", breakoutActive);
             write("qqq_breakout_lock_price", breakoutLock);
 
-            const stopPct = Math.max(1, getNum(prev.mania_trailing_stop_pct) || 7);
-            const maniaStopNow = hasSpmo && latestHigh > 0 && q <= latestHigh * (1 - stopPct / 100) + 0.01;
+            const stopPct = Math.max(1, getNum(prev.mania_trailing_stop_pct) || 5);
+            const spmoHighForStop = getNum(next.spmo_latest_high || prev.spmo_latest_high);
+            const maniaStopNow = hasSpmo && spmo > 0 && spmoHighForStop > 0 && spmo <= spmoHighForStop * (1 - stopPct / 100) + 0.01;
             if (maniaStopNow) write("mania_cooldown_until_high", latestHigh);
             const cooldownHigh = getNum(next.mania_cooldown_until_high);
             if (cooldownHigh > 0 && q >= cooldownHigh) write("mania_cooldown_until_high", 0);
@@ -701,9 +863,12 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
         const cDD = latestHigh > 0 && pQQQ > 0 && pQQQ < latestHigh ? ((latestHigh - pQQQ) / latestHigh) * 100 : 0;
         const cRise = locked > 0 && pQQQ > 0 ? ((pQQQ - locked) / locked) * 100 : null;
         const cBounce = waveLow > 0 && pQQQ > waveLow ? ((pQQQ - waveLow) / waveLow) * 100 : 0;
-        const maniaStopPct = Math.max(1, getNum(inputs.mania_trailing_stop_pct) || 7);
+        const firstBounce = getArr(inputs.bounce_ladder).map(x => getNum(x.bounce_pct)).filter(v => v > 0).sort((a,b) => a - b)[0] || 8;
+        const maniaStopPct = Math.max(1, getNum(inputs.mania_trailing_stop_pct) || 5);
         const hasSpmo = getNum(inputs.qty_spmo) > 0 || vSPMO > 50;
-        const maniaTrailingExit = hasSpmo && latestHigh > 0 && pQQQ > 0 && pQQQ <= latestHigh * (1 - maniaStopPct / 100) + 0.01;
+        const spmoHigh = getNum(inputs.spmo_latest_high);
+        const cSPMODD = hasSpmo && spmoHigh > 0 && pSPMO > 0 && pSPMO < spmoHigh ? ((spmoHigh - pSPMO) / spmoHigh) * 100 : 0;
+        const maniaTrailingExit = hasSpmo && spmoHigh > 0 && pSPMO > 0 && pSPMO <= spmoHigh * (1 - maniaStopPct / 100) + 0.01;
         const cooldownActive = cooldownHigh > 0 && pQQQ > 0 && pQQQ < cooldownHigh;
         const maniaEntrySignal = !hasSpmo && !cooldownActive && cRise !== null && cRise >= 15;
         const maniaHoldActive = hasSpmo && !maniaTrailingExit;
@@ -713,11 +878,12 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
         let title = "一般核心模式";
         let tone = "blue";
         let instruction = "維持既定配置，不需要動作。";
-        if (maniaTrailingExit) { state = "MANIA_EXIT"; title = "狂熱停損觸發"; tone = "red"; instruction = "賣出 SPMO，核心部位退回 QQQ，並進入冷卻。"; }
-        else if (cooldownActive) { state = "COOLDOWN"; title = "狂熱冷卻中"; tone = "amber"; instruction = "維持 QQQ；QQQ 重新突破冷卻解除價前，不重啟 SPMO。"; }
-        else if (maniaHoldActive || maniaEntrySignal) { state = "MANIA"; title = maniaEntrySignal ? "狂熱模式啟動" : "SPMO 狂熱持有中"; tone = "purple"; instruction = "核心部位目標維持 SPMO；未觸發追蹤停損前，不切回 QQQ / TQQQ。"; }
+        if (maniaTrailingExit) { state = "MANIA_EXIT"; title = "SPMO 退出觸發"; tone = "red"; instruction = "SPMO 自身回撤達門檻，先全數退回 QQQ；同日再依 QQQ 回撤階梯判斷是否轉 TQQQ。"; }
+        else if (maniaHoldActive || maniaEntrySignal) { state = "MANIA"; title = maniaEntrySignal ? "狂熱模式啟動" : "SPMO 狂熱持有中"; tone = "purple"; instruction = "核心部位目標維持 SPMO；未觸發 SPMO 自身回撤退出前，不切回 QQQ / TQQQ。"; }
         else if (inputs.is_bear_meltdown) { state = "MELTDOWN"; title = "熊市熔斷"; tone = "red"; instruction = "停止新增 TQQQ，保留 BOXX，等待熔斷解除。"; }
+        else if (cBounce + EPS >= firstBounce && vTQQQ > 50) { state = "BOUNCE"; title = "反彈卸除區"; tone = "green"; instruction = `QQQ 自本輪低點反彈 ${pct(cBounce)}，依反彈階梯卸除 TQQQ。`; }
         else if (cDD + EPS >= firstDrop) { state = "DRAWDOWN"; title = "回撤加碼區"; tone = "red"; instruction = `QQQ 自本輪高點回撤 ${pct(cDD)}，依階梯配置 TQQQ。`; }
+        else if (cooldownActive) { state = "COOLDOWN"; title = "狂熱冷卻中"; tone = "amber"; instruction = "維持 QQQ；QQQ 重新突破冷卻解除價前，不重啟 SPMO。"; }
         else if (cRise !== null && cRise >= 0) { state = "BREAKOUT"; title = "突破確認中"; tone = "green"; instruction = `QQQ 高於 Locked ATH ${signedPct(cRise)}，尚未達 +15% 則維持 QQQ。`; }
 
         let targetReservePct = reservePct;
@@ -727,38 +893,49 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
 
         if (state === "MANIA") {
           tSPMOPct = coreBasePct; tQQQPct = 0; tTQQQPct = 0;
-        } else if (state === "MANIA_EXIT" || state === "COOLDOWN") {
-          tSPMOPct = 0; tQQQPct = coreBasePct; tTQQQPct = 0;
         } else {
           let tqqqFromCore = 0;
           let tqqqFromReserve = 0;
+          const stopAddAfter = Math.max(0, getNum(inputs.stop_add_after_drawdown_pct) || 30);
           if (cDD + EPS >= firstDrop && !inputs.is_bear_meltdown) {
             getArr(inputs.drop_ladder).forEach(l => {
-              if (cDD + EPS >= getNum(l.drop_pct)) {
+              const level = getNum(l.drop_pct);
+              const allowedByStop = stopAddAfter <= 0 || level < stopAddAfter;
+              if (allowedByStop && cDD + EPS >= level) {
                 tqqqFromCore += getNum(l.move_core_pct);
-                tqqqFromReserve += reservePct * (getNum(l.use_reserve_pct) / 100);
+                tqqqFromReserve += getNum(l.use_reserve_pct);
               }
             });
           }
           let bounceSell = 0;
           let highestBounce = 0;
+          let bounceReserveTarget = 0;
           if (cBounce > 0) {
             getArr(inputs.bounce_ladder).forEach(l => {
-              if (cBounce + EPS >= getNum(l.bounce_pct)) { bounceSell += getNum(l.sell_pct); highestBounce = Math.max(highestBounce, getNum(l.bounce_pct)); }
+              if (cBounce + EPS >= getNum(l.bounce_pct)) {
+                bounceSell += getNum(l.sell_pct);
+                highestBounce = Math.max(highestBounce, getNum(l.bounce_pct));
+                bounceReserveTarget = Math.max(bounceReserveTarget, getNum(l.refill_reserve_pct));
+              }
             });
           }
           bounceSell = Math.min(100, bounceSell);
           const retain = (100 - bounceSell) / 100;
-          tqqqFromCore *= retain;
-          tqqqFromReserve *= retain;
-          targetReservePct = Math.max(0, reservePct - tqqqFromReserve);
+          const coreCapPct = Math.max(0, getNum(inputs.core_tqqq_cap_pct) || 40);
+          const reserveCapPct = Math.max(0, getNum(inputs.reserve_tqqq_cap_pct) || 12);
+          const reserveFloorPct = Math.max(0, getNum(inputs.reserve_floor_pct) || 3);
+          tqqqFromCore = Math.min(coreCapPct, Math.max(0, tqqqFromCore)) * retain;
+          tqqqFromReserve = Math.min(reserveCapPct, Math.max(0, tqqqFromReserve)) * retain;
+          const maxReserveUseByFloor = Math.max(0, reservePct - reserveFloorPct);
+          tqqqFromReserve = Math.min(tqqqFromReserve, maxReserveUseByFloor);
+          targetReservePct = Math.min(reservePct, Math.max(reserveFloorPct, reservePct - tqqqFromReserve, bounceReserveTarget));
           const coreDynamicPct = Math.max(0, 100 - targetReservePct - effectiveSatTargetPct);
           tTQQQPct = Math.min(coreDynamicPct, tqqqFromCore + tqqqFromReserve);
           if (inputs.is_bear_meltdown) tTQQQPct = Math.min(tTQQQPct, (vTQQQ / safeTotal) * 100);
           tSPMOPct = 0;
           tQQQPct = Math.max(0, coreDynamicPct - tTQQQPct);
-          if (bounceSell > 0 && state !== "DRAWDOWN") {
-            instruction = bounceSell >= 100 ? "反彈卸除完成：清空 TQQQ，全部回 QQQ。" : `QQQ 自低點反彈到 ${highestBounce}%，賣出帳上 ${bounceSell}% TQQQ 回 QQQ。`;
+          if (bounceSell > 0) {
+            instruction = bounceSell >= 100 ? "反彈卸除完成：清空 TQQQ，優先補 BOXX 後回 QQQ。" : `QQQ 自低點反彈到 ${highestBounce}%，賣出帳上 ${bounceSell}% TQQQ；BOXX 目標補至 ${pct(bounceReserveTarget, 0)}，剩餘回 QQQ。`;
           }
         }
 
@@ -780,6 +957,57 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
           if (satTargetWarning) actions.unshift(`衛星目標占比合計 ${pct(satTargetRawPct)} 已超過可用上限 ${pct(maxSatTargetPct)}，系統已先用上限計算。`);
           if (!actions.length) actions.push("目前與目標配置差距很小，維持不動。");
         }
+
+        const displayDropLevels = getArr(inputs.drop_ladder)
+          .map(l => ({ level:getNum(l.drop_pct), core:getNum(l.move_core_pct), reserve:getNum(l.use_reserve_pct) }))
+          .filter(l => l.level > 0)
+          .sort((a,b) => a.level - b.level);
+        const displayBounceLevels = getArr(inputs.bounce_ladder)
+          .map(l => ({ level:getNum(l.bounce_pct), sell:getNum(l.sell_pct), reserve:getNum(l.refill_reserve_pct) }))
+          .filter(l => l.level > 0)
+          .sort((a,b) => a.level - b.level);
+        const stopAddAfterForPlan = Math.max(0, getNum(inputs.stop_add_after_drawdown_pct) || 30);
+        const activeDropLevelsForPlan = displayDropLevels.filter(l => cDD + EPS >= l.level && (stopAddAfterForPlan <= 0 || l.level < stopAddAfterForPlan));
+        const activeBounceLevelsForPlan = displayBounceLevels.filter(l => cBounce + EPS >= l.level);
+        const plannedCoreMovePct = activeDropLevelsForPlan.reduce((sum,l) => sum + Math.max(0,l.core), 0);
+        const plannedReserveUsePct = activeDropLevelsForPlan.reduce((sum,l) => sum + Math.max(0,l.reserve), 0);
+        const plannedBounceSellPct = Math.min(100, activeBounceLevelsForPlan.reduce((sum,l) => sum + Math.max(0,l.sell), 0));
+        const moneyItem = (name, label, amount, hint="") => ({ name, label, amount:Math.abs(amount), hint });
+        const fundingSources = [];
+        if (diffQQQ < -50) fundingSources.push(moneyItem("QQQ", "賣出 QQQ", diffQQQ, state === "DRAWDOWN" || state === "MANIA_EXIT" ? "核心部位轉入 TQQQ 的主要來源。" : "依目標配置降低 QQQ。"));
+        if (diffTQQQ < -50) fundingSources.push(moneyItem("TQQQ", "賣出 TQQQ", diffTQQQ, state === "BOUNCE" ? "反彈卸除，降低槓桿。" : "依目標配置降低 TQQQ。"));
+        if (diffSPMO < -50) fundingSources.push(moneyItem("SPMO", "賣出 SPMO", diffSPMO, state === "MANIA_EXIT" ? "SPMO 自身回撤達退出線，先退回 QQQ。" : "依目標配置降低 SPMO。"));
+        if (diffBOXX < -50) fundingSources.push(moneyItem("RESERVE", "動用 BOXX / 現金", diffBOXX, "從儲備撥出資金，通常用於買入 TQQQ。"));
+        const purchases = [];
+        if (diffQQQ > 50) purchases.push(moneyItem("QQQ", "買入 QQQ", diffQQQ, state === "BOUNCE" ? "TQQQ 卸除後回補核心。" : "依目標配置補回 QQQ。"));
+        if (diffTQQQ > 50) purchases.push(moneyItem("TQQQ", "買入 TQQQ", diffTQQQ, state === "DRAWDOWN" || state === "MANIA_EXIT" ? "回撤階梯觸發，使用 QQQ / 儲備轉入。" : "依目標配置補入 TQQQ。"));
+        if (diffSPMO > 50) purchases.push(moneyItem("SPMO", "買入 SPMO", diffSPMO, state === "MANIA" ? "QQQ 突破狂熱門檻，核心轉向 SPMO。" : "依目標配置補入 SPMO。"));
+        if (diffBOXX > 50) purchases.push(moneyItem("RESERVE", "補回 BOXX / 現金", diffBOXX, state === "BOUNCE" ? "反彈卸除後優先補回儲備。" : "依目標儲備水位補回。"));
+        const targetSummary = [
+          { name:"QQQ", pct:tQQQPct },
+          { name:"TQQQ", pct:tTQQQPct },
+          { name:"SPMO", pct:tSPMOPct },
+          { name:"儲備", pct:targetReservePct }
+        ];
+        if (satellitesEnabled) targetSummary.push({ name:"衛星", pct:effectiveSatTargetPct });
+        let triggerText = "目前未觸發加碼 / 減碼階梯。";
+        let stepText = "";
+        if (total <= 0) triggerText = "尚未輸入持倉，暫無交易清單。";
+        else if (state === "MANIA_EXIT") {
+          triggerText = `SPMO 退出：SPMO 自身回撤 -${pct(cSPMODD)}，先退回 QQQ。`;
+          stepText = activeDropLevelsForPlan.length ? `同日檢查 QQQ 回撤 -${pct(cDD)}，已達 ${activeDropLevelsForPlan.map(l => `-${pct(l.level,0)}`).join("、")} 階梯；累計核心轉 TQQQ ${pct(Math.min(getNum(inputs.core_tqqq_cap_pct)||40, plannedCoreMovePct),0)}，儲備動用 ${pct(Math.min(getNum(inputs.reserve_tqqq_cap_pct)||12, plannedReserveUsePct),0)}。` : `同日檢查 QQQ 回撤 -${pct(cDD)}，尚未達第一階 -${pct(firstDrop,0)}，先不加 TQQQ。`;
+        } else if (state === "DRAWDOWN") {
+          triggerText = `觸發回撤階梯：QQQ 回撤 -${pct(cDD)}。`;
+          stepText = activeDropLevelsForPlan.length ? `已達 ${activeDropLevelsForPlan.map(l => `-${pct(l.level,0)}`).join("、")} 階梯；累計核心轉 TQQQ ${pct(Math.min(getNum(inputs.core_tqqq_cap_pct)||40, plannedCoreMovePct),0)}，儲備動用 ${pct(Math.min(getNum(inputs.reserve_tqqq_cap_pct)||12, plannedReserveUsePct),0)}。` : "尚未達有效階梯。";
+        } else if (state === "BOUNCE") {
+          triggerText = `觸發反彈卸除：QQQ 自低點反彈 ${pct(cBounce)}。`;
+          stepText = activeBounceLevelsForPlan.length ? `已達 ${activeBounceLevelsForPlan.map(l => `+${pct(l.level,0)}`).join("、")} 階梯；累計賣出帳上 TQQQ ${pct(plannedBounceSellPct,0)}，並依規則補回 BOXX / 現金。` : "尚未達有效反彈階梯。";
+        } else if (state === "MANIA") {
+          triggerText = maniaEntrySignal ? `觸發狂熱模式：QQQ 距 Locked ATH ${signedPct(cRise || 0)}，核心轉 SPMO。` : "SPMO 狂熱持有中：尚未觸發自身 -5% 退出。";
+        } else if (state === "MELTDOWN") triggerText = "熊市熔斷中：停止新增 TQQQ，只保留必要調整。";
+        else if (state === "COOLDOWN") triggerText = "狂熱冷卻中：不重新買回 SPMO，等待 QQQ 重新突破冷卻價。";
+        else if (state === "BREAKOUT") triggerText = "突破確認中：高於 Locked ATH，但尚未達 +15% 狂熱轉換門檻。";
+        const actionPlan = { triggerText, stepText, fundingSources, purchases, targetSummary, tradeNeeded: total > 0 && (fundingSources.length > 0 || purchases.length > 0) };
 
         const rows = [
           { name:"QQQ", currentPct:vQQQ / safeTotal * 100, targetPct:tQQQPct, diff:diffQQQ, value:vQQQ, tone:"blue" },
@@ -831,14 +1059,15 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
           : "尚未建立 Locked ATH，無法判斷 +15% 狂熱門檻。";
         const cooldownNote = cooldownActive
           ? `目前冷卻中；QQQ 需重新突破 $${money(cooldownHigh, 2)}，才允許下一次 SPMO 狂熱模式。`
-          : (hasSpmo ? `持有 SPMO 時，QQQ 跌破 $${money(latestHigh > 0 ? latestHigh * (1 - maniaStopPct / 100) : 0, 2)} 會觸發狂熱追蹤停損。` : "目前沒有狂熱冷卻限制。" );
+          : (hasSpmo ? `持有 SPMO 時，SPMO 自身跌破 $${money(spmoHigh > 0 ? spmoHigh * (1 - maniaStopPct / 100) : 0, 2)} 會觸發退出，退回 QQQ。` : "目前沒有狂熱冷卻限制。" );
 
         let latestJudgement = "目前資料不足，請先更新報價並輸入持倉。";
         if (total > 0) {
-          if (state === "MANIA_EXIT") latestJudgement = `QQQ 已自狂熱高點回撤達 -${pct(cDD)}，觸發 SPMO 退場；今日偏減碼 / 降風險，照交易清單退回 QQQ。`;
+          if (state === "MANIA_EXIT") latestJudgement = `SPMO 已自自身高點回撤 -${pct(cSPMODD)}，觸發退出；今日先退回 QQQ，並依 QQQ 回撤 -${pct(cDD)} 檢查是否同日轉 TQQQ。`;
           else if (state === "COOLDOWN") latestJudgement = `目前在狂熱冷卻中；QQQ 未重新突破 $${money(cooldownHigh, 2)} 前，不重新買回 SPMO，今日以維持 QQQ 為主。`;
-          else if (state === "MANIA") latestJudgement = hasSpmo ? `目前為 SPMO 狂熱持有中；QQQ 尚未跌破追蹤停損線 $${money(latestHigh > 0 ? latestHigh * (1 - maniaStopPct / 100) : 0, 2)}，暫不切回 QQQ / TQQQ。` : `QQQ 距 Locked ATH 已達 ${signedPct(cRise || 0)}，觸發狂熱模式；今日重點是把核心部位轉向 SPMO。`;
+          else if (state === "MANIA") latestJudgement = hasSpmo ? `目前為 SPMO 狂熱持有中；SPMO 尚未跌破自身退出線 $${money(spmoHigh > 0 ? spmoHigh * (1 - maniaStopPct / 100) : 0, 2)}，暫不切回 QQQ / TQQQ。` : `QQQ 距 Locked ATH 已達 ${signedPct(cRise || 0)}，觸發狂熱模式；今日重點是把核心部位轉向 SPMO。`;
           else if (state === "MELTDOWN") latestJudgement = "熊市熔斷已啟動；停止新增 TQQQ，優先保留 BOXX / 現金，今日只做必要降風險。";
+          else if (state === "BOUNCE") latestJudgement = `QQQ 自本輪低點反彈 ${pct(cBounce)}，已進入反彈卸除；若交易清單出現賣出 TQQQ，就照清單降槓桿並補 BOXX。`;
           else if (state === "DRAWDOWN") latestJudgement = `QQQ 距本輪高點回撤 -${pct(cDD)}，已進入回撤階梯；若交易清單出現 TQQQ / BOXX 動作，就照清單加碼。`;
           else if (state === "BREAKOUT") latestJudgement = `QQQ 高於 Locked ATH ${signedPct(cRise || 0)}，但尚未達 +15% 狂熱門檻；目前不追 SPMO，維持核心配置。`;
           else latestJudgement = `QQQ 距本輪高點回撤 -${pct(cDD)}，尚未達第一階 -${pct(firstDrop, 0)}；目前不用加碼或減碼，照配置維持。`;
@@ -847,11 +1076,11 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
         return {
           prices: { pQQQ, pQQQReal, pTQQQ, pSPMO, pBOXX },
           values: { vQQQ, vTQQQ, vSPMO, vBOXX, cash, vSat, total, growthMarketValue, stockEquivalentExposure, totalLeverageRatio, growthLeverageRatio },
-          state, title, tone, instruction, actions,
+          state, title, tone, instruction, actions, actionPlan,
           rows,
           t: { q:tQQQPct, tq:tTQQQPct, sm:tSPMOPct, r:targetReservePct, sat:effectiveSatTargetPct },
           diff: { q:diffQQQ, tq:diffTQQQ, sm:diffSPMO, r:diffBOXX },
-          high: { locked, latestHigh, waveLow, cDD, cRise, cBounce, cooldownHigh, maniaStopPct, maniaStopLine: latestHigh > 0 ? latestHigh * (1 - maniaStopPct / 100) : 0, high52:getNum(inputs.qqq_history_high_52w), notes:[drawdownNote, maniaNote, cooldownNote] },
+          high: { locked, latestHigh, waveLow, cDD, cRise, cBounce, cooldownHigh, maniaStopPct, spmoHigh, cSPMODD, maniaStopLine: spmoHigh > 0 ? spmoHigh * (1 - maniaStopPct / 100) : 0, high52:getNum(inputs.qqq_history_high_52w), notes:[drawdownNote, maniaNote, cooldownNote] },
           satStats,
           scenario: { ...activeScenario, stressRows, riskMinus10, lossLimit, scenarioLossStatus, riskMinus10Status },
           ux: { primaryAction, tradeNeeded, latestJudgement },
@@ -915,7 +1144,35 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
       };
 
       const copyCommand = async () => {
-        const text = `【Alpha Horizon Core v5.8】\n日期：${todayStr()}\n狀態：${metrics.title}\n總資產市值：$${money(metrics.values.total)}\n股票等效曝險：$${money(metrics.values.stockEquivalentExposure)}\n總曝險槓桿：${metrics.values.totalLeverageRatio.toFixed(2)}x\n成長部位槓桿：${metrics.values.growthLeverageRatio.toFixed(2)}x\n\n今日指令：\n${metrics.actions.map(x => `- ${x}`).join("\n")}\n\n目標配置：QQQ ${pct(metrics.t.q)} / TQQQ ${pct(metrics.t.tq)} / SPMO ${pct(metrics.t.sm)} / BOXX ${pct(metrics.t.r)}${inputs.satellites_enabled ? ` / 衛星 ${pct(metrics.t.sat)}` : ""}`;
+        const sourceLines = getArr(metrics.actionPlan?.fundingSources).length
+          ? getArr(metrics.actionPlan.fundingSources).map(x => `- ${x.label}：約 $${money(x.amount)}`).join("\n")
+          : "- 無";
+        const buyLines = getArr(metrics.actionPlan?.purchases).length
+          ? getArr(metrics.actionPlan.purchases).map(x => `- ${x.label}：約 $${money(x.amount)}`).join("\n")
+          : "- 無";
+        const text = `【Alpha Horizon Pro Aggressive v1.3】
+日期：${todayStr()}
+狀態：${metrics.title}
+總資產市值：$${money(metrics.values.total)}
+股票等效曝險：$${money(metrics.values.stockEquivalentExposure)}
+總曝險槓桿：${metrics.values.totalLeverageRatio.toFixed(2)}x
+成長部位槓桿：${metrics.values.growthLeverageRatio.toFixed(2)}x
+
+觸發狀態：
+${metrics.actionPlan?.triggerText || metrics.instruction}
+${metrics.actionPlan?.stepText ? `
+${metrics.actionPlan.stepText}
+` : ""}
+資金來源：
+${sourceLines}
+
+買入 / 補回：
+${buyLines}
+
+原始指令：
+${metrics.actions.map(x => `- ${x}`).join("\n")}
+
+執行後目標配置：QQQ ${pct(metrics.t.q)} / TQQQ ${pct(metrics.t.tq)} / SPMO ${pct(metrics.t.sm)} / BOXX ${pct(metrics.t.r)}${inputs.satellites_enabled ? ` / 衛星 ${pct(metrics.t.sat)}` : ""}`;
         try {
           await navigator.clipboard.writeText(text);
           showToast("已複製今日指令");
@@ -926,7 +1183,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
         const blob = new Blob([JSON.stringify(inputs, null, 2)], { type:"application/json" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = `alpha-horizon-core-v5-8-${todayStr()}.json`;
+        a.download = `alpha-horizon-aggressive-v1-3-${todayStr()}.json`;
         a.click();
         URL.revokeObjectURL(a.href);
       };
@@ -995,6 +1252,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
           total: metrics.values.total,
           leverage: metrics.values.totalLeverageRatio,
           actions: metrics.actions,
+          action_plan: metrics.actionPlan,
           instruction: metrics.instruction,
           latest_judgement: metrics.ux.latestJudgement,
           target: metrics.t,
@@ -1079,7 +1337,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
                   <div className="text-sm font-black text-slate-900 leading-snug">{metrics.scenario.riskMinus10.biggest ? `${metrics.scenario.riskMinus10.biggest.name}｜QQQ -10% 約 ${metrics.scenario.riskMinus10.biggest.pnl >= 0 ? "+" : "-"}$${money(Math.abs(metrics.scenario.riskMinus10.biggest.pnl))}` : "尚無成長部位"}</div>
                 </div>
               </div>
-              <ActionList actions={metrics.actions} />
+              <ActionList actions={metrics.actions} plan={metrics.actionPlan} />
               {inputs.motto_visible !== false && (
                 <div className="mt-4 bg-slate-50 border border-slate-200 rounded-2xl p-3">
                   <div className="text-[10px] font-black text-slate-500 mb-1">座右銘</div>
@@ -1112,7 +1370,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
                     <div className="font-mono text-2xl font-black text-slate-900">{signedPct(metrics.scenario.movePct)}</div>
                   </div>
                   <div className="w-32">
-                    <NumberInput label="手動輸入" value={inputs.scenario_qqq_move_pct} onChange={v => setField("scenario_qqq_move_pct", v)} suffix="%" />
+                    <NumberInput label="手動輸入" value={inputs.scenario_qqq_move_pct} onChange={v => setField("scenario_qqq_move_pct", v)} suffix="%" allowNegative />
                   </div>
                 </div>
                 <div className="grid grid-cols-5 gap-2">
@@ -1188,12 +1446,12 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
               <div className="bg-slate-50 rounded-2xl p-3 border border-slate-200">
                 <div className="text-[10px] font-black text-slate-500">本輪最新高點</div>
                 <div className="font-mono font-black text-lg">${money(metrics.high.latestHigh, 2)}</div>
-                <div className="text-[10px] text-slate-500 mt-1">回撤 / 追蹤停損用</div>
+                <div className="text-[10px] text-slate-500 mt-1">QQQ 回撤階梯用</div>
               </div>
               <div className="bg-red-50 rounded-2xl p-3 border border-red-100">
                 <div className="text-[10px] font-black text-red-600">距離本輪高點</div>
                 <div className="font-mono font-black text-lg text-red-700">-{pct(metrics.high.cDD)}</div>
-                <div className="text-[10px] text-red-600 mt-1">TQQQ 階梯與停損用</div>
+                <div className="text-[10px] text-red-600 mt-1">TQQQ 階梯用</div>
               </div>
               <div className="bg-emerald-50 rounded-2xl p-3 border border-emerald-100">
                 <div className="text-[10px] font-black text-emerald-600">本輪反彈低點</div>
@@ -1202,7 +1460,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
               </div>
             </div>
             <div className="mt-3 bg-purple-100 border border-purple-300 rounded-2xl p-3 text-xs text-purple-950 font-bold leading-relaxed">
-              <b>SPMO 停損線：</b>${money(metrics.high.maniaStopLine, 2)}。若持有 SPMO 且 QQQ 跌破此線，核心退回 QQQ，冷卻解除價為 ${money(metrics.high.cooldownHigh, 2)}。
+              <b>SPMO 退出線：</b>${money(metrics.high.maniaStopLine, 2)}。若持有 SPMO 且 SPMO 自身跌破此線，核心退回 QQQ；同日再依 QQQ 回撤 ${pct(metrics.high.cDD)} 檢查 TQQQ 階梯。冷卻解除價為 ${money(metrics.high.cooldownHigh, 2)}。
             </div>
           </CollapsibleCard>
         </main>
@@ -1235,7 +1493,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
                         <span className="shrink-0 text-[11px] font-black bg-white border border-slate-200 text-slate-500 px-3 py-2 rounded-xl group-open:bg-slate-950 group-open:text-white">展開</span>
                       </summary>
                       <div className="mt-3 border-t border-slate-200 pt-3 space-y-3">
-                        <ActionList actions={getArr(r.actions).length ? getArr(r.actions) : ["無動作紀錄"]} />
+                        <ActionList actions={getArr(r.actions).length ? getArr(r.actions) : ["無動作紀錄"]} plan={r.action_plan} />
                         {r.latest_judgement && (
                           <div className="bg-brand-50 border border-brand-100 rounded-2xl p-3 text-xs font-bold text-slate-700 leading-relaxed">
                             <div className="text-[10px] font-black text-brand-600 mb-1">當時最新判讀</div>
@@ -1339,8 +1597,12 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
                 <div className="font-mono font-black text-xl text-brand-900">{pct(Math.max(0, 100 - Math.min(100, Math.max(0, getNum(inputs.reserve_target_pct))) - (inputs.satellites_enabled ? Math.min(getArr(inputs.satellites).reduce((sum, s) => sum + Math.max(0, getNum(s.target_pct)), 0), Math.max(0, 100 - Math.min(100, Math.max(0, getNum(inputs.reserve_target_pct))))) : 0)))}</div>
                 <div className="text-[10px] text-brand-700 mt-1 leading-relaxed">公式：100% - BOXX - 衛星。核心-only 時預設為 85%。</div>
               </div>
-              <NumberInput label="BOXX / 現金目標" value={inputs.reserve_target_pct} onChange={v => setField("reserve_target_pct", v)} suffix="%" />
-              <NumberInput label="狂熱追蹤停損" value={inputs.mania_trailing_stop_pct} onChange={v => setField("mania_trailing_stop_pct", v)} suffix="%" hint="預設 7%，越小越容易退出 SPMO" />
+              <NumberInput label="BOXX / 現金目標" value={inputs.reserve_target_pct} onChange={v => setField("reserve_target_pct", v)} suffix="%" disabled={paramLocked} />
+              <NumberInput label="BOXX 底線" value={inputs.reserve_floor_pct} onChange={v => setField("reserve_floor_pct", v)} suffix="%" hint="預設 3%，保留極端風險底線" disabled={paramLocked} />
+              <NumberInput label="核心轉 TQQQ 上限" value={inputs.core_tqqq_cap_pct} onChange={v => setField("core_tqqq_cap_pct", v)} suffix="%" hint="預設 40%，以總資產計" disabled={paramLocked} />
+              <NumberInput label="BOXX 動用上限" value={inputs.reserve_tqqq_cap_pct} onChange={v => setField("reserve_tqqq_cap_pct", v)} suffix="%" hint="預設 12%，以總資產計" disabled={paramLocked} />
+              <NumberInput label="停止新增 TQQQ 回撤" value={inputs.stop_add_after_drawdown_pct} onChange={v => setField("stop_add_after_drawdown_pct", v)} suffix="%" hint="預設 30%，達此回撤後不再增加新階梯" disabled={paramLocked} />
+              <NumberInput label="SPMO 退出回撤" value={inputs.mania_trailing_stop_pct} onChange={v => setField("mania_trailing_stop_pct", v)} suffix="%" hint="策略固定預設 5%，以 SPMO 自身高點回撤計算；可解鎖後自訂" disabled={paramLocked} />
               <NumberInput label="模擬 QQQ 價格" value={inputs.sim_qqq_price} onChange={v => setField("sim_qqq_price", v)} hint="空白＝使用即時報價；填入後只用來測試策略情境" />
               <label className="block bg-slate-50 border border-slate-200 rounded-2xl p-3 col-span-2">
                 <div className="text-[10px] font-black text-slate-500 mb-1">熊市熔斷</div>
@@ -1350,7 +1612,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
           </CollapsibleCard>
 
           <AdvancedGroupTitle title="模擬參數" desc="只影響風險估算，不影響交易訊號。" />
-          <CollapsibleCard id="param-lock" title="參數鎖定" desc="避免手機誤觸。解鎖後才能調整策略階梯、追蹤停損與模擬係數。" right={ <Pill tone={paramLocked ? "amber" : "green"}>{paramLocked ? "已鎖定" : "可編輯"}</Pill> } defaultOpen={true}>
+          <CollapsibleCard id="param-lock" title="參數鎖定" desc="避免手機誤觸。解鎖後才能調整策略階梯、SPMO 退出與模擬係數。" right={ <Pill tone={paramLocked ? "amber" : "green"}>{paramLocked ? "已鎖定" : "可編輯"}</Pill> } defaultOpen={true}>
             <button onClick={() => setField("params_unlocked", !inputs.params_unlocked)} className={`w-full min-h-[48px] rounded-2xl text-sm font-black active:scale-95 ${paramLocked ? "bg-slate-950 text-white" : "bg-emerald-600 text-white"}`}>{paramLocked ? "解鎖參數" : "鎖定參數"}</button>
             <div className="mt-3 text-[11px] text-slate-500 leading-relaxed bg-slate-50 border border-slate-200 rounded-2xl p-3">
               持倉股數、現金與最大可承受損失仍可直接修改；策略相關參數鎖定後會防止誤改。
@@ -1384,7 +1646,7 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
               <button onClick={() => fetchQQQHistory(true)} className="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-700 text-xs font-black active:scale-95">同步 52W</button>
             </div>
             <div className="mt-3 text-[11px] text-slate-500 leading-relaxed bg-slate-50 border border-slate-200 rounded-2xl p-3">
-              <b>判讀：</b>Locked ATH 是「上個 52W 收盤高」，只算 +15% 狂熱突破；本輪最新高點才是算 QQQ 回撤、TQQQ 階梯與 SPMO 追蹤停損；本輪反彈低點只有回撤達第一階後才開始記錄。
+              <b>判讀：</b>Locked ATH 是「上個 52W 收盤高」，只算 +15% 狂熱突破；本輪最新高點用來算 QQQ 回撤與 TQQQ 階梯；SPMO 退出只看 SPMO 自身高點，不再做 QQQ / SPMO 相對強弱比較；本輪反彈低點只有回撤達第一階後才開始記錄。
             </div>
           </CollapsibleCard>
 
@@ -1394,15 +1656,16 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
                 <div key={l.id || i} className="grid grid-cols-3 gap-2 bg-slate-50 border border-slate-200 rounded-2xl p-2">
                   <NumberInput label="回撤" value={l.drop_pct} onChange={v => updateArr("drop_ladder", l.id, "drop_pct", v)} suffix="%" disabled={paramLocked} />
                   <NumberInput label="核心轉 TQQQ" value={l.move_core_pct} onChange={v => updateArr("drop_ladder", l.id, "move_core_pct", v)} suffix="%" disabled={paramLocked} />
-                  <NumberInput label="動用 BOXX" value={l.use_reserve_pct} onChange={v => updateArr("drop_ladder", l.id, "use_reserve_pct", v)} suffix="%" disabled={paramLocked} />
+                  <NumberInput label="動用 BOXX（總資產）" value={l.use_reserve_pct} onChange={v => updateArr("drop_ladder", l.id, "use_reserve_pct", v)} suffix="%" disabled={paramLocked} />
                 </div>
               ))}
             </div>
             <div className="mt-4 space-y-3">
               {getArr(inputs.bounce_ladder).map((l, i) => (
-                <div key={l.id || i} className="grid grid-cols-2 gap-2 bg-emerald-50 border border-emerald-100 rounded-2xl p-2">
+                <div key={l.id || i} className="grid grid-cols-3 gap-2 bg-emerald-50 border border-emerald-100 rounded-2xl p-2">
                   <NumberInput label="自低點反彈" value={l.bounce_pct} onChange={v => updateArr("bounce_ladder", l.id, "bounce_pct", v)} suffix="%" disabled={paramLocked} />
                   <NumberInput label="賣出 TQQQ" value={l.sell_pct} onChange={v => updateArr("bounce_ladder", l.id, "sell_pct", v)} suffix="%" disabled={paramLocked} />
+                  <NumberInput label="BOXX 補至" value={l.refill_reserve_pct} onChange={v => updateArr("bounce_ladder", l.id, "refill_reserve_pct", v)} suffix="%" disabled={paramLocked} />
                 </div>
               ))}
             </div>
@@ -1454,8 +1717,8 @@ Locked ATH：狂熱突破基準，代表「上一個 52 週收盤高」。突破
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-2xl bg-slate-950 flex items-center justify-center text-brand-400 font-black text-xl">A</div>
                 <div className="min-w-0">
-                  <div className="font-black leading-tight truncate">Alpha Horizon Core</div>
-                  <div className="text-[10px] font-black text-brand-600 tracking-widest">v5.9 SYNC</div>
+                  <div className="font-black leading-tight truncate">Alpha Horizon Pro</div>
+                  <div className="text-[10px] font-black text-brand-600 tracking-widest">Aggressive v1.3</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">

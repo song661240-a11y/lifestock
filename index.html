@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="color-scheme" content="light only" />
-  <title>Alpha Horizon Pro Aggressive v2.5 Tracking Labels + Scroll Fix</title>
+  <title>Alpha Horizon Pro Aggressive v2.7 Signal Notes</title>
   <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230f172a'/><path d='M24 72 L50 24 L76 72' stroke='%233b82f6' stroke-width='11' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='50' cy='24' r='7' fill='%233b82f6'/></svg>" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -104,11 +104,11 @@
     const pct = (v, digits = 1) => `${Number(v || 0).toFixed(digits)}%`;
     const signedPct = (v, digits = 1) => `${v >= 0 ? "+" : ""}${Number(v || 0).toFixed(digits)}%`;
     const EPS = 1e-6;
-    const APP_VERSION = "Aggressive v2.5 Tracking Labels + Scroll Fix";
-    const DATA_VERSION = "aggressive-v2.5-tracking-scroll-fix";
+    const APP_VERSION = "Aggressive v2.7 Signal Notes";
+    const DATA_VERSION = "aggressive-v2.7-signal-notes";
 
     // --- 3) Strategy defaults ---
-    const PLAN_TEXT = `Alpha Horizon Pro Aggressive 簡化版 v2.5 Tracking Labels + Scroll Fix
+    const PLAN_TEXT = `Alpha Horizon Pro Aggressive 簡化版 v2.7 Signal Notes
 — 執行摘要 —
 
 1. 常態配置：核心 75% QQQ、衛星 10%（可關閉）、BOXX / 現金 15%；核心-only 時核心提高至 85%。
@@ -128,7 +128,7 @@
       { id:"d4", drop_pct:20, move_core_pct:10, use_reserve_pct:2 },
       { id:"d5", drop_pct:25, move_core_pct:0, use_reserve_pct:1 }
     ];
-    const DEFAULT_MANIA_ENTRY_PCT = 15; // QQQ 高於 Locked ATH +15% 時，核心轉 SPMO
+    const DEFAULT_MANIA_ENTRY_PCT = 15; // QQQ 高於 SPMO 進場基準價 +15% 時，核心轉 SPMO
     const DEFAULT_SPMO_EXIT_DRAWDOWN_PCT = 5; // SPMO 自身高點回撤 -5% 時退出
 
     const DEFAULT_BOUNCE_LADDER = [
@@ -242,6 +242,7 @@
       next.params_unlocked = next.params_unlocked === true;
       next.mania_trailing_stop_pct = getNum(next.mania_trailing_stop_pct) || DEFAULT_SPMO_EXIT_DRAWDOWN_PCT;
       next.mania_entry_pct = next.mania_entry_pct === undefined || next.mania_entry_pct === null || next.mania_entry_pct === "" ? DEFAULT_MANIA_ENTRY_PCT : Math.max(0, getNum(next.mania_entry_pct));
+      next.mania_cooldown_until_high = 0; // v2.6 起取消獨立冷卻價，回到 SPMO 觸發價才重新進場。
       next.planText = PLAN_TEXT;
       next.version = DATA_VERSION;
       return next;
@@ -293,7 +294,16 @@
       return s;
     };
 
-    const NumberInput = ({ label, value, onChange, suffix="", hint="", disabled=false, allowNegative=false }) => {
+    const NumberInput = ({ label, value, onChange, suffix="", hint="", disabled=false, allowNegative=false, tone="slate" }) => {
+      const toneMap = {
+        slate: { box:"bg-slate-50 border-slate-200 focus-within:border-brand-400 focus-within:ring-brand-100", label:"text-slate-500", suffix:"text-slate-400" },
+        purple: { box:"bg-purple-50 border-purple-200 focus-within:border-purple-400 focus-within:ring-purple-100", label:"text-purple-700", suffix:"text-purple-500" },
+        red: { box:"bg-red-50 border-red-200 focus-within:border-red-400 focus-within:ring-red-100", label:"text-red-700", suffix:"text-red-500" },
+        emerald: { box:"bg-emerald-50 border-emerald-200 focus-within:border-emerald-400 focus-within:ring-emerald-100", label:"text-emerald-700", suffix:"text-emerald-500" },
+        amber: { box:"bg-amber-50 border-amber-200 focus-within:border-amber-400 focus-within:ring-amber-100", label:"text-amber-700", suffix:"text-amber-500" },
+        blue: { box:"bg-brand-50 border-brand-200 focus-within:border-brand-400 focus-within:ring-brand-100", label:"text-brand-700", suffix:"text-brand-500" }
+      };
+      const skin = toneMap[tone] || toneMap.slate;
       const commit = (raw) => onChange(normalizeNumberText(raw, allowNegative));
       const flipSign = () => {
         if (disabled) return;
@@ -303,8 +313,8 @@
         else onChange("-" + current);
       };
       return (
-        <label className={`block bg-slate-50 border rounded-2xl p-3 ${disabled ? "opacity-50" : "border-slate-200 focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-100"}`}>
-          <div className="text-[10px] font-black text-slate-500 mb-1">{label}</div>
+        <label className={`block border rounded-2xl p-3 ${disabled ? `${skin.box} opacity-70` : `${skin.box} focus-within:ring-2`}`}>
+          <div className={`text-[10px] font-black mb-1 ${skin.label}`}>{label}</div>
           <div className="flex items-center gap-2">
             {allowNegative && (
               <button type="button" disabled={disabled} onClick={flipSign} className="shrink-0 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-black text-sm active:scale-95 disabled:opacity-40">±</button>
@@ -322,7 +332,7 @@
               className="w-full bg-transparent text-center font-mono font-black text-lg text-slate-900 min-h-[44px]"
               style={{ fontSize: "16px" }}
             />
-            {suffix && <span className="text-xs text-slate-400 font-black">{suffix}</span>}
+            {suffix && <span className={`text-xs font-black ${skin.suffix}`}>{suffix}</span>}
           </div>
           {allowNegative && <div className="text-[10px] text-slate-400 mt-1 leading-relaxed">三星鍵盤若沒有負號，可先輸入數字再按 ± 切換正負。</div>}
           {hint && <div className="text-[10px] text-slate-400 mt-1 leading-relaxed">{hint}</div>}
@@ -791,9 +801,8 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
                 if (prev.auto_high_tracking === false) return prev;
                 const q = getNum(prices.QQQ);
                 const hasSpmo = getNum(prev.qty_spmo) > 0;
-                const cooldown = getNum(prev.mania_cooldown_until_high) > 0;
-                const next = { ...prev, qqq_history_high_52w: round2(high52w), qqq_history_sync_date: todayStr() };
-                if (!hasSpmo && !cooldown) {
+                const next = { ...prev, qqq_history_high_52w: round2(high52w), qqq_history_sync_date: todayStr(), mania_cooldown_until_high: 0 };
+                if (!hasSpmo) {
                   next.qqq_locked_ath = round2(high52w);
                   next.qqq_breakout_active = q > high52w;
                   next.qqq_breakout_lock_price = q > high52w ? round2(high52w) : 0;
@@ -876,15 +885,12 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
             const stopPct = Math.max(1, getNum(prev.mania_trailing_stop_pct) || 5);
             const spmoHighForStop = getNum(next.spmo_latest_high || prev.spmo_latest_high);
             const maniaStopNow = hasSpmo && spmo > 0 && spmoHighForStop > 0 && spmo <= spmoHighForStop * (1 - stopPct / 100) + 0.01;
-            if (maniaStopNow) write("mania_cooldown_until_high", latestHigh);
-            const cooldownHigh = getNum(next.mania_cooldown_until_high);
-            if (cooldownHigh > 0 && q >= cooldownHigh) write("mania_cooldown_until_high", 0);
+            write("mania_cooldown_until_high", 0);
 
-            const cooldownNow = getNum(next.mania_cooldown_until_high) > 0 && q < getNum(next.mania_cooldown_until_high);
             const riseFromLocked = locked > 0 ? ((q - locked) / locked) * 100 : 0;
             const maniaEntryPct = Math.max(0, numWithDefault(prev.mania_entry_pct, DEFAULT_MANIA_ENTRY_PCT));
-            const maniaNow = !cooldownNow && (hasSpmo || riseFromLocked >= maniaEntryPct);
-            write("auto_tracking_state", maniaStopNow ? "MANIA_EXIT" : (cooldownNow ? "COOLDOWN" : (maniaNow ? "MANIA" : (currentDD >= drop1 ? "DRAWDOWN" : "BASE"))));
+            const maniaNow = hasSpmo || riseFromLocked >= maniaEntryPct;
+            write("auto_tracking_state", maniaStopNow ? "MANIA_EXIT" : (maniaNow ? "MANIA" : (currentDD >= drop1 ? "DRAWDOWN" : "BASE")));
             write("auto_tracking_last_sync", todayStr());
           }
 
@@ -940,7 +946,7 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
         const locked = getNum(inputs.qqq_locked_ath);
         const latestHigh = getNum(inputs.qqq_latest_high);
         const waveLow = getNum(inputs.qqq_wave_low);
-        const cooldownHigh = getNum(inputs.mania_cooldown_until_high);
+        const cooldownHigh = 0;
         const cDD = latestHigh > 0 && pQQQ > 0 && pQQQ < latestHigh ? ((latestHigh - pQQQ) / latestHigh) * 100 : 0;
         const cRise = locked > 0 && pQQQ > 0 ? ((pQQQ - locked) / locked) * 100 : null;
         const cBounce = waveLow > 0 && pQQQ > waveLow ? ((pQQQ - waveLow) / waveLow) * 100 : 0;
@@ -959,8 +965,9 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
         const spmoHigh = getNum(inputs.spmo_latest_high);
         const cSPMODD = hasSpmo && spmoHigh > 0 && pSPMO > 0 && pSPMO < spmoHigh ? ((spmoHigh - pSPMO) / spmoHigh) * 100 : 0;
         const maniaTrailingExit = hasSpmo && spmoHigh > 0 && pSPMO > 0 && pSPMO <= spmoHigh * (1 - maniaStopPct / 100) + 0.01;
-        const cooldownActive = cooldownHigh > 0 && pQQQ > 0 && pQQQ < cooldownHigh;
-        const maniaEntrySignal = !hasSpmo && !cooldownActive && cRise !== null && cRise + EPS >= maniaEntryPct;
+        const maniaTriggerPrice = locked > 0 ? locked * (1 + maniaEntryPct / 100) : 0;
+        const cooldownActive = false;
+        const maniaEntrySignal = !hasSpmo && cRise !== null && cRise + EPS >= maniaEntryPct;
         const maniaHoldActive = hasSpmo && !maniaTrailingExit;
         const firstDrop = dropLadderSorted[0]?.drop_pct || firstDropPct(inputs.drop_ladder);
 
@@ -973,8 +980,7 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
         else if (inputs.is_bear_meltdown) { state = "MELTDOWN"; title = "熊市熔斷"; tone = "red"; instruction = "停止新增 TQQQ，保留 BOXX，等待熔斷解除。"; }
         else if (cBounce + EPS >= firstBounce && vTQQQ > 50) { state = "BOUNCE"; title = "反彈卸除區"; tone = "green"; instruction = `QQQ 自本輪低點反彈 ${pct(cBounce)}，依反彈階梯卸除 TQQQ。`; }
         else if (cDD + EPS >= firstDrop) { state = "DRAWDOWN"; title = "回撤加碼區"; tone = "red"; instruction = `QQQ 自本輪高點回撤 ${pct(cDD)}，依階梯配置 TQQQ。`; }
-        else if (cooldownActive) { state = "COOLDOWN"; title = "狂熱冷卻中"; tone = "amber"; instruction = "維持 QQQ；QQQ 重新突破冷卻解除價前，不重啟 SPMO。"; }
-        else if (cRise !== null && cRise >= 0) { state = "BREAKOUT"; title = "突破確認中"; tone = "green"; instruction = `QQQ 高於 Locked ATH ${signedPct(cRise)}，尚未達 +${pct(maniaEntryPct, 0)} 則維持 QQQ。`; }
+        else if (cRise !== null && cRise >= 0) { state = "BREAKOUT"; title = "突破確認中"; tone = "green"; instruction = `QQQ 高於 SPMO 進場基準價 ${signedPct(cRise)}，尚未達 +${pct(maniaEntryPct, 0)} 則維持 QQQ。`; }
 
         let targetReservePct = reservePct;
         let tQQQPct = coreBasePct;
@@ -1093,10 +1099,9 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
           triggerText = `觸發反彈卸除：QQQ 自低點反彈 ${pct(cBounce)}。`;
           stepText = activeBounceLevelsForPlan.length ? `已達 ${activeBounceLevelsForPlan.map(l => `+${pct(l.level,0)}`).join("、")} 階梯；累計賣出帳上 TQQQ ${pct(plannedBounceSellPct,0)}，並依規則補回 BOXX / 現金。` : "尚未達有效反彈階梯。";
         } else if (state === "MANIA") {
-          triggerText = maniaEntrySignal ? `觸發狂熱模式：QQQ 距 Locked ATH ${signedPct(cRise || 0)}，核心轉 SPMO。` : "SPMO 狂熱持有中：尚未觸發自身 -5% 退出。";
+          triggerText = maniaEntrySignal ? `觸發狂熱模式：QQQ 距 SPMO 進場基準價 ${signedPct(cRise || 0)}，核心轉 SPMO。` : "SPMO 狂熱持有中：尚未觸發自身 -5% 退出。";
         } else if (state === "MELTDOWN") triggerText = "熊市熔斷中：停止新增 TQQQ，只保留必要調整。";
-        else if (state === "COOLDOWN") triggerText = "狂熱冷卻中：不重新買回 SPMO，等待 QQQ 重新突破冷卻價。";
-        else if (state === "BREAKOUT") triggerText = `突破確認中：高於 Locked ATH，但尚未達 +${pct(maniaEntryPct, 0)} 狂熱轉換門檻。`;
+        else if (state === "BREAKOUT") triggerText = `突破確認中：高於 SPMO 進場基準價，但尚未達 +${pct(maniaEntryPct, 0)} 狂熱轉換門檻。`;
         const actionPlan = { triggerText, stepText, fundingSources, purchases, targetSummary, tradeNeeded: total > 0 && (fundingSources.length > 0 || purchases.length > 0) };
 
         const rows = [
@@ -1144,21 +1149,20 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
           ? `QQQ 距離本輪高點回撤 -${pct(cDD)}，${cDD + EPS >= firstDrop ? `已達第一階 -${pct(firstDrop, 0)}，會進入 TQQQ 階梯判斷。` : `尚未達第一階 -${pct(firstDrop, 0)}，不啟動 TQQQ 加碼。`}`
           : "尚未建立本輪最新高點，請先更新 QQQ 報價或同步 52W。";
         const maniaNote = locked > 0 && cRise !== null
-          ? `狂熱基準 Locked ATH 為 $${money(locked, 2)}，目前距離基準 ${signedPct(cRise)}，${cRise + EPS >= maniaEntryPct ? `已達 +${pct(maniaEntryPct, 0)} 狂熱門檻。` : `尚未達 +${pct(maniaEntryPct, 0)}，不轉 SPMO。`}`
-          : "尚未建立 Locked ATH，無法判斷狂熱門檻。";
-        const cooldownNote = cooldownActive
-          ? `目前冷卻中；QQQ 需重新突破 $${money(cooldownHigh, 2)}，才允許下一次 SPMO 狂熱模式。`
-          : (hasSpmo ? `持有 SPMO 時，SPMO 自身跌破 $${money(spmoHigh > 0 ? spmoHigh * (1 - maniaStopPct / 100) : 0, 2)} 會觸發退出，退回 QQQ。` : "目前沒有狂熱冷卻限制。" );
+          ? `SPMO 進場基準價為 $${money(locked, 2)}，目前距離基準 ${signedPct(cRise)}，${cRise + EPS >= maniaEntryPct ? `已達 +${pct(maniaEntryPct, 0)} 狂熱門檻。` : `尚未達 +${pct(maniaEntryPct, 0)}，不轉 SPMO。`}`
+          : "尚未建立 SPMO 進場基準價，無法判斷狂熱門檻。";
+        const exitNote = hasSpmo
+          ? `持有 SPMO 時，SPMO 自身跌破 $${money(spmoHigh > 0 ? spmoHigh * (1 - maniaStopPct / 100) : 0, 2)} 會觸發退出，退回 QQQ。`
+          : `沒有獨立冷卻價；退出 SPMO 後，下一次仍看同一個 SPMO 觸發價 $${money(maniaTriggerPrice, 2)}。`;
 
         let latestJudgement = "目前資料不足，請先更新報價並輸入持倉。";
         if (total > 0) {
           if (state === "MANIA_EXIT") latestJudgement = `SPMO 已自自身高點回撤 -${pct(cSPMODD)}，觸發退出；今日先退回 QQQ，並依 QQQ 回撤 -${pct(cDD)} 檢查是否同日轉 TQQQ。`;
-          else if (state === "COOLDOWN") latestJudgement = `目前在狂熱冷卻中；QQQ 未重新突破 $${money(cooldownHigh, 2)} 前，不重新買回 SPMO，今日以維持 QQQ 為主。`;
-          else if (state === "MANIA") latestJudgement = hasSpmo ? `目前為 SPMO 狂熱持有中；SPMO 尚未跌破自身退出線 $${money(spmoHigh > 0 ? spmoHigh * (1 - maniaStopPct / 100) : 0, 2)}，暫不切回 QQQ / TQQQ。` : `QQQ 距 Locked ATH 已達 ${signedPct(cRise || 0)}，觸發狂熱模式；今日重點是把核心部位轉向 SPMO。`;
+          else if (state === "MANIA") latestJudgement = hasSpmo ? `目前為 SPMO 狂熱持有中；SPMO 尚未跌破自身退出線 $${money(spmoHigh > 0 ? spmoHigh * (1 - maniaStopPct / 100) : 0, 2)}，暫不切回 QQQ / TQQQ。` : `QQQ 距 SPMO 進場基準價 已達 ${signedPct(cRise || 0)}，觸發狂熱模式；今日重點是把核心部位轉向 SPMO。`;
           else if (state === "MELTDOWN") latestJudgement = "熊市熔斷已啟動；停止新增 TQQQ，優先保留 BOXX / 現金，今日只做必要降風險。";
           else if (state === "BOUNCE") latestJudgement = `QQQ 自本輪低點反彈 ${pct(cBounce)}，已進入反彈卸除；若交易清單出現賣出 TQQQ，就照清單降槓桿並補 BOXX。`;
           else if (state === "DRAWDOWN") latestJudgement = `QQQ 距本輪高點回撤 -${pct(cDD)}，已進入回撤階梯；若交易清單出現 TQQQ / BOXX 動作，就照清單加碼。`;
-          else if (state === "BREAKOUT") latestJudgement = `QQQ 高於 Locked ATH ${signedPct(cRise || 0)}，但尚未達 +${pct(maniaEntryPct, 0)} 狂熱門檻；目前不追 SPMO，維持核心配置。`;
+          else if (state === "BREAKOUT") latestJudgement = `QQQ 高於 SPMO 進場基準價 ${signedPct(cRise || 0)}，但尚未達 +${pct(maniaEntryPct, 0)} 狂熱門檻；目前不追 SPMO，維持核心配置。`;
           else latestJudgement = `QQQ 距本輪高點回撤 -${pct(cDD)}，尚未達第一階 -${pct(firstDrop, 0)}；目前不用加碼或減碼，照配置維持。`;
         }
 
@@ -1169,7 +1173,7 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
           rows,
           t: { q:tQQQPct, tq:tTQQQPct, sm:tSPMOPct, r:targetReservePct, sat:effectiveSatTargetPct },
           diff: { q:diffQQQ, tq:diffTQQQ, sm:diffSPMO, r:diffBOXX },
-          high: { locked, latestHigh, waveLow, cDD, cRise, cBounce, cooldownHigh, maniaStopPct, maniaEntryPct, spmoHigh, cSPMODD, maniaStopLine: spmoHigh > 0 ? spmoHigh * (1 - maniaStopPct / 100) : 0, high52:getNum(inputs.qqq_history_high_52w), notes:[drawdownNote, maniaNote, cooldownNote] },
+          high: { locked, latestHigh, waveLow, cDD, cRise, cBounce, cooldownHigh, maniaTriggerPrice, maniaStopPct, maniaEntryPct, spmoHigh, cSPMODD, maniaStopLine: spmoHigh > 0 ? spmoHigh * (1 - maniaStopPct / 100) : 0, high52:getNum(inputs.qqq_history_high_52w), notes:[drawdownNote, maniaNote, exitNote] },
           satStats,
           scenario: { ...activeScenario, stressRows, riskMinus10, lossLimit, scenarioLossStatus, riskMinus10Status },
           ux: { primaryAction, tradeNeeded, latestJudgement },
@@ -1233,7 +1237,7 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
         const blob = new Blob([JSON.stringify(inputs, null, 2)], { type:"application/json" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = `alpha-horizon-aggressive-v2-5-${todayStr()}.json`;
+        a.download = `alpha-horizon-aggressive-v2-7-${todayStr()}.json`;
         a.click();
         URL.revokeObjectURL(a.href);
       };
@@ -1491,29 +1495,29 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
               {metrics.high.notes.map((note, i) => <div key={i} className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-700 leading-relaxed">{note}</div>)}
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="bg-purple-100 rounded-2xl p-3 border-2 border-purple-300 shadow-sm">
+                <div className="text-[10px] font-black text-purple-700">重要｜SPMO 觸發價</div>
+                <div className="font-mono font-black text-lg text-purple-950">${money(metrics.high.maniaTriggerPrice, 2)}</div>
+                <div className="text-[10px] text-purple-700 mt-1">QQQ 漲回這裡，就轉 SPMO</div>
+              </div>
               <div className="bg-brand-50 rounded-2xl p-3 border border-brand-100">
-                <div className="text-[10px] font-black text-brand-600">狂熱突破基準</div>
+                <div className="text-[10px] font-black text-brand-600">SPMO 進場基準價</div>
                 <div className="font-mono font-black text-lg">${money(metrics.high.locked, 2)}</div>
-                <div className="text-[10px] text-brand-700 mt-1">Locked ATH：上個 52W 收盤高</div>
+                <div className="text-[10px] text-brand-700 mt-1">原高點基準</div>
               </div>
-              <div className="bg-slate-50 rounded-2xl p-3 border border-slate-200">
-                <div className="text-[10px] font-black text-slate-500">本輪最新高點</div>
-                <div className="font-mono font-black text-lg">${money(metrics.high.latestHigh, 2)}</div>
-                <div className="text-[10px] text-slate-500 mt-1">QQQ 回撤階梯用</div>
+              <div className="bg-red-100 rounded-2xl p-3 border-2 border-red-300 shadow-sm">
+                <div className="text-[10px] font-black text-red-700">重要｜TQQQ 加碼參考</div>
+                <div className="font-mono font-black text-lg text-red-800">-${pct(metrics.high.cDD)}</div>
+                <div className="text-[10px] text-red-700 mt-1">從 ${money(metrics.high.latestHigh, 2)} 回撤</div>
               </div>
-              <div className="bg-red-50 rounded-2xl p-3 border border-red-100">
-                <div className="text-[10px] font-black text-red-600">距離本輪高點</div>
-                <div className="font-mono font-black text-lg text-red-700">-{pct(metrics.high.cDD)}</div>
-                <div className="text-[10px] text-red-600 mt-1">TQQQ 階梯用</div>
-              </div>
-              <div className="bg-emerald-50 rounded-2xl p-3 border border-emerald-100">
-                <div className="text-[10px] font-black text-emerald-600">本輪反彈低點</div>
-                <div className="font-mono font-black text-lg">${money(metrics.high.waveLow, 2)}</div>
-                <div className="text-[10px] text-emerald-600 mt-1">反彈卸 TQQQ 用</div>
+              <div className="bg-emerald-100 rounded-2xl p-3 border-2 border-emerald-300 shadow-sm">
+                <div className="text-[10px] font-black text-emerald-700">重要｜TQQQ 卸除參考</div>
+                <div className="font-mono font-black text-lg text-emerald-800">+{pct(metrics.high.cBounce)}</div>
+                <div className="text-[10px] text-emerald-700 mt-1">從 ${money(metrics.high.waveLow, 2)} 反彈</div>
               </div>
             </div>
-            <div className="mt-3 bg-purple-100 border border-purple-300 rounded-2xl p-3 text-xs text-purple-950 font-bold leading-relaxed">
-              <b>SPMO 退出線：</b>${money(metrics.high.maniaStopLine, 2)}。若持有 SPMO 且 SPMO 自身跌破此線，核心退回 QQQ；同日再依 QQQ 回撤 ${pct(metrics.high.cDD)} 檢查 TQQQ 階梯。冷卻解除價為 ${money(metrics.high.cooldownHigh, 2)}。
+            <div className="mt-3 bg-purple-100 border-2 border-purple-300 rounded-2xl p-3 text-xs text-purple-950 font-bold leading-relaxed shadow-sm">
+              <b>重要｜SPMO 退出線：</b>${money(metrics.high.maniaStopLine, 2)}。若持有 SPMO 且 SPMO 自身跌破此線，核心退回 QQQ；之後不看獨立冷卻價，下一次仍以 SPMO 觸發價 ${money(metrics.high.maniaTriggerPrice, 2)} 判斷是否再進場。
             </div>
           </CollapsibleCard>
         </main>
@@ -1718,27 +1722,34 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
           </CollapsibleCard>
 
           <AdvancedGroupTitle title="策略參數" desc="平常保持鎖定，需要調整規則時才解鎖。" />
-          <CollapsibleCard id="tracking-detail" title="訊號參考價檢查" desc="這裡只用來驗算系統參考哪個價位；每日操作仍看首頁摘要與今日交易清單。" right={ <button type="button" onClick={resetCycle} disabled={paramLocked} className={`text-xs font-black px-3 py-2 rounded-xl active:scale-95 ${paramLocked ? "bg-slate-100 text-slate-400" : "bg-slate-100 text-slate-700"}`}>重設循環</button> } defaultOpen={false}>
+          <CollapsibleCard id="tracking-detail" title="訊號參考價檢查" desc="括弧內會標註看 QQQ 還是 SPMO；每日操作仍看首頁摘要與今日交易清單。" right={ <button type="button" onClick={resetCycle} disabled={paramLocked} className={`text-xs font-black px-3 py-2 rounded-xl active:scale-95 ${paramLocked ? "bg-slate-100 text-slate-400" : "bg-slate-100 text-slate-700"}`}>重設循環</button> } defaultOpen={false}>
+            <div className="mb-3 bg-slate-50 border border-slate-200 rounded-2xl p-3 text-[11px] text-slate-600 leading-relaxed">
+              <b>看括弧就好：</b>（QQQ）代表用 QQQ 價格判斷；（SPMO）代表用 SPMO 價格判斷。紫色＝SPMO 進出場，紅色＝TQQQ 加碼，綠色＝TQQQ 卸除，藍色＝資料來源。
+            </div>
             <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div className="bg-purple-50 border border-purple-100 rounded-2xl p-3 text-[11px] text-purple-800 leading-relaxed"><b>SPMO 進場：</b>看「SPMO 進場基準價」加上你設定的突破 %。</div>
-              <div className="bg-red-50 border border-red-100 rounded-2xl p-3 text-[11px] text-red-700 leading-relaxed"><b>TQQQ 加碼：</b>看 QQQ 從「TQQQ 加碼參考高點」跌了多少。</div>
-              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 text-[11px] text-emerald-700 leading-relaxed"><b>TQQQ 卸除：</b>看 QQQ 從「TQQQ 卸除參考低點」反彈多少。</div>
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-[11px] text-slate-600 leading-relaxed"><b>SPMO 退出：</b>只看 SPMO 從「SPMO 退出參考高點」回撤是否達 -5%。</div>
+              <div className="bg-purple-50 border border-purple-100 rounded-2xl p-3 text-[11px] text-purple-800 leading-relaxed"><b>SPMO 進場（看 QQQ）：</b>QQQ 漲到「SPMO 觸發價」以上，核心才轉 SPMO。</div>
+              <div className="bg-red-50 border border-red-100 rounded-2xl p-3 text-[11px] text-red-700 leading-relaxed"><b>TQQQ 加碼（看 QQQ）：</b>QQQ 從「加碼參考高點」跌到你的回撤階梯，就買 TQQQ。</div>
+              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 text-[11px] text-emerald-700 leading-relaxed"><b>TQQQ 卸除（看 QQQ）：</b>QQQ 從「卸除參考低點」反彈到你的反彈階梯，就賣 TQQQ。</div>
+              <div className="bg-purple-50 border border-purple-100 rounded-2xl p-3 text-[11px] text-purple-800 leading-relaxed"><b>SPMO 退出（看 SPMO）：</b>只看 SPMO 自己從「退出參考高點」跌多少，不看 QQQ。</div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <NumberInput label="最近一年 QQQ 高點｜建立 SPMO 基準" value={inputs.qqq_history_high_52w} onChange={v => setField("qqq_history_high_52w", v)} disabled={inputs.auto_high_tracking} />
-              <NumberInput label="SPMO 進場基準價｜原 Locked ATH" value={inputs.qqq_locked_ath} onChange={v => setField("qqq_locked_ath", v)} disabled={inputs.auto_high_tracking} />
-              <NumberInput label="TQQQ 加碼參考高點｜算 QQQ 回撤" value={inputs.qqq_latest_high} onChange={v => setField("qqq_latest_high", v)} disabled={inputs.auto_high_tracking} />
-              <NumberInput label="TQQQ 卸除參考低點｜算 QQQ 反彈" value={inputs.qqq_wave_low} onChange={v => setField("qqq_wave_low", v)} disabled={inputs.auto_high_tracking} />
-              <NumberInput label="下一次允許進 SPMO 價｜冷卻解除" value={inputs.mania_cooldown_until_high} onChange={v => setField("mania_cooldown_until_high", v)} disabled={inputs.auto_high_tracking} />
-              <NumberInput label="SPMO 退出參考高點｜持有期間最高價" value={inputs.spmo_latest_high} onChange={v => setField("spmo_latest_high", v)} disabled={inputs.auto_high_tracking} />
+              <NumberInput label="最近一年 QQQ 高點（QQQ｜資料來源）" value={inputs.qqq_history_high_52w} onChange={v => setField("qqq_history_high_52w", v)} disabled={inputs.auto_high_tracking} tone="blue" hint="看 QQQ。用來協助建立 / 更新 SPMO 進場基準，不是直接交易價。" />
+              <NumberInput label="SPMO 進場基準價（QQQ｜算觸發價）" value={inputs.qqq_locked_ath} onChange={v => setField("qqq_locked_ath", v)} disabled={inputs.auto_high_tracking} tone="purple" hint="看 QQQ。用這個基準 × 突破門檻，算出下面的 SPMO 觸發價。" />
+              <div className="bg-purple-100 border-2 border-purple-300 rounded-2xl p-3 shadow-sm">
+                <div className="text-[10px] font-black text-purple-700 mb-1">重要｜SPMO 觸發價（QQQ｜到價轉 SPMO）</div>
+                <div className="font-mono font-black text-lg text-purple-950 text-center min-h-[44px] flex items-center justify-center">${money(metrics.high.maniaTriggerPrice, 2)}</div>
+                <div className="text-[10px] text-purple-700 leading-relaxed">看 QQQ。公式：SPMO 進場基準價 ×（1 + 突破門檻 {pct(metrics.high.maniaEntryPct, 0)}）。QQQ 漲回這裡就符合轉 SPMO 條件。</div>
+              </div>
+              <NumberInput label="TQQQ 加碼參考高點（QQQ｜跌下來買 TQQQ）" value={inputs.qqq_latest_high} onChange={v => setField("qqq_latest_high", v)} disabled={inputs.auto_high_tracking} tone="red" hint="看 QQQ。從這個高點往下算 -5%、-10%、-15% 等回撤階梯。" />
+              <NumberInput label="TQQQ 卸除參考低點（QQQ｜漲回來賣 TQQQ）" value={inputs.qqq_wave_low} onChange={v => setField("qqq_wave_low", v)} disabled={inputs.auto_high_tracking} tone="emerald" hint="看 QQQ。從這個低點往上算 +8%、+15%、+25% 等反彈卸除。" />
+              <NumberInput label="SPMO 退出參考高點（SPMO｜跌 5% 退出）" value={inputs.spmo_latest_high} onChange={v => setField("spmo_latest_high", v)} disabled={inputs.auto_high_tracking} tone="purple" hint="看 SPMO，不看 QQQ。SPMO 從這個高點跌到退出門檻，就全數轉回 QQQ。" />
             </div>
             <div className="mt-3 flex gap-2">
               <button onClick={() => setField("auto_high_tracking", !inputs.auto_high_tracking)} disabled={paramLocked} className={`flex-1 py-3 rounded-2xl text-xs font-black active:scale-95 ${paramLocked ? "bg-slate-100 text-slate-400" : inputs.auto_high_tracking ? "bg-brand-600 text-white" : "bg-slate-200 text-slate-700"}`}>{inputs.auto_high_tracking ? "自動追蹤 ON" : "手動模式 OFF"}</button>
               <button onClick={() => fetchQQQHistory(true)} className="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-700 text-xs font-black active:scale-95">同步 52W</button>
             </div>
             <div className="mt-3 text-[11px] text-slate-500 leading-relaxed bg-slate-50 border border-slate-200 rounded-2xl p-3">
-              <b>白話判讀：</b>這區不是交易按鈕，而是驗算用。SPMO 進場看「SPMO 進場基準價」；TQQQ 加碼看「TQQQ 加碼參考高點」；TQQQ 卸除看「TQQQ 卸除參考低點」；SPMO 退出只看「SPMO 退出參考高點」。自動追蹤 ON 時這些數字由系統維護，通常不要手動改。
+              <b>白話判讀：</b>這區不是交易按鈕，而是驗算用。你只要先看括弧：QQQ＝用 QQQ 價格判斷；SPMO＝用 SPMO 價格判斷。最重要的是「SPMO 觸發價（QQQ｜到價轉 SPMO）」、「TQQQ 加碼參考高點（QQQ｜跌下來買 TQQQ）」、「TQQQ 卸除參考低點（QQQ｜漲回來賣 TQQQ）」、「SPMO 退出參考高點（SPMO｜跌 5% 退出）」。自動追蹤 ON 時這些數字由系統維護，通常不要手動改。
             </div>
           </CollapsibleCard>
 
@@ -1748,14 +1759,14 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
                 <div>
                   <div className="text-xs font-black text-purple-800">狂熱切換門檻</div>
                   <div className="text-[11px] text-purple-700 leading-relaxed mt-1">
-                    到達上次 Locked ATH 後，再上漲多少 % 才把核心 QQQ / 未結清 TQQQ 轉成 SPMO。預設 15%，你可以自行調整。
+                    到達上次 SPMO 進場基準價後，再上漲多少 % 才把核心 QQQ / 未結清 TQQQ 轉成 SPMO。預設 15%，你可以自行調整。
                   </div>
                 </div>
                 <button onClick={() => setField("mania_entry_pct", DEFAULT_MANIA_ENTRY_PCT)} disabled={paramLocked} className={`shrink-0 px-3 py-2 rounded-xl text-[11px] font-black active:scale-95 ${paramLocked ? "bg-slate-100 text-slate-400" : "bg-white text-purple-700 border border-purple-200"}`}>恢復 15%</button>
               </div>
-              <NumberInput label="突破 Locked ATH 轉 SPMO" value={inputs.mania_entry_pct} onChange={v => setField("mania_entry_pct", v)} suffix="%" hint="例：15 代表 QQQ 高於 Locked ATH +15% 才轉 SPMO；0 代表回到 Locked ATH 附近即可轉。" disabled={paramLocked} />
+              <NumberInput label="突破 SPMO 進場基準價轉 SPMO" value={inputs.mania_entry_pct} onChange={v => setField("mania_entry_pct", v)} suffix="%" hint="例：15 代表 QQQ 高於 SPMO 進場基準價 +15% 才轉 SPMO；0 代表回到 SPMO 進場基準附近即可轉。" disabled={paramLocked} />
               <div className="mt-2 text-[11px] text-purple-700 leading-relaxed bg-white/70 border border-purple-100 rounded-xl p-2">
-                目前 Locked ATH：${money(metrics.high.locked, 2)}；觸發轉 SPMO 估算價：${metrics.high.locked > 0 ? money(metrics.high.locked * (1 + getNum(inputs.mania_entry_pct) / 100), 2) : "尚未建立"}。
+                目前 SPMO 進場基準價：${money(metrics.high.locked, 2)}；觸發轉 SPMO 估算價：${metrics.high.maniaTriggerPrice > 0 ? money(metrics.high.maniaTriggerPrice, 2) : "尚未建立"}。
               </div>
             </div>
 
@@ -1850,7 +1861,7 @@ ${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
                 <div className="w-10 h-10 rounded-2xl bg-slate-950 flex items-center justify-center text-brand-400 font-black text-xl">A</div>
                 <div className="min-w-0">
                   <div className="font-black leading-tight truncate">Alpha Horizon Pro</div>
-                  <div className="text-[10px] font-black text-brand-600 tracking-widest">Aggressive v2.5</div>
+                  <div className="text-[10px] font-black text-brand-600 tracking-widest">Aggressive v2.7</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">

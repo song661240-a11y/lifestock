@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="color-scheme" content="light only" />
-  <title>Alpha Horizon Pro Aggressive v1.3</title>
+  <title>Alpha Horizon Pro Aggressive v2.0 Single-File Clean</title>
   <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230f172a'/><path d='M24 72 L50 24 L76 72' stroke='%233b82f6' stroke-width='11' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='50' cy='24' r='7' fill='%233b82f6'/></svg>" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -48,6 +48,23 @@
   <script type="text/babel">
     const { useCallback, useEffect, useMemo, useRef, useState } = React;
 
+    /**********************************************************************
+     * V2 SINGLE-FILE MODULE MAP
+     * ------------------------------------------------------------------
+     * 1. App meta / external services
+     * 2. Shared utilities and formatters
+     * 3. Strategy defaults and data migration
+     * 4. Shared UI components
+     * 5. Trade-plan formatter
+     * 6. App shell: auth, sync, market data, tracking, strategy engine
+     * 7. Pages: Home, Logs, Advanced
+     *
+     * 重要原則：仍維持單一 index.html，方便 GitHub Pages 自用；
+     * 策略計算集中在 metrics useMemo，交易清單、複製與紀錄共用
+     * actionPlan，避免畫面與紀錄內容互相飄掉。
+     **********************************************************************/
+
+    // --- 1) App meta / external services ---
     const FINNHUB_KEY = "d4q36b9r01qha6q0jclgd4q36b9r01qha6q0jcm0";
     const appId = "alpha-horizon-2026-v1";
     const firebaseConfig = {
@@ -63,6 +80,7 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
+    // --- 2) Shared utilities and formatters ---
     const todayStr = () => {
       const d = new Date();
       d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -82,75 +100,22 @@
     const pct = (v, digits = 1) => `${Number(v || 0).toFixed(digits)}%`;
     const signedPct = (v, digits = 1) => `${v >= 0 ? "+" : ""}${Number(v || 0).toFixed(digits)}%`;
     const EPS = 1e-6;
+    const APP_VERSION = "Aggressive v2.0 Single-File Clean";
+    const DATA_VERSION = "aggressive-v2.0-clean";
 
-    const PLAN_TEXT = `Alpha Horizon Pro Aggressive 簡化版 v1.3
-— 系統化十年期資產累積策略 —
+    // --- 3) Strategy defaults ---
+    const PLAN_TEXT = `Alpha Horizon Pro Aggressive 簡化版 v2.0 Single-File Clean
+— 執行摘要 —
 
-一、策略目標
-以 QQQ 為長期核心資產，利用市場回撤時的 TQQQ 階梯轉換提高反彈報酬，並在牛市強勢階段切換至 SPMO 參與動能行情。
-策略假設：指數長期向上、重大回撤後長期仍有機會再創新高、政府與市場機制長期傾向穩定金融系統。
-最高原則：長期向上、提高報酬、避免 FOMO 亂買、避免因單一錯誤交易重傷出場。
-
-二、常態資產配置
-核心部位：75%。常態持有 QQQ，狂熱模式時核心部位可全數轉換為 SPMO。
-衛星部位：10%。預設 TSLA 5%、IBIT 5%；衛星總權重不得超過總資產 10%。
-現金儲備：15%。BOXX 用於下跌進攻、極端保命與反彈後補回。
-核心-only 模式下，衛星關閉，核心可提升至 85%，BOXX / 現金維持 15%。
-
-三、百分比定義
-所有「10% QQQ → TQQQ」皆指以當下總資產淨值為基準，將等同於總資產 10% 的核心部位由 QQQ 轉換為 TQQQ；不是剩餘 QQQ 的 10%。
-所有「3% BOXX → TQQQ」皆指以當下總資產淨值為基準，動用總資產 3% 的 BOXX / 現金儲備買入 TQQQ；此百分比可於進階設定自訂。
-
-四、狂熱模式：QQQ 轉 SPMO
-訊號基準：QQQ 最近 52 週最高收盤價。
-觸發條件：QQQ 突破 52 週高點 +15%。
-執行動作：將帳上所有核心 QQQ 全數轉換為 SPMO；若此時仍有未結清 TQQQ，也一併全數轉換為 SPMO。
-目的：牛市強勢階段以 SPMO 參與動能行情，避免高檔繼續持有 TQQQ 的槓桿風險。
-
-五、SPMO 退出規則
-訊號基準：SPMO 自身最高收盤價。
-觸發條件：SPMO 自高點回撤 -5%。
-執行動作：SPMO 全數轉回 QQQ。
-轉回 QQQ 當天，立即檢查 QQQ 自最近滾動高點的回撤幅度；若 QQQ 已達 TQQQ 加碼階梯，則同日執行對應階梯。
-本版本不比較 SPMO 與 QQQ 誰跌得少，避免系統過度複雜。
-
-六、下跌加碼系統：積極版
-訊號基準：QQQ 最近滾動高點。
-預設階梯：-5%、-10%、-15%、-20%、-25%。
-前四階各將總資產 10% 的核心 QQQ 轉為 TQQQ；BOXX / 現金依預設 3%、3%、3%、2%、1% 動用。
-QQQ 回撤 -30% 後停止新增 TQQQ，並保留 BOXX 戰鬥底線。
-下跌與補倉百分比可於進階設定自訂，但仍受 TQQQ 曝險上限與 BOXX 底線保護。
-
-七、TQQQ 曝險上限
-核心 QQQ 最多轉換 40% 總資產至 TQQQ。
-BOXX / 現金最多動用 12% 總資產至 TQQQ。
-BOXX 最低保留 3%。
-QQQ 回撤 -30% 後，不再新增 TQQQ。
-
-八、反彈卸除模式
-訊號基準：本輪 QQQ 回撤最低點。
-預設反彈階梯：+8%、+15%、+25%、+35%。
-每階賣出帳上 25% TQQQ；最後一階等同清空剩餘 TQQQ。
-資金依 BOXX 閉環補回儲備，再買回 QQQ。
-
-九、超級熊市熔斷機制
-若 QQQ 跌破 200 日均線、200 日均線開始下彎、且狀態持續超過 60 個交易日，停止所有新增 TQQQ 加碼，保留剩餘 BOXX。若熔斷前已持有 TQQQ，不強制賣出，依反彈卸除模式處理。
-
-十、衛星部位規則
-衛星總權重最高 10%，單一衛星最高 5%。預設 TSLA 5%、IBIT 5%。
-不使用 LEAPS、Call、Put、TSLL 或其他單一股票槓桿 ETF。
-衛星補倉：自持有均價下跌 -14% 可用 BOXX 補回原始 5%，單一標的最多連續補倉 3 次；BOXX 低於 5% 時停止衛星補倉。
-衛星收割：單一衛星膨脹至總資產 10% 以上，且週線 5MA 跌破週線 10MA，賣出超額壓回 5%。
-
-十一、BOXX 資金閉環
-BOXX 常態目標水位 15%，戰鬥底線 3%。BOXX 低於 5% 時停止衛星補倉與非必要操作。
-所有系統獲利先補 BOXX 至 10%，再買回 QQQ；若 QQQ 進入狂熱模式準備轉 SPMO，先補 BOXX 至 15%，剩餘核心資金再進入 SPMO。
-
-十二、禁止事項
-禁止買入策略沒有寫的標的；禁止臨時買 Call、Put、LEAPS；禁止買 TSLL 或其他單一股票槓桿 ETF；禁止因新聞、情緒、帳面損益或 FOMO 改變策略。
-
-十三、核心精神
-QQQ 是長期核心。TQQQ 是回撤後的反彈加速器。SPMO 是牛市動能模式。BOXX 是下跌進攻與極端保命資金。TSLA 與 IBIT 是小比例衛星，不是主策略。策略沒有寫的交易，一律不做。`;
+1. 常態配置：核心 75% QQQ、衛星 10%（可關閉）、BOXX / 現金 15%；核心-only 時核心提高至 85%。
+2. 狂熱模式：QQQ 突破最近 52 週最高收盤價 +15% 時，核心 QQQ 與未結清 TQQQ 全數轉 SPMO。
+3. SPMO 退出：不看 RS；SPMO 自身高點回撤 -5% 時，全數轉回 QQQ，並同日檢查 QQQ 是否達 TQQQ 加碼階梯。
+4. 下跌加碼：預設 -5%、-10%、-15%、-20%、-25%；核心轉 TQQQ 預設 10%、10%、10%、10%、0%；BOXX / 現金動用預設 3%、3%、3%、2%、1%。全部以總資產百分比計算且可自訂。
+5. 風控：核心轉 TQQQ 上限 40%；BOXX / 現金動用上限 12%；BOXX 底線 3%；QQQ 回撤 -30% 後停止新增 TQQQ。
+6. 反彈卸除：QQQ 自本輪低點反彈 +8%、+15%、+25%、+35% 時分批賣 TQQQ，優先補 BOXX / 現金，再買回 QQQ。
+7. 熔斷：QQQ 跌破 200MA、200MA 下彎且持續超過 60 交易日，停止新增 TQQQ；既有 TQQQ 依反彈卸除處理。
+8. 衛星：不使用 LEAPS / Call / Put / TSLL；BOXX 低於 5% 時停止衛星補倉。
+9. 鐵律：策略沒寫的交易一律不做；禁止因新聞、情緒、帳面損益或 FOMO 改變策略。`;
 
     const DEFAULT_DROP_LADDER = [
       { id:"d1", drop_pct:5, move_core_pct:10, use_reserve_pct:3 },
@@ -171,7 +136,7 @@ QQQ 是長期核心。TQQQ 是回撤後的反彈加速器。SPMO 是牛市動能
     ];
 
     const DEFAULT_INPUTS = {
-      version: "aggressive-v1.3",
+      version: DATA_VERSION,
       planText: PLAN_TEXT,
       reserve_target_pct: 15,
       reserve_floor_pct: 3,
@@ -213,75 +178,67 @@ QQQ 是長期核心。TQQQ 是回撤後的反彈加速器。SPMO 是牛市動能
       satellites: DEFAULT_SATELLITES
     };
 
+    // --- 4) Data migration / backward compatibility ---
+    const normalizeDropLadder = (src) => {
+      if (src.drop_ladder) return getArr(src.drop_ladder);
+      if (src.core_ladder) return getArr(src.core_ladder).map((x, i) => ({
+        id: x.id || `d${i + 1}`,
+        drop_pct: getNum(x.drop_pct),
+        move_core_pct: getNum(x.move_pct),
+        use_reserve_pct: getNum(x.use_boxx)
+      }));
+      return DEFAULT_DROP_LADDER;
+    };
+
+    const normalizeBounceLadder = (src) => {
+      const raw = src.bounce_ladder || src.core_bounce_ladder;
+      if (!raw) return DEFAULT_BOUNCE_LADDER;
+      return getArr(raw).map((x, i) => ({
+        id: x.id || `b${i + 1}`,
+        bounce_pct: getNum(x.bounce_pct),
+        sell_pct: getNum(x.sell_pct),
+        refill_reserve_pct: x.refill_reserve_pct ?? (i === 0 ? 8 : i === 1 ? 10 : i === 2 ? 10 : 15)
+      }));
+    };
+
+    const normalizeSatellites = (src) => {
+      const raw = getArr(src.satellites);
+      if (!raw.length) return DEFAULT_SATELLITES;
+      return raw.map(s => {
+        const clean = { ...s };
+        ["lev_val", "lev_ratio", "qty_l", "leveraged"].forEach(k => delete clean[k]);
+        const sym = String(clean.underlying || "").toUpperCase();
+        return {
+          ...clean,
+          target_pct: clean.target_pct ?? 5,
+          limit_pct: clean.limit_pct ?? 10,
+          loss_pct: clean.loss_pct ?? 14,
+          ma5: clean.ma5 ?? 0,
+          ma10: clean.ma10 ?? 0,
+          scenario_beta: clean.scenario_beta ?? (sym === "TSLA" ? 2 : sym === "IBIT" ? 1.5 : 1.5)
+        };
+      });
+    };
+
     const migrate = (raw) => {
       const src = raw || {};
       const next = { ...DEFAULT_INPUTS, ...src };
       if (src.reserve_pct_normal !== undefined && src.reserve_target_pct === undefined) next.reserve_target_pct = src.reserve_pct_normal;
-      if (src.core_ladder && !src.drop_ladder) {
-        next.drop_ladder = getArr(src.core_ladder).map((x, i) => ({
-          id: x.id || `d${i + 1}`,
-          drop_pct: getNum(x.drop_pct),
-          move_core_pct: getNum(x.move_pct),
-          use_reserve_pct: getNum(x.use_boxx)
-        }));
-      }
-      if (src.core_bounce_ladder && !src.bounce_ladder) {
-        next.bounce_ladder = getArr(src.core_bounce_ladder).map((x, i) => ({
-          id: x.id || `b${i + 1}`,
-          bounce_pct: getNum(x.bounce_pct),
-          sell_pct: getNum(x.sell_pct),
-          refill_reserve_pct: getNum(x.refill_reserve_pct)
-        }));
-      }
-      next.drop_ladder = getArr(next.drop_ladder).length ? getArr(next.drop_ladder) : DEFAULT_DROP_LADDER;
-      const oldAggressiveDefaultReserve = [3, 3, 3, 2, 1];
-      const isOldAggressiveDefaultLadder = String(src.version || "") === "aggressive-v1.0"
-        && getArr(next.drop_ladder).length === 5
-        && getArr(next.drop_ladder).every((x, i) => Math.abs(getNum(x.use_reserve_pct) - oldAggressiveDefaultReserve[i]) < EPS);
-      if (isOldAggressiveDefaultLadder) next.drop_ladder = DEFAULT_DROP_LADDER;
-      next.bounce_ladder = getArr(next.bounce_ladder).length ? getArr(next.bounce_ladder).map((x, i) => ({ ...x, refill_reserve_pct: x.refill_reserve_pct ?? (i === 0 ? 8 : i === 1 ? 10 : i === 2 ? 10 : 15) })) : DEFAULT_BOUNCE_LADDER;
-      next.satellites = getArr(next.satellites).length ? getArr(next.satellites).map(s => {
-        const clean = { ...s };
-        delete clean.lev_val;
-        delete clean.lev_ratio;
-        delete clean.qty_l;
-        delete clean.leveraged;
-        return { ...clean, target_pct: clean.target_pct ?? 5, limit_pct: clean.limit_pct ?? 10, loss_pct: clean.loss_pct ?? 14, ma5: clean.ma5 ?? 0, ma10: clean.ma10 ?? 0, scenario_beta: clean.scenario_beta ?? (String(clean.underlying || "").toUpperCase() === "TSLA" ? 2 : String(clean.underlying || "").toUpperCase() === "IBIT" ? 1.5 : 1.5) };
-      }) : DEFAULT_SATELLITES;
-      if (next.satellites_enabled === undefined) next.satellites_enabled = false;
-      if (next.scenario_qqq_move_pct === undefined) next.scenario_qqq_move_pct = -10;
-      if (next.scenario_tqqq_beta === undefined) next.scenario_tqqq_beta = 3;
-      if (next.scenario_spmo_beta === undefined) next.scenario_spmo_beta = 1;
-      if (next.max_loss_amount === undefined) next.max_loss_amount = 0;
-      if (!next.motto) next.motto = "嚴守紀律，摒除主觀判斷；依據量化指標，執行絕對配置。";
-      if (next.params_unlocked === undefined) next.params_unlocked = false;
+      next.drop_ladder = normalizeDropLadder(src);
+      next.bounce_ladder = normalizeBounceLadder(src);
+      next.satellites = normalizeSatellites(src);
       next.execution_logs = getArr(next.execution_logs).slice(0, 200);
-      if (next.pending_execution_note === undefined) next.pending_execution_note = "";
-      if (next.auto_high_tracking === undefined) next.auto_high_tracking = true;
-      if (next.reserve_floor_pct === undefined) next.reserve_floor_pct = 3;
-      if (next.core_tqqq_cap_pct === undefined) next.core_tqqq_cap_pct = 40;
-      if (next.reserve_tqqq_cap_pct === undefined) next.reserve_tqqq_cap_pct = 12;
-      if (next.stop_add_after_drawdown_pct === undefined) next.stop_add_after_drawdown_pct = 30;
-      const upgradingAggressive = !String(src.version || "").includes("aggressive-v1");
-      if (upgradingAggressive) {
-        next.drop_ladder = DEFAULT_DROP_LADDER;
-        next.bounce_ladder = DEFAULT_BOUNCE_LADDER;
-        next.mania_trailing_stop_pct = 5;
-        next.planText = PLAN_TEXT;
-      }
-      const v = String(src.version || "");
-      const oldDrop = getArr(src.drop_ladder);
-      const oldReservePattern = oldDrop.map(x => getNum(x.use_reserve_pct)).join(",");
-      if (v === "aggressive-v1.0" || v === "aggressive-v1.1") {
-        next.planText = PLAN_TEXT;
-        next.mania_trailing_stop_pct = 5;
-        if (!oldDrop.length || oldReservePattern === "2,2,2,2,1" || oldReservePattern === "3,3,3,2,1") next.drop_ladder = DEFAULT_DROP_LADDER;
-      }
-      if (!next.planText || String(next.planText).includes("順勢再平衡進化版") || String(next.planText).includes("相對強弱") || String(next.planText).includes("預設 -7%") || String(next.planText).includes("2%、2%、2%、2%、1%")) next.planText = PLAN_TEXT;
-      next.version = "aggressive-v1.3";
+      next.pending_execution_note = next.pending_execution_note ?? "";
+      next.motto = next.motto || DEFAULT_INPUTS.motto;
+      next.motto_visible = next.motto_visible !== false;
+      next.params_unlocked = next.params_unlocked === true;
+      next.mania_trailing_stop_pct = 5;
+      next.planText = PLAN_TEXT;
+      next.version = DATA_VERSION;
       return next;
     };
 
+    // --- 5) Shared UI components ---
     class ErrorBoundary extends React.Component {
       constructor(props) { super(props); this.state = { hasError:false, message:"" }; }
       static getDerivedStateFromError(error) { return { hasError:true, message:error?.message || "Unknown error" }; }
@@ -520,7 +477,6 @@ QQQ 是長期核心。TQQQ 是回撤後的反彈加速器。SPMO 是牛市動能
       </div>
     );
 
-
     const SectionTitle = ({ title, desc, right }) => (
       <div className="flex items-end justify-between gap-3 mb-3">
         <div>
@@ -531,7 +487,37 @@ QQQ 是長期核心。TQQQ 是回撤後的反彈加速器。SPMO 是牛市動能
       </div>
     );
 
+    // --- 6) Trade-plan text formatter ---
+    const formatTradePlanText = (metrics, inputs) => {
+      const lineItems = (items) => getArr(items).length
+        ? getArr(items).map(x => `- ${x.label}：約 $${money(x.amount)}`).join("\n")
+        : "- 無";
+      return `【Alpha Horizon Pro ${APP_VERSION}】
+日期：${todayStr()}
+狀態：${metrics.title}
+總資產市值：$${money(metrics.values.total)}
+股票等效曝險：$${money(metrics.values.stockEquivalentExposure)}
+總曝險槓桿：${metrics.values.totalLeverageRatio.toFixed(2)}x
+成長部位槓桿：${metrics.values.growthLeverageRatio.toFixed(2)}x
+
+觸發狀態：
+${metrics.actionPlan?.triggerText || metrics.instruction}
+${metrics.actionPlan?.stepText ? `\n${metrics.actionPlan.stepText}\n` : ""}
+資金來源：
+${lineItems(metrics.actionPlan?.fundingSources)}
+
+買入 / 補回：
+${lineItems(metrics.actionPlan?.purchases)}
+
+原始指令：
+${getArr(metrics.actions).map(x => `- ${x}`).join("\n")}
+
+執行後目標配置：QQQ ${pct(metrics.t.q)} / TQQQ ${pct(metrics.t.tq)} / SPMO ${pct(metrics.t.sm)} / BOXX ${pct(metrics.t.r)}${inputs.satellites_enabled ? ` / 衛星 ${pct(metrics.t.sat)}` : ""}`;
+    };
+
+    // --- 7) Main App shell ---
     const App = () => {
+      /* -------------------- App state -------------------- */
       const [inputs, setInputs] = useState(() => {
         try {
           const local = localStorage.getItem("ah_core_v5_backup") || localStorage.getItem("ah_local_backup_2026");
@@ -563,11 +549,13 @@ QQQ 是長期核心。TQQQ 是回撤後的反彈加速器。SPMO 是牛市動能
         });
       }, []);
 
+      /* -------------------- UI feedback -------------------- */
       const showToast = useCallback((txt) => {
         setMessage(txt);
         setTimeout(() => setMessage(""), 2600);
       }, []);
 
+      /* -------------------- Cross-device sync / auth -------------------- */
       const refs = useCallback(() => {
         if (!user) return null;
         return { confRef: db.collection("artifacts").doc(appId).collection("users").doc(user.uid).collection("config").doc("current") };
@@ -627,6 +615,7 @@ QQQ 是長期核心。TQQQ 是回撤後的反彈加速器。SPMO 是牛市動能
         return () => clearTimeout(saveTimerRef.current);
       }, [inputs, user, cloudLoaded, refs]);
 
+      /* -------------------- Sync actions -------------------- */
       const handleGoogleLogin = async () => {
         try {
           const provider = new firebase.auth.GoogleAuthProvider();
@@ -665,6 +654,7 @@ QQQ 是長期核心。TQQQ 是回撤後的反彈加速器。SPMO 是牛市動能
         setInputs(prev => ({ ...prev, [arrKey]: getArr(prev[arrKey]).map(x => x.id === id ? { ...x, [field]: value } : x) }));
       };
 
+      /* -------------------- Market data -------------------- */
       const symbols = useMemo(() => {
         const base = ["QQQ", "TQQQ", "SPMO", "BOXX"];
         if (inputs.satellites_enabled) {
@@ -737,6 +727,7 @@ QQQ 是長期核心。TQQQ 是回撤後的反彈加速器。SPMO 是牛市動能
 
       useEffect(() => { if (prices.QQQ > 0) fetchQQQHistory(false); }, [prices.QQQ]);
 
+      /* -------------------- Auto high/low tracking -------------------- */
       const firstDropPct = useCallback((ladder) => {
         const xs = getArr(ladder).map(x => getNum(x.drop_pct)).filter(v => v > 0).sort((a,b) => a - b);
         return xs[0] || 7;
@@ -819,6 +810,7 @@ QQQ 是長期核心。TQQQ 是回撤後的反彈加速器。SPMO 是牛市動能
 
       useEffect(() => { autoUpdateTracking(); }, [autoUpdateTracking]);
 
+      /* -------------------- Strategy engine + scenario simulator -------------------- */
       const metrics = useMemo(() => {
         const pQQQReal = getNum(prices.QQQ);
         const sim = getNum(inputs.sim_qqq_price);
@@ -1017,7 +1009,6 @@ QQQ 是長期核心。TQQQ 是回撤後的反彈加速器。SPMO 是牛市動能
         ];
         if (satellitesEnabled) rows.push({ name:"衛星", currentPct:vSat / safeTotal * 100, targetPct:effectiveSatTargetPct, diff:(safeTotal * effectiveSatTargetPct / 100) - vSat, value:vSat, tone:"slate" });
 
-
         const buildScenario = (movePctRaw) => {
           const movePct = Math.max(-95, Math.min(200, getNum(movePctRaw)));
           const scenarioMove = movePct / 100;
@@ -1088,6 +1079,7 @@ QQQ 是長期核心。TQQQ 是回撤後的反彈加速器。SPMO 是牛市動能
         };
       }, [prices, inputs, firstDropPct]);
 
+      /* -------------------- User actions / persistence -------------------- */
       const priceFreshness = useMemo(() => {
         if (!lastPriceUpdatedAt) return { label:"尚未更新報價", stale:true, minutes:null };
         const minutes = Math.max(0, Math.floor((Date.now() - lastPriceUpdatedAt.getTime()) / 60000));
@@ -1097,17 +1089,6 @@ QQQ 是長期核心。TQQQ 是回撤後的反彈加速器。SPMO 是牛市動能
       }, [lastPriceUpdatedAt, loadingPrices]);
 
       const paramLocked = inputs.params_unlocked !== true;
-
-      const saveNow = async () => {
-        const r = refs();
-        if (!r) return;
-        setSaving(true);
-        try {
-          await r.confRef.set(sanitize(inputs), { merge:true });
-          showToast("已同步跨裝置資料");
-        } catch (e) { setAuthError("跨裝置同步失敗"); }
-        setSaving(false);
-      };
 
       const loadCloudNow = async () => {
         const r = refs();
@@ -1144,37 +1125,8 @@ QQQ 是長期核心。TQQQ 是回撤後的反彈加速器。SPMO 是牛市動能
       };
 
       const copyCommand = async () => {
-        const sourceLines = getArr(metrics.actionPlan?.fundingSources).length
-          ? getArr(metrics.actionPlan.fundingSources).map(x => `- ${x.label}：約 $${money(x.amount)}`).join("\n")
-          : "- 無";
-        const buyLines = getArr(metrics.actionPlan?.purchases).length
-          ? getArr(metrics.actionPlan.purchases).map(x => `- ${x.label}：約 $${money(x.amount)}`).join("\n")
-          : "- 無";
-        const text = `【Alpha Horizon Pro Aggressive v1.3】
-日期：${todayStr()}
-狀態：${metrics.title}
-總資產市值：$${money(metrics.values.total)}
-股票等效曝險：$${money(metrics.values.stockEquivalentExposure)}
-總曝險槓桿：${metrics.values.totalLeverageRatio.toFixed(2)}x
-成長部位槓桿：${metrics.values.growthLeverageRatio.toFixed(2)}x
-
-觸發狀態：
-${metrics.actionPlan?.triggerText || metrics.instruction}
-${metrics.actionPlan?.stepText ? `
-${metrics.actionPlan.stepText}
-` : ""}
-資金來源：
-${sourceLines}
-
-買入 / 補回：
-${buyLines}
-
-原始指令：
-${metrics.actions.map(x => `- ${x}`).join("\n")}
-
-執行後目標配置：QQQ ${pct(metrics.t.q)} / TQQQ ${pct(metrics.t.tq)} / SPMO ${pct(metrics.t.sm)} / BOXX ${pct(metrics.t.r)}${inputs.satellites_enabled ? ` / 衛星 ${pct(metrics.t.sat)}` : ""}`;
         try {
-          await navigator.clipboard.writeText(text);
+          await navigator.clipboard.writeText(formatTradePlanText(metrics, inputs));
           showToast("已複製今日指令");
         } catch (e) { showToast("複製失敗，請手動選取"); }
       };
@@ -1183,7 +1135,7 @@ ${metrics.actions.map(x => `- ${x}`).join("\n")}
         const blob = new Blob([JSON.stringify(inputs, null, 2)], { type:"application/json" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = `alpha-horizon-aggressive-v1-3-${todayStr()}.json`;
+        a.download = `alpha-horizon-aggressive-v1-4-clean-${todayStr()}.json`;
         a.click();
         URL.revokeObjectURL(a.href);
       };
@@ -1253,6 +1205,7 @@ ${metrics.actions.map(x => `- ${x}`).join("\n")}
           leverage: metrics.values.totalLeverageRatio,
           actions: metrics.actions,
           action_plan: metrics.actionPlan,
+          command_text: formatTradePlanText(metrics, inputs),
           instruction: metrics.instruction,
           latest_judgement: metrics.ux.latestJudgement,
           target: metrics.t,
@@ -1269,6 +1222,7 @@ ${metrics.actions.map(x => `- ${x}`).join("\n")}
         if (!ok) showToast("已先存本機，跨裝置同步失敗");
       };
 
+      /* -------------------- Page-local UI components -------------------- */
       const CollapsibleCard = ({ id, title, desc, right, children, defaultOpen = true, className = "p-5" }) => {
         const open = collapsed[id] === undefined ? defaultOpen : !collapsed[id];
         return (
@@ -1283,6 +1237,7 @@ ${metrics.actions.map(x => `- ${x}`).join("\n")}
         );
       };
 
+      /* -------------------- Home page -------------------- */
       const Home = () => {
         const quickMoves = [-42, -35, -28, -21, -14, -7, 7, 10, 20, 30];
         const scenarioTone = metrics.scenario.pnl > 0 ? "text-emerald-600" : metrics.scenario.pnl < 0 ? "text-red-600" : "text-slate-600";
@@ -1467,11 +1422,76 @@ ${metrics.actions.map(x => `- ${x}`).join("\n")}
         );
       };
 
+      /* -------------------- Logs page -------------------- */
       const Logs = () => {
-        const logs = getArr(inputs.execution_logs);
+        const logs = getArr(inputs.execution_logs).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        const monthGroups = logs.reduce((acc, r) => {
+          const d = new Date(r.date || Date.now());
+          const y = Number.isFinite(d.getFullYear()) ? d.getFullYear() : new Date().getFullYear();
+          const m = Number.isFinite(d.getMonth()) ? d.getMonth() + 1 : new Date().getMonth() + 1;
+          const key = `${y}-${String(m).padStart(2, "0")}`;
+          if (!acc[key]) acc[key] = { key, title: `${y} 年 ${m} 月`, items: [], total: 0 };
+          acc[key].items.push(r);
+          acc[key].total += getNum(r.total);
+          return acc;
+        }, {});
+        const groups = Object.values(monthGroups).sort((a, b) => b.key.localeCompare(a.key));
+        const renderLogCard = (r, i) => (
+          <details key={r.id || i} className="group bg-white border border-slate-200 rounded-3xl p-3 open:border-brand-100 shadow-sm">
+            <summary className="list-none cursor-pointer flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[11px] font-black text-slate-400 mb-1">{new Date(r.date).toLocaleString()}</div>
+                <div className="font-black text-sm text-slate-900 truncate">{r.title || r.state || "執行紀錄"}</div>
+                <div className="text-[11px] text-slate-500 mt-1">總資產 ${money(r.total)}｜槓桿 {Number(r.leverage || 0).toFixed(2)}x</div>
+              </div>
+              <span className="shrink-0 text-[11px] font-black bg-slate-50 border border-slate-200 text-slate-500 px-3 py-2 rounded-xl group-open:bg-slate-950 group-open:text-white">展開</span>
+            </summary>
+            <div className="mt-3 border-t border-slate-200 pt-3 space-y-3">
+              <ActionList actions={getArr(r.actions).length ? getArr(r.actions) : ["無動作紀錄"]} plan={r.action_plan} />
+              {r.latest_judgement && (
+                <div className="bg-brand-50 border border-brand-100 rounded-2xl p-3 text-xs font-bold text-slate-700 leading-relaxed">
+                  <div className="text-[10px] font-black text-brand-600 mb-1">當時最新判讀</div>
+                  {r.latest_judgement}
+                </div>
+              )}
+              <div className="bg-white border border-slate-200 rounded-2xl p-3">
+                <div className="text-[10px] font-black text-slate-500 mb-2">持股股數快照</div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">QQQ 股數</div><div className="font-mono font-black">{Number(r.holdings?.qqq?.qty || 0).toLocaleString(undefined,{maximumFractionDigits:4})}</div></div>
+                  <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">TQQQ 股數</div><div className="font-mono font-black">{Number(r.holdings?.tqqq?.qty || 0).toLocaleString(undefined,{maximumFractionDigits:4})}</div></div>
+                  <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">SPMO 股數</div><div className="font-mono font-black">{Number(r.holdings?.spmo?.qty || 0).toLocaleString(undefined,{maximumFractionDigits:4})}</div></div>
+                  <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">BOXX 股數</div><div className="font-mono font-black">{Number(r.holdings?.boxx?.qty || 0).toLocaleString(undefined,{maximumFractionDigits:4})}</div></div>
+                  <div className="col-span-2 bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">現金</div><div className="font-mono font-black">${money(r.holdings?.cash?.value || 0)}</div></div>
+                </div>
+                {getArr(r.holdings?.satellites).length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {getArr(r.holdings?.satellites).map((s, idx) => <div key={idx} className="text-[11px] font-bold text-slate-500 bg-slate-50 rounded-xl px-3 py-2">{s.symbol || "衛星"}：{Number(s.qty || 0).toLocaleString(undefined,{maximumFractionDigits:4})} 股｜市值 ${money(s.value || 0)}</div>)}
+                  </div>
+                )}
+              </div>
+              <div className="bg-white border border-slate-200 rounded-2xl p-3">
+                <div className="text-[10px] font-black text-slate-500 mb-2">備註</div>
+                <textarea
+                  value={r.note || ""}
+                  onChange={e => updateExecutionLog(r.id, { note: e.target.value })}
+                  placeholder="可補充實際成交價、手動調整原因、或當時自己的想法。"
+                  className="w-full min-h-[72px] bg-slate-50 border border-slate-200 rounded-2xl p-3 text-sm font-bold text-slate-800 leading-relaxed focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">QQQ 價格</div><div className="font-mono font-black">${money(r.qqq_price, 2)}</div></div>
+                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">總資產</div><div className="font-mono font-black">${money(r.total)}</div></div>
+                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">QQQ 目標</div><div className="font-mono font-black">{pct(r.target?.q)}</div></div>
+                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">TQQQ 目標</div><div className="font-mono font-black">{pct(r.target?.tq)}</div></div>
+                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">SPMO 目標</div><div className="font-mono font-black">{pct(r.target?.sm)}</div></div>
+                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">儲備目標</div><div className="font-mono font-black">{pct(r.target?.r)}</div></div>
+              </div>
+            </div>
+          </details>
+        );
         return (
           <main className="max-w-3xl mx-auto px-4 pt-20 content-bottom-space space-y-5">
-            <AdvancedGroupTitle title="執行紀錄" desc="單獨分頁整理；每筆紀錄可展開/收合，避免記錄多了以後首頁與進階頁太亂。" />
+            <AdvancedGroupTitle title="執行紀錄" desc="依年份 / 月份分組；先展開月份，再展開單筆紀錄，之後紀錄多了比較好找。" />
             <Card className="p-5">
               <SectionTitle
                 title={`全部紀錄（${logs.length}）`}
@@ -1482,59 +1502,22 @@ ${metrics.actions.map(x => `- ${x}`).join("\n")}
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm text-slate-500 font-bold">尚無紀錄。</div>
               ) : (
                 <div className="space-y-3">
-                  {logs.map((r, i) => (
-                    <details key={r.id || i} className="group bg-slate-50 border border-slate-200 rounded-3xl p-3 open:bg-white open:border-brand-100">
-                      <summary className="list-none cursor-pointer flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="text-[11px] font-black text-slate-400 mb-1">{new Date(r.date).toLocaleString()}</div>
-                          <div className="font-black text-sm text-slate-900 truncate">{r.title || r.state || "執行紀錄"}</div>
-                          <div className="text-[11px] text-slate-500 mt-1">總資產 ${money(r.total)}｜槓桿 {Number(r.leverage || 0).toFixed(2)}x</div>
-                        </div>
-                        <span className="shrink-0 text-[11px] font-black bg-white border border-slate-200 text-slate-500 px-3 py-2 rounded-xl group-open:bg-slate-950 group-open:text-white">展開</span>
-                      </summary>
-                      <div className="mt-3 border-t border-slate-200 pt-3 space-y-3">
-                        <ActionList actions={getArr(r.actions).length ? getArr(r.actions) : ["無動作紀錄"]} plan={r.action_plan} />
-                        {r.latest_judgement && (
-                          <div className="bg-brand-50 border border-brand-100 rounded-2xl p-3 text-xs font-bold text-slate-700 leading-relaxed">
-                            <div className="text-[10px] font-black text-brand-600 mb-1">當時最新判讀</div>
-                            {r.latest_judgement}
+                  {groups.map((g, gi) => {
+                    const groupId = `logs-month-${g.key}`;
+                    const open = collapsed[groupId] === undefined ? gi === 0 : !collapsed[groupId];
+                    return (
+                      <div key={g.key} className="bg-slate-50 border border-slate-200 rounded-3xl overflow-hidden">
+                        <button onClick={() => toggleCollapse(groupId)} className="w-full p-4 flex items-center justify-between gap-3 text-left active:bg-slate-100">
+                          <div>
+                            <div className="text-base font-black text-slate-900">{g.title}</div>
+                            <div className="text-[11px] font-bold text-slate-500 mt-1">{g.items.length} 筆紀錄｜當月紀錄資產平均約 ${money(g.total / Math.max(g.items.length, 1))}</div>
                           </div>
-                        )}
-                        <div className="bg-white border border-slate-200 rounded-2xl p-3">
-                          <div className="text-[10px] font-black text-slate-500 mb-2">持股股數快照</div>
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">QQQ 股數</div><div className="font-mono font-black">{Number(r.holdings?.qqq?.qty || 0).toLocaleString(undefined,{maximumFractionDigits:4})}</div></div>
-                            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">TQQQ 股數</div><div className="font-mono font-black">{Number(r.holdings?.tqqq?.qty || 0).toLocaleString(undefined,{maximumFractionDigits:4})}</div></div>
-                            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">SPMO 股數</div><div className="font-mono font-black">{Number(r.holdings?.spmo?.qty || 0).toLocaleString(undefined,{maximumFractionDigits:4})}</div></div>
-                            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">BOXX 股數</div><div className="font-mono font-black">{Number(r.holdings?.boxx?.qty || 0).toLocaleString(undefined,{maximumFractionDigits:4})}</div></div>
-                            <div className="col-span-2 bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">現金</div><div className="font-mono font-black">${money(r.holdings?.cash?.value || 0)}</div></div>
-                          </div>
-                          {getArr(r.holdings?.satellites).length > 0 && (
-                            <div className="mt-2 space-y-1">
-                              {getArr(r.holdings?.satellites).map((s, idx) => <div key={idx} className="text-[11px] font-bold text-slate-500 bg-slate-50 rounded-xl px-3 py-2">{s.symbol || "衛星"}：{Number(s.qty || 0).toLocaleString(undefined,{maximumFractionDigits:4})} 股｜市值 ${money(s.value || 0)}</div>)}
-                            </div>
-                          )}
-                        </div>
-                        <div className="bg-white border border-slate-200 rounded-2xl p-3">
-                          <div className="text-[10px] font-black text-slate-500 mb-2">備註</div>
-                          <textarea
-                            value={r.note || ""}
-                            onChange={e => updateExecutionLog(r.id, { note: e.target.value })}
-                            placeholder="可補充實際成交價、手動調整原因、或當時自己的想法。"
-                            className="w-full min-h-[72px] bg-slate-50 border border-slate-200 rounded-2xl p-3 text-sm font-bold text-slate-800 leading-relaxed focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">QQQ 價格</div><div className="font-mono font-black">${money(r.qqq_price, 2)}</div></div>
-                          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">總資產</div><div className="font-mono font-black">${money(r.total)}</div></div>
-                          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">QQQ 目標</div><div className="font-mono font-black">{pct(r.target?.q)}</div></div>
-                          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">TQQQ 目標</div><div className="font-mono font-black">{pct(r.target?.tq)}</div></div>
-                          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">SPMO 目標</div><div className="font-mono font-black">{pct(r.target?.sm)}</div></div>
-                          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100"><div className="text-[10px] font-black text-slate-500">儲備目標</div><div className="font-mono font-black">{pct(r.target?.r)}</div></div>
-                        </div>
+                          <span className="shrink-0 text-[11px] font-black bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-xl">{open ? "收合" : "展開"}</span>
+                        </button>
+                        {open && <div className="p-3 pt-0 space-y-3">{g.items.map((r, i) => renderLogCard(r, `${g.key}-${i}`))}</div>}
                       </div>
-                    </details>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </Card>
@@ -1542,6 +1525,7 @@ ${metrics.actions.map(x => `- ${x}`).join("\n")}
         );
       };
 
+      /* -------------------- Advanced page -------------------- */
       const Advanced = () => (
         <main className="max-w-3xl mx-auto px-4 pt-20 content-bottom-space space-y-5">
           <AdvancedGroupTitle title="系統 / 跨裝置同步" desc="跨裝置同步、重新讀取與模式切換。" />
@@ -1630,7 +1614,6 @@ ${metrics.actions.map(x => `- ${x}`).join("\n")}
             </div>
           </CollapsibleCard>
 
-
           <AdvancedGroupTitle title="策略參數" desc="平常保持鎖定，需要調整規則時才解鎖。" />
           <CollapsibleCard id="tracking-detail" title="自動追蹤細節" desc="這裡是審計區。首頁只看摘要；你要確認系統到底參考哪個高點時，再來這裡。" right={ <button onClick={resetCycle} disabled={paramLocked} className={`text-xs font-black px-3 py-2 rounded-xl active:scale-95 ${paramLocked ? "bg-slate-100 text-slate-400" : "bg-slate-100 text-slate-700"}`}>重設循環</button> } defaultOpen={false}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1718,7 +1701,7 @@ ${metrics.actions.map(x => `- ${x}`).join("\n")}
                 <div className="w-10 h-10 rounded-2xl bg-slate-950 flex items-center justify-center text-brand-400 font-black text-xl">A</div>
                 <div className="min-w-0">
                   <div className="font-black leading-tight truncate">Alpha Horizon Pro</div>
-                  <div className="text-[10px] font-black text-brand-600 tracking-widest">Aggressive v1.3</div>
+                  <div className="text-[10px] font-black text-brand-600 tracking-widest">Aggressive v2.0 Clean</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
